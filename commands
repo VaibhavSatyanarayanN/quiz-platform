@@ -3,7 +3,7 @@ docker-compose up -d
 docker-compose ps
 
 Test:
-docker exec -it quiz-postgres psql -U quiz_user -d quiz_platform
+docker exec -it quiz-postgres psql -U TestUser -d quiz_platform
 docker exec -it quiz-redis redis-cli
 
 npm run dev  -> UI
