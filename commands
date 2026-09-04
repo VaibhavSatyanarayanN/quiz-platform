@@ -1,0 +1,11 @@
+docker-compose up -d
+
+docker-compose ps
+
+Test:
+docker exec -it quiz-postgres psql -U quiz_user -d quiz_platform
+docker exec -it quiz-redis redis-cli
+
+npm run dev  -> UI
+uvicorn app.main:app --reload --port 8000 -> AI 
+npm run start -> API
