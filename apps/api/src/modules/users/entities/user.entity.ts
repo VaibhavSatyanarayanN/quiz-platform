@@ -11,17 +11,27 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({
-    unique: true,
-  })
+  @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ unique: true })
+  username: string;
+
+  @Column({ name: 'password_hash' })
   passwordHash: string;
 
-  @CreateDateColumn()
+  @Column({
+    type: 'varchar',
+    default: 'user',
+  })
+  role: string;
+
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
+
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
