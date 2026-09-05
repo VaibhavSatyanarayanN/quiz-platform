@@ -5,6 +5,8 @@ import { AppController } from './app.controller.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { UsersModule } from './modules/users/user.module.js';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { UsersController } from './modules/users/users.controller.js';
 
 @Module({
   imports: [
@@ -13,9 +15,10 @@ import { ConfigModule } from '@nestjs/config';
     }),
     HealthModule,
     DatabaseModule,
-    UsersModule
+    UsersModule,
+    AuthModule
   ],
-  controllers: [AppController],
+  controllers: [AppController, UsersController],
   providers: [AppService],
 })
 export class AppModule {}
