@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Session } from './entities/session.entity.js';
 import { Repository } from 'typeorm/repository/Repository.js';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm/data-source/index.js';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,8 @@ export class AuthService {
 
     @InjectRepository(Session)
     private readonly sessionRepository: Repository<Session>,
+
+    private readonly dataSource: DataSource, //used to create a transaction for refresh token rotation or atomic operations
   ) { }
 
   private generateRefreshToken(): string {
@@ -124,5 +127,74 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async refresh(refreshToken: string) {
+    const refreshTokenHash =
+      this.hashRefreshToken(refreshToken);
+
+    const session = await this.sessionRepository.findOne({
+      where: {
+        refreshTokenHash,
+      },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (session.revokedAt) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (session.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.userService.findById(session.userId);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: user.id,
+      role: user.role,
+    });
+
+    const newRefreshToken = this.generateRefreshToken();
+
+    const newRefreshTokenHash =
+      this.hashRefreshToken(newRefreshToken);
+
+    const result = await this.dataSource.transaction(
+      async (manager) => {
+        const sessionRepository =
+          manager.getRepository(Session);
+
+        session.revokedAt = new Date();
+        session.lastUsedAt = new Date();
+
+        const newSession = sessionRepository.create({
+          userId: user.id,
+          refreshTokenHash: newRefreshTokenHash,
+          expiresAt: this.getRefreshTokenExpiry(),
+        });
+
+        const savedSession =
+          await sessionRepository.save(newSession);
+
+        session.replacedBySessionId = savedSession.id;
+
+        await sessionRepository.save(session);
+
+        return {
+          accessToken,
+          refreshToken: newRefreshToken,
+        };
+      },
+    );
+
+    return result;
   }
 }

@@ -31,6 +31,9 @@ export class Session {
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt: Date | null;
 
+  @Column({ name: 'replaced_by_session_id', type: 'uuid', nullable: true, })
+  replacedBySessionId: string | null;
+
   @Column({ name: 'last_used_at', type: 'timestamptz', nullable: true })
   lastUsedAt: Date | null;
 
