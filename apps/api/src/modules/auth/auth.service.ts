@@ -13,6 +13,7 @@ import { Session } from './entities/session.entity.js';
 import { Repository } from 'typeorm/repository/Repository.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm/data-source/index.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
 
 @Injectable()
 export class AuthService {
@@ -69,6 +70,7 @@ export class AuthService {
       email,
       username,
       passwordHash,
+      role: UserRole.USER,
     });
 
     return {
