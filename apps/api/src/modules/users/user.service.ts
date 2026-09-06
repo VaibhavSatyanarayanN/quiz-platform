@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity.js';
+import { UserRole } from './enums/user-role.enum.js';
 
 @Injectable()
 export class UserService {
@@ -26,6 +27,23 @@ export class UserService {
     return this.userRepository.findOne({
       where: { id },
     });
+  }
+
+  async updateRole(
+    userId: string,
+    role: UserRole,
+  ) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    user.role = role;
+
+    return this.userRepository.save(user);
   }
 
   create(data: Partial<User>) {

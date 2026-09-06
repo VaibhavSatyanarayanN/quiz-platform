@@ -7,6 +7,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from './types/authenticated-user.type.js';
 import { Public } from './decorators/public.decorator.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
+import { Roles } from './decorators/roles.decorator.js';
 
 @Controller('auth')
 export class AuthController {
@@ -33,5 +35,13 @@ export class AuthController {
     @Get('me')
     getMe(@CurrentUser() user: AuthenticatedUser) {
         return user;
+    }
+
+    @Roles(UserRole.ADMIN)
+    @Get('admin-test')
+    adminTest() {
+        return {
+            message: 'You are an admin',
+        };
     }
 }
