@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity.js';
@@ -32,13 +32,23 @@ export class UserService {
   async updateRole(
     userId: string,
     role: UserRole,
+    requestingUserId: string,
   ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
 
     if (!user) {
-      return null;
+      throw new NotFoundException('User not found');
+    }
+
+    if (
+      user.role === UserRole.ADMIN &&
+      user.id !== requestingUserId
+    ) {
+      throw new ForbiddenException(
+        'Cannot modify another administrator',
+      );
     }
 
     user.role = role;
