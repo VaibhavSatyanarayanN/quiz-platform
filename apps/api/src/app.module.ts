@@ -10,6 +10,7 @@ import { UsersController } from './modules/users/users.controller.js';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './modules/auth/guards/roles.guard.js';
+import { QuizModule } from './modules/quizzes/quiz.module.js';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { RolesGuard } from './modules/auth/guards/roles.guard.js';
     HealthModule,
     DatabaseModule,
     UsersModule,
-    AuthModule
+    AuthModule,
+    QuizModule
   ],
   controllers: [AppController, UsersController],
   providers: [AppService,
