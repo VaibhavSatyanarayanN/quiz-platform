@@ -7,6 +7,9 @@ import { QuizService } from './quizzes.service.js';
 import { QuizController } from './quizzes.controller.js';
 import { Question } from './entities/question.entity.js';
 import { Option } from './entities/option.entity.js';
+import { QuizAttempt } from './entities/quiz-attempt.entity.js';
+import { Answer } from './entities/answer.entity.js';
+import { AnswerOption } from './entities/answer-option.entity.js';
 
 @Module({
   imports: [
@@ -14,10 +17,13 @@ import { Option } from './entities/option.entity.js';
       Quiz,
       QuizVersion,
       Question,
-      Option
+      Option,
+      QuizAttempt,
+      Answer,
+      AnswerOption,
     ]),
   ],
   controllers: [QuizController],
   providers: [QuizService],
 })
-export class QuizModule {}
+export class QuizModule { }

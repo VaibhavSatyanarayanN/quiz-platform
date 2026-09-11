@@ -8,7 +8,7 @@ import { Type } from 'class-transformer';
 
 import { CreateQuestionDto } from './create-question.dto.js';
 
-export class CreateBulkQuestionsDto {
+export class BulkSaveQuestionsDto {
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -3,7 +3,9 @@ import {
     IsArray,
     IsEnum,
     IsInt,
+    IsOptional,
     IsString,
+    IsUUID,
     Length,
     Min,
     ValidateNested,
@@ -15,6 +17,10 @@ import { QuestionType } from '../enums/question-type.enum.js';
 import { CreateOptionDto } from './create-option.dto.js';
 
 export class CreateQuestionDto {
+    @IsOptional()
+    @IsUUID()
+    id?: string;
+
     @IsString()
     @Length(1, 5000)
     text: string;
