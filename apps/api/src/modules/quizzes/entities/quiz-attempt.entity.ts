@@ -2,6 +2,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    Index,
     JoinColumn,
     ManyToOne,
     PrimaryGeneratedColumn,
@@ -13,6 +14,14 @@ import { Quiz } from './quiz.entity.js';
 import { QuizVersion } from './quiz-version.entity.js';
 import { AttemptStatus } from '../enums/attempt-status.enum.js';
 
+@Index(
+    'UQ_active_attempt_user_version',
+    ['userId', 'quizVersionId'],
+    {
+        unique: true,
+        where: `"status" = 'in_progress'`,
+    },
+)
 @Entity('quiz_attempts')
 export class QuizAttempt {
     @PrimaryGeneratedColumn('uuid')
