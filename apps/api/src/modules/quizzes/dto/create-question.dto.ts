@@ -30,10 +30,6 @@ export class CreateQuestionDto {
 
     @IsInt()
     @Min(1)
-    order: number;
-
-    @IsInt()
-    @Min(1)
     marks: number;
 
     @IsArray()

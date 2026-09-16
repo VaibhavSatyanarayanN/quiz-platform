@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 
 import { QuizService } from './quizzes.service.js';
@@ -14,6 +15,8 @@ import { BulkSaveQuestionsDto } from './dto/bulk-save-questions.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
+import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
+import { UpdateQuizDto } from './dto/update-quiz.dto.js';
 
 @Controller('quizzes')
 export class QuizController {
@@ -130,6 +133,52 @@ export class QuizController {
     return this.quizService.getAttemptResult(
       attemptId,
       user.userId,
+    );
+  }
+
+  @Get(':quizId/attempts')
+  getAttemptHistory(
+    @Param('quizId') quizId: string,
+    @Query() query: AttemptHistoryQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getAttemptHistory(
+      quizId,
+      user.userId,
+      query,
+    );
+  }
+
+  @Get()
+  getCreatorQuizzes(
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getCreatorQuizzes(
+      user.userId,
+    );
+  }
+
+  @Get(':quizId')
+  getCreatorQuizDetails(
+    @Param('quizId') quizId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getCreatorQuizDetails(
+      quizId,
+      user.userId,
+    );
+  }
+
+  @Patch(':quizId')
+  updateQuiz(
+    @Param('quizId') quizId: string,
+    @Body() dto: UpdateQuizDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.updateQuiz(
+      quizId,
+      user.userId,
+      dto,
     );
   }
 }

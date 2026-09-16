@@ -19,8 +19,4 @@ export class CreateOptionDto {
 
   @IsBoolean()
   isCorrect: boolean;
-
-  @IsInt()
-  @Min(1)
-  order: number;
 }

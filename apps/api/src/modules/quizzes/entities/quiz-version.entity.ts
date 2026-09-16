@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,14 @@ import {
 import { Quiz } from './quiz.entity.js';
 import { QuizVersionStatus } from '../enums/quiz-version-status.enum.js';
 
+@Index(
+  'UQ_one_draft_version_per_quiz',
+  ['quizId'],
+  {
+    unique: true,
+    where: `"status" = 'draft'`,
+  },
+)
 @Entity('quiz_versions')
 @Unique('UQ_quiz_version_number', ['quizId', 'version'])
 export class QuizVersion {

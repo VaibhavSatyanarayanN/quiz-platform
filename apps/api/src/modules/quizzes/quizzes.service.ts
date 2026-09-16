@@ -23,6 +23,17 @@ import {
   AttemptQuestionResponseDto,
   AttemptResponseDto,
 } from './dto/attempt-response.dto.js';
+import { AttemptResultResponseDto } from './dto/attempt-result-response.dto.js';
+import {
+  AttemptHistoryItemDto,
+  AttemptHistoryResponseDto,
+} from './dto/attempt-history.dto.js';
+
+import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
+import { CreatorQuizListItemDto, CreatorQuizListResponseDto } from './dto/creator-quiz-list.dto.js';
+import { CreatorOptionResponseDto, CreatorQuestionResponseDto, CreatorQuizDetailsResponseDto, CreatorQuizVersionResponseDto } from './dto/creator-quiz-details.dto.js';
+import { UpdateQuizDto } from './dto/update-quiz.dto.js';
+import { QuizResponseDto } from './dto/quiz-response.dto.js';
 
 @Injectable()
 export class QuizService {
@@ -40,6 +51,9 @@ export class QuizService {
 
     @InjectRepository(Option)
     private readonly optionRepository: Repository<Option>,
+
+    @InjectRepository(QuizAttempt)
+    private readonly quizAttemptRepository: Repository<QuizAttempt>,
   ) { }
 
   async createQuiz(
@@ -92,27 +106,34 @@ export class QuizService {
     return this.dataSource.transaction(
       async (manager) => {
         // 1. Verify quiz ownership
-        const quiz = await manager.findOne(Quiz, {
-          where: {
-            id: quizId,
-            creatorId,
-          },
-        });
-
-        if (!quiz) {
-          throw new NotFoundException('Quiz not found');
-        }
-
-        // 2. Verify version belongs to this quiz
-        const version = await manager.findOne(
-          QuizVersion,
+        const quiz = await manager.findOne(
+          Quiz,
           {
             where: {
-              id: quizVersionId,
-              quizId,
+              id: quizId,
+              creatorId,
             },
           },
         );
+
+        if (!quiz) {
+          throw new NotFoundException(
+            'Quiz not found',
+          );
+        }
+
+        // 2. Verify version belongs
+        //    to this quiz
+        const version =
+          await manager.findOne(
+            QuizVersion,
+            {
+              where: {
+                id: quizVersionId,
+                quizId,
+              },
+            },
+          );
 
         if (!version) {
           throw new NotFoundException(
@@ -120,69 +141,124 @@ export class QuizService {
           );
         }
 
-        // 3. Only draft versions can be modified
+        // 3. Only draft versions
+        //    can be modified
         if (
-          version.status !== QuizVersionStatus.DRAFT
+          version.status !==
+          QuizVersionStatus.DRAFT
         ) {
           throw new BadRequestException(
             'Questions can only be modified in a draft version',
           );
         }
 
-        // 4. Validate the complete payload
+        // 4. Validate payload
         this.validateBulkQuestions(dto);
 
         // 5. Load existing questions
         const existingQuestions =
-          await manager.find(Question, {
-            where: {
-              quizVersionId: version.id,
+          await manager.find(
+            Question,
+            {
+              where: {
+                quizVersionId:
+                  version.id,
+              },
             },
-          });
+          );
 
         const existingQuestionIds =
           new Set(
             existingQuestions.map(
-              (question) => question.id,
+              (
+                question,
+              ) => question.id,
             ),
           );
 
         const incomingQuestionIds =
           new Set(
             dto.questions
-              .filter((question) => question.id)
-              .map((question) => question.id!),
+              .filter(
+                (question) =>
+                  question.id,
+              )
+              .map(
+                (question) =>
+                  question.id!,
+              ),
           );
 
-        // 6. Delete questions removed from payload
+        // 6. Validate that every
+        //    supplied question ID belongs
+        //    to this version
+        for (
+          const question of dto.questions
+        ) {
+          if (
+            question.id &&
+            !existingQuestionIds.has(
+              question.id,
+            )
+          ) {
+            throw new BadRequestException(
+              `Question ${question.id} does not belong to this quiz version`,
+            );
+          }
+        }
+
+        // 7. Delete questions removed
+        //    from the payload
         const questionsToDelete =
           existingQuestions.filter(
             (question) =>
-              !incomingQuestionIds.has(question.id),
+              !incomingQuestionIds.has(
+                question.id,
+              ),
           );
 
-        for (const question of questionsToDelete) {
-          await manager.delete(Option, {
-            questionId: question.id,
-          });
+        for (
+          const question of
+          questionsToDelete
+        ) {
+          await manager.delete(
+            Option,
+            {
+              questionId:
+                question.id,
+            },
+          );
 
-          await manager.delete(Question, {
-            id: question.id,
-          });
+          await manager.delete(
+            Question,
+            {
+              id: question.id,
+            },
+          );
         }
 
-        // 7. Temporarily move existing question orders
-        //    to avoid unique constraint conflicts during reorder
+        // 8. Temporarily move existing
+        //    question orders
+        //
+        // This prevents conflicts with
+        // the unique (quizVersionId, order)
+        // constraint while reordering.
         const orderOffset =
           existingQuestions.length +
           dto.questions.length +
           1000;
 
-        for (const question of existingQuestions) {
+        for (
+          const question of
+          existingQuestions
+        ) {
           if (
-            incomingQuestionIds.has(question.id)
+            incomingQuestionIds.has(
+              question.id,
+            )
           ) {
-            question.order += orderOffset;
+            question.order +=
+              orderOffset;
 
             await manager.save(
               Question,
@@ -191,53 +267,75 @@ export class QuizService {
           }
         }
 
-        const savedQuestions: Question[] = [];
+        const savedQuestions: Question[] =
+          [];
 
-        const questionMap = new Map<
-          string,
-          Question
-        >();
+        const questionMap =
+          new Map<
+            string,
+            Question
+          >();
 
-        // 8. Create/update questions
-        for (const questionDto of dto.questions) {
+        // 9. Create/update questions
+        //
+        // IMPORTANT:
+        // Array position becomes
+        // the authoritative order.
+        for (
+          let index = 0;
+          index < dto.questions.length;
+          index++
+        ) {
+          const questionDto =
+            dto.questions[index];
+
+          const normalizedOrder =
+            index + 1;
+
           let question: Question;
 
           if (questionDto.id) {
-            if (
-              !existingQuestionIds.has(
-                questionDto.id,
-              )
-            ) {
-              throw new BadRequestException(
-                `Question ${questionDto.id} does not belong to this quiz version`,
-              );
-            }
-
             question =
               existingQuestions.find(
-                (item) =>
-                  item.id === questionDto.id,
+                (
+                  item,
+                ) =>
+                  item.id ===
+                  questionDto.id,
               )!;
 
-            question.text = questionDto.text;
+            question.text =
+              questionDto.text;
+
             question.questionType =
               questionDto.questionType;
+
             question.order =
-              questionDto.order;
+              normalizedOrder;
+
             question.marks =
               questionDto.marks;
           } else {
-            question = manager.create(
-              Question,
-              {
-                quizVersionId: version.id,
-                text: questionDto.text,
-                questionType:
-                  questionDto.questionType,
-                order: questionDto.order,
-                marks: questionDto.marks,
-              },
-            );
+            question =
+              manager.create(
+                Question,
+                {
+                  quizVersionId:
+                    version.id,
+
+                  text:
+                    questionDto.text,
+
+                  questionType:
+                    questionDto.questionType,
+
+                  order:
+                    normalizedOrder,
+
+                  marks:
+                    questionDto.marks,
+                },
+              );
           }
 
           const savedQuestion =
@@ -246,10 +344,13 @@ export class QuizService {
               question,
             );
 
-          savedQuestions.push(savedQuestion);
+          savedQuestions.push(
+            savedQuestion,
+          );
 
           const questionKey =
-            questionDto.id ?? `new-${questionDto.order}`;
+            questionDto.id ??
+            `new-${index}`;
 
           questionMap.set(
             questionKey,
@@ -257,13 +358,26 @@ export class QuizService {
           );
         }
 
-        // 9. Process options for every question
-        for (const questionDto of dto.questions) {
+        // 10. Process options
+        for (
+          let questionIndex = 0;
+          questionIndex <
+          dto.questions.length;
+          questionIndex++
+        ) {
+          const questionDto =
+            dto.questions[
+            questionIndex
+            ];
+
           const questionKey =
-            questionDto.id ?? `new-${questionDto.order}`;
+            questionDto.id ??
+            `new-${questionIndex}`;
 
           const savedQuestion =
-            questionMap.get(questionKey);
+            questionMap.get(
+              questionKey,
+            );
 
           if (!savedQuestion) {
             throw new BadRequestException(
@@ -273,46 +387,94 @@ export class QuizService {
 
           // Load existing options
           const existingOptions =
-            await manager.find(Option, {
-              where: {
-                questionId: savedQuestion.id,
+            await manager.find(
+              Option,
+              {
+                where: {
+                  questionId:
+                    savedQuestion.id,
+                },
               },
-            });
+            );
 
-          const existingOptionIds = new Set(
-            existingOptions.map(
-              (option) => option.id,
-            ),
-          );
+          const existingOptionIds =
+            new Set(
+              existingOptions.map(
+                (
+                  option,
+                ) => option.id,
+              ),
+            );
 
-          const incomingOptionIds = new Set(
+          const incomingOptionIds =
+            new Set(
+              questionDto.options
+                .filter(
+                  (option) =>
+                    option.id,
+                )
+                .map(
+                  (option) =>
+                    option.id!,
+                ),
+            );
+
+          // Validate option ownership
+          for (
+            const option of
             questionDto.options
-              .filter((option) => option.id)
-              .map((option) => option.id!),
-          );
+          ) {
+            if (
+              option.id &&
+              !existingOptionIds.has(
+                option.id,
+              )
+            ) {
+              throw new BadRequestException(
+                `Option ${option.id} does not belong to question ${savedQuestion.id}`,
+              );
+            }
+          }
 
           // Delete removed options
           const optionsToDelete =
             existingOptions.filter(
               (option) =>
-                !incomingOptionIds.has(option.id),
+                !incomingOptionIds.has(
+                  option.id,
+                ),
             );
 
-          for (const option of optionsToDelete) {
-            await manager.delete(Option, {
-              id: option.id,
-            });
+          for (
+            const option of
+            optionsToDelete
+          ) {
+            await manager.delete(
+              Option,
+              {
+                id: option.id,
+              },
+            );
           }
 
-          // Temporarily shift option orders
+          // Temporarily move existing
+          // option orders
           const optionOrderOffset =
             existingOptions.length +
             questionDto.options.length +
             1000;
 
-          for (const option of existingOptions) {
-            if (incomingOptionIds.has(option.id)) {
-              option.order += optionOrderOffset;
+          for (
+            const option of
+            existingOptions
+          ) {
+            if (
+              incomingOptionIds.has(
+                option.id,
+              )
+            ) {
+              option.order +=
+                optionOrderOffset;
 
               await manager.save(
                 Option,
@@ -322,41 +484,61 @@ export class QuizService {
           }
 
           // Create/update options
-          for (const optionDto of questionDto.options) {
+          //
+          // Array position becomes
+          // the authoritative order.
+          for (
+            let optionIndex = 0;
+            optionIndex <
+            questionDto.options.length;
+            optionIndex++
+          ) {
+            const optionDto =
+              questionDto.options[
+              optionIndex
+              ];
+
+            const normalizedOrder =
+              optionIndex + 1;
+
             let option: Option;
 
             if (optionDto.id) {
-              if (
-                !existingOptionIds.has(
-                  optionDto.id,
-                )
-              ) {
-                throw new BadRequestException(
-                  `Option ${optionDto.id} does not belong to question ${savedQuestion.id}`,
-                );
-              }
-
               option =
                 existingOptions.find(
-                  (item) =>
-                    item.id === optionDto.id,
+                  (
+                    item,
+                  ) =>
+                    item.id ===
+                    optionDto.id,
                 )!;
 
-              option.text = optionDto.text;
+              option.text =
+                optionDto.text;
+
               option.isCorrect =
                 optionDto.isCorrect;
+
               option.order =
-                optionDto.order;
+                normalizedOrder;
             } else {
-              option = manager.create(
-                Option,
-                {
-                  questionId: savedQuestion.id,
-                  text: optionDto.text,
-                  isCorrect: optionDto.isCorrect,
-                  order: optionDto.order,
-                },
-              );
+              option =
+                manager.create(
+                  Option,
+                  {
+                    questionId:
+                      savedQuestion.id,
+
+                    text:
+                      optionDto.text,
+
+                    isCorrect:
+                      optionDto.isCorrect,
+
+                    order:
+                      normalizedOrder,
+                  },
+                );
             }
 
             await manager.save(
@@ -368,8 +550,10 @@ export class QuizService {
 
         return {
           quizId: quiz.id,
-          quizVersionId: version.id,
-          questions: savedQuestions,
+          quizVersionId:
+            version.id,
+          questions:
+            savedQuestions,
         };
       },
     );
@@ -377,15 +561,18 @@ export class QuizService {
 
   private validateBulkQuestions(
     dto: BulkSaveQuestionsDto,
-  ) {
-    const questionOrders = new Set<number>();
+  ): void {
     const questionIds = new Set<string>();
     const optionIds = new Set<string>();
 
-    for (const question of dto.questions) {
-      // Question ID must not appear twice
+    for (
+      const question of dto.questions
+    ) {
+      // Validate question IDs
       if (question.id) {
-        if (questionIds.has(question.id)) {
+        if (
+          questionIds.has(question.id)
+        ) {
           throw new BadRequestException(
             `Duplicate question ID: ${question.id}`,
           );
@@ -394,22 +581,14 @@ export class QuizService {
         questionIds.add(question.id);
       }
 
-      // Question order must be unique
-      if (questionOrders.has(question.order)) {
-        throw new BadRequestException(
-          `Duplicate question order: ${question.order}`,
-        );
-      }
-
-      questionOrders.add(question.order);
-
       // Validate options
-      const optionOrders = new Set<number>();
-
-      for (const option of question.options) {
-        // Option ID must not appear twice
+      for (
+        const option of question.options
+      ) {
         if (option.id) {
-          if (optionIds.has(option.id)) {
+          if (
+            optionIds.has(option.id)
+          ) {
             throw new BadRequestException(
               `Duplicate option ID: ${option.id}`,
             );
@@ -417,15 +596,6 @@ export class QuizService {
 
           optionIds.add(option.id);
         }
-
-        // Option order must be unique
-        if (optionOrders.has(option.order)) {
-          throw new BadRequestException(
-            `Duplicate option order in question ${question.order}`,
-          );
-        }
-
-        optionOrders.add(option.order);
       }
 
       // Validate correct-answer rules
@@ -434,33 +604,43 @@ export class QuizService {
           (option) => option.isCorrect,
         );
 
-      switch (question.questionType) {
+      switch (
+      question.questionType
+      ) {
         case QuestionType.SINGLE_CHOICE:
-          if (correctOptions.length !== 1) {
+          if (
+            correctOptions.length !== 1
+          ) {
             throw new BadRequestException(
-              `Question ${question.order} must have exactly one correct option`,
+              'Single-choice questions must have exactly one correct option',
             );
           }
           break;
 
         case QuestionType.MULTIPLE_CHOICE:
-          if (correctOptions.length < 1) {
+          if (
+            correctOptions.length < 1
+          ) {
             throw new BadRequestException(
-              `Question ${question.order} must have at least one correct option`,
+              'Multiple-choice questions must have at least one correct option',
             );
           }
           break;
 
         case QuestionType.TRUE_FALSE:
-          if (question.options.length !== 2) {
+          if (
+            question.options.length !== 2
+          ) {
             throw new BadRequestException(
-              `Question ${question.order} must have exactly two options`,
+              'True/false questions must have exactly two options',
             );
           }
 
-          if (correctOptions.length !== 1) {
+          if (
+            correctOptions.length !== 1
+          ) {
             throw new BadRequestException(
-              `Question ${question.order} must have exactly one correct option`,
+              'True/false questions must have exactly one correct option',
             );
           }
           break;
@@ -584,12 +764,15 @@ export class QuizService {
     return this.dataSource.transaction(
       async (manager) => {
         // 1. Verify quiz ownership
-        const quiz = await manager.findOne(Quiz, {
-          where: {
-            id: quizId,
-            creatorId,
+        const quiz = await manager.findOne(
+          Quiz,
+          {
+            where: {
+              id: quizId,
+              creatorId,
+            },
           },
-        });
+        );
 
         if (!quiz) {
           throw new NotFoundException(
@@ -597,13 +780,35 @@ export class QuizService {
           );
         }
 
-        // 2. Find the latest version
+        // 2. Check whether a draft version
+        //    already exists
+        const existingDraft =
+          await manager.findOne(
+            QuizVersion,
+            {
+              where: {
+                quizId: quiz.id,
+                status:
+                  QuizVersionStatus.DRAFT,
+              },
+            },
+          );
+
+        if (existingDraft) {
+          throw new BadRequestException(
+            'A draft version already exists for this quiz',
+          );
+        }
+
+        // 3. Find the latest published version
         const latestVersion =
           await manager.findOne(
             QuizVersion,
             {
               where: {
                 quizId: quiz.id,
+                status:
+                  QuizVersionStatus.PUBLISHED,
               },
               order: {
                 version: 'DESC',
@@ -612,33 +817,24 @@ export class QuizService {
           );
 
         if (!latestVersion) {
-          throw new NotFoundException(
-            'Quiz version not found',
-          );
-        }
-
-        // 3. Only create a new version
-        //    from a published version
-        if (
-          latestVersion.status !==
-          QuizVersionStatus.PUBLISHED
-        ) {
           throw new BadRequestException(
-            'A new version can only be created from a published version',
+            'A new version can only be created after a version has been published',
           );
         }
 
-        // 4. Create the new version
-        const newVersion = manager.create(
-          QuizVersion,
-          {
-            quizId: quiz.id,
-            version:
-              latestVersion.version + 1,
-            status:
-              QuizVersionStatus.DRAFT,
-          },
-        );
+        // 4. Create the new draft version
+        const newVersion =
+          manager.create(
+            QuizVersion,
+            {
+              quizId: quiz.id,
+              version:
+                latestVersion.version + 1,
+              status:
+                QuizVersionStatus.DRAFT,
+              publishedAt: null,
+            },
+          );
 
         const savedVersion =
           await manager.save(
@@ -646,30 +842,43 @@ export class QuizService {
             newVersion,
           );
 
-        // 5. Load questions from previous version
+        // 5. Load questions from the
+        //    latest published version
         const previousQuestions =
-          await manager.find(Question, {
-            where: {
-              quizVersionId:
-                latestVersion.id,
+          await manager.find(
+            Question,
+            {
+              where: {
+                quizVersionId:
+                  latestVersion.id,
+              },
+              order: {
+                order: 'ASC',
+              },
             },
-            order: {
-              order: 'ASC',
-            },
-          });
+          );
 
-        // 6. Copy questions + options
-        for (const previousQuestion of previousQuestions) {
+        // 6. Copy questions
+        for (
+          const previousQuestion of
+          previousQuestions
+        ) {
           const newQuestion =
-            manager.create(Question, {
-              quizVersionId:
-                savedVersion.id,
-              text: previousQuestion.text,
-              questionType:
-                previousQuestion.questionType,
-              order: previousQuestion.order,
-              marks: previousQuestion.marks,
-            });
+            manager.create(
+              Question,
+              {
+                quizVersionId:
+                  savedVersion.id,
+                text:
+                  previousQuestion.text,
+                questionType:
+                  previousQuestion.questionType,
+                order:
+                  previousQuestion.order,
+                marks:
+                  previousQuestion.marks,
+              },
+            );
 
           const savedQuestion =
             await manager.save(
@@ -677,27 +886,41 @@ export class QuizService {
               newQuestion,
             );
 
+          // 7. Load options belonging
+          //    to the previous question
           const previousOptions =
-            await manager.find(Option, {
-              where: {
-                questionId:
-                  previousQuestion.id,
+            await manager.find(
+              Option,
+              {
+                where: {
+                  questionId:
+                    previousQuestion.id,
+                },
+                order: {
+                  order: 'ASC',
+                },
               },
-              order: {
-                order: 'ASC',
-              },
-            });
+            );
 
-          for (const previousOption of previousOptions) {
+          // 8. Copy options
+          for (
+            const previousOption of
+            previousOptions
+          ) {
             const newOption =
-              manager.create(Option, {
-                questionId:
-                  savedQuestion.id,
-                text: previousOption.text,
-                isCorrect:
-                  previousOption.isCorrect,
-                order: previousOption.order,
-              });
+              manager.create(
+                Option,
+                {
+                  questionId:
+                    savedQuestion.id,
+                  text:
+                    previousOption.text,
+                  isCorrect:
+                    previousOption.isCorrect,
+                  order:
+                    previousOption.order,
+                },
+              );
 
             await manager.save(
               Option,
@@ -706,16 +929,18 @@ export class QuizService {
           }
         }
 
+        // 9. Return useful information
         return {
           quizId: quiz.id,
           previousVersionId:
             latestVersion.id,
+          previousVersion:
+            latestVersion.version,
           version: savedVersion,
         };
       },
     );
   }
-
   async startAttempt(
     quizId: string,
     quizVersionId: string,
@@ -1219,17 +1444,17 @@ export class QuizService {
     userId: string,
   ): Promise<AttemptResponseDto> {
     return this.dataSource.transaction(
-      async (manager) => {
-        const attempt =
-          await manager.findOne(
-            QuizAttempt,
-            {
-              where: {
-                id: attemptId,
-                userId,
-              },
+      async (manager): Promise<AttemptResponseDto> => {
+        // 1. Find the attempt belonging to the current user
+        const attempt = await manager.findOne(
+          QuizAttempt,
+          {
+            where: {
+              id: attemptId,
+              userId,
             },
-          );
+          },
+        );
 
         if (!attempt) {
           throw new NotFoundException(
@@ -1237,8 +1462,11 @@ export class QuizService {
           );
         }
 
-        const questions =
-          await manager.find(Question, {
+        // 2. Load all questions from the exact
+        //    quiz version used by this attempt
+        const questions = await manager.find(
+          Question,
+          {
             where: {
               quizVersionId:
                 attempt.quizVersionId,
@@ -1246,21 +1474,28 @@ export class QuizService {
             order: {
               order: 'ASC',
             },
-          });
+          },
+        );
 
-        const answers =
-          await manager.find(Answer, {
+        // 3. Load all answers belonging
+        //    to this attempt
+        const answers = await manager.find(
+          Answer,
+          {
             where: {
               attemptId: attempt.id,
             },
-          });
+          },
+        );
 
+        // 4. Get all answer IDs
         const answerIds: string[] =
           answers.map(
-            (answer: Answer) =>
-              answer.id,
+            (answer: Answer) => answer.id,
           );
 
+        // 5. Load selected options for
+        //    all answers
         const answerOptions: AnswerOption[] =
           answerIds.length > 0
             ? await manager.find(
@@ -1277,11 +1512,9 @@ export class QuizService {
             )
             : [];
 
+        // 6. Map question ID → selected option IDs
         const selectedOptionsMap =
-          new Map<
-            string,
-            string[]
-          >();
+          new Map<string, string[]>();
 
         for (
           const answer of answers
@@ -1308,11 +1541,14 @@ export class QuizService {
           );
         }
 
-        const result: AttemptQuestionResponseDto[] = [];
+        // 7. Build frontend-safe question response
+        const result: AttemptQuestionResponseDto[] =
+          [];
 
         for (
           const question of questions
         ) {
+          // Load options for this question
           const options: Option[] =
             await manager.find(
               Option,
@@ -1327,6 +1563,19 @@ export class QuizService {
               },
             );
 
+          // IMPORTANT:
+          // Do NOT expose isCorrect
+          const optionResponse: AttemptOptionResponseDto[] =
+            options.map(
+              (
+                option: Option,
+              ): AttemptOptionResponseDto => ({
+                id: option.id,
+                text: option.text,
+                order: option.order,
+              }),
+            );
+
           result.push({
             id: question.id,
             text: question.text,
@@ -1334,17 +1583,7 @@ export class QuizService {
               question.questionType,
             order: question.order,
             marks: question.marks,
-
-            options: options.map(
-              (
-                option: Option,
-              ) => ({
-                id: option.id,
-                text: option.text,
-                order: option.order,
-              }),
-            ),
-
+            options: optionResponse,
             selectedOptionIds:
               selectedOptionsMap.get(
                 question.id,
@@ -1352,6 +1591,7 @@ export class QuizService {
           });
         }
 
+        // 8. Return the API response
         return {
           attemptId: attempt.id,
           quizId: attempt.quizId,
@@ -1379,9 +1619,13 @@ export class QuizService {
   async getAttemptResult(
     attemptId: string,
     userId: string,
-  ) {
+  ): Promise<AttemptResultResponseDto> {
     return this.dataSource.transaction(
-      async (manager) => {
+      async (
+        manager,
+      ): Promise<AttemptResultResponseDto> => {
+        // 1. Find the attempt belonging
+        //    to the current user
         const attempt =
           await manager.findOne(
             QuizAttempt,
@@ -1399,6 +1643,8 @@ export class QuizService {
           );
         }
 
+        // 2. Result is available only
+        //    after submission
         if (
           attempt.status !==
           AttemptStatus.SUBMITTED
@@ -1408,6 +1654,31 @@ export class QuizService {
           );
         }
 
+        // 3. Load questions from the exact
+        //    quiz version used by this attempt
+        const questions =
+          await manager.find(
+            Question,
+            {
+              where: {
+                quizVersionId:
+                  attempt.quizVersionId,
+              },
+            },
+          );
+
+        // 4. Calculate total marks
+        const totalMarks: number =
+          questions.reduce(
+            (
+              total: number,
+              question: Question,
+            ): number =>
+              total + question.marks,
+            0,
+          );
+
+        // 5. Return the final result
         return {
           attemptId: attempt.id,
           quizId: attempt.quizId,
@@ -1415,6 +1686,7 @@ export class QuizService {
             attempt.quizVersionId,
           status: attempt.status,
           score: attempt.score,
+          totalMarks,
           correctAnswers:
             attempt.correctAnswers,
           wrongAnswers:
@@ -1430,5 +1702,311 @@ export class QuizService {
         };
       },
     );
+  }
+
+  async getAttemptHistory(
+    quizId: string,
+    userId: string,
+    query: AttemptHistoryQueryDto,
+  ): Promise<AttemptHistoryResponseDto> {
+    const page: number = query.page;
+    const limit: number = query.limit;
+
+    const skip: number =
+      (page - 1) * limit;
+
+    const [attempts, total] =
+      await this.quizAttemptRepository
+        .createQueryBuilder('attempt')
+        .innerJoin(
+          QuizVersion,
+          'version',
+          'version.id = attempt.quiz_version_id',
+        )
+        .where(
+          'attempt.quiz_id = :quizId',
+          {
+            quizId,
+          },
+        )
+        .andWhere(
+          'attempt.user_id = :userId',
+          {
+            userId,
+          },
+        )
+        .select([
+          'attempt.id',
+          'attempt.quiz_id',
+          'attempt.quiz_version_id',
+          'attempt.status',
+          'attempt.score',
+          'attempt.correct_answers',
+          'attempt.wrong_answers',
+          'attempt.unanswered',
+          'attempt.percentage',
+          'attempt.started_at',
+          'attempt.submitted_at',
+          'version.version',
+        ])
+        .orderBy(
+          'attempt.created_at',
+          'DESC',
+        )
+        .skip(skip)
+        .take(limit)
+        .getRawMany();
+
+    const items: AttemptHistoryItemDto[] =
+      attempts.map(
+        (
+          attempt: Record<string, unknown>,
+        ): AttemptHistoryItemDto => ({
+          attemptId:
+            attempt.attempt_id as string,
+
+          quizId:
+            attempt.attempt_quiz_id as string,
+
+          quizVersionId:
+            attempt.attempt_quiz_version_id as string,
+
+          version:
+            Number(attempt.version_version),
+
+          status:
+            attempt.attempt_status as AttemptStatus,
+
+          score:
+            attempt.attempt_score !== null
+              ? Number(attempt.attempt_score)
+              : null,
+
+          correctAnswers:
+            attempt.attempt_correct_answers !==
+              null
+              ? Number(
+                attempt.attempt_correct_answers,
+              )
+              : null,
+
+          wrongAnswers:
+            attempt.attempt_wrong_answers !== null
+              ? Number(
+                attempt.attempt_wrong_answers,
+              )
+              : null,
+
+          unanswered:
+            attempt.attempt_unanswered !== null
+              ? Number(
+                attempt.attempt_unanswered,
+              )
+              : null,
+
+          percentage:
+            attempt.attempt_percentage !== null
+              ? Number(
+                attempt.attempt_percentage,
+              )
+              : null,
+
+          startedAt:
+            attempt.attempt_started_at as Date,
+
+          submittedAt:
+            attempt.attempt_submitted_at as
+            | Date
+            | null,
+        }),
+      );
+
+    const totalPages: number =
+      Math.ceil(total / limit);
+
+    return {
+      items,
+      page,
+      limit,
+      total,
+      totalPages,
+    };
+  }
+
+  async getCreatorQuizzes(
+    creatorId: string,
+  ): Promise<CreatorQuizListResponseDto> {
+    const quizzes = await this.quizRepository.find({
+      where: {
+        creatorId,
+      },
+      order: {
+        updatedAt: 'DESC',
+      },
+    });
+
+    const items: CreatorQuizListItemDto[] =
+      quizzes.map(
+        (
+          quiz: Quiz,
+        ): CreatorQuizListItemDto => ({
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.description,
+          status: quiz.status,
+          createdAt: quiz.createdAt,
+          updatedAt: quiz.updatedAt,
+        }),
+      );
+
+    return {
+      items,
+    };
+  }
+
+  async getCreatorQuizDetails(
+    quizId: string,
+    creatorId: string,
+  ): Promise<CreatorQuizDetailsResponseDto> {
+    const quiz = await this.quizRepository.findOne({
+      where: {
+        id: quizId,
+        creatorId,
+      },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException(
+        'Quiz not found',
+      );
+    }
+
+    const versions =
+      await this.quizVersionRepository.find({
+        where: {
+          quizId: quiz.id,
+        },
+        order: {
+          version: 'DESC',
+        },
+      });
+
+    const versionResponses: CreatorQuizVersionResponseDto[] =
+      [];
+
+    for (const version of versions) {
+      const questions =
+        await this.questionRepository.find({
+          where: {
+            quizVersionId: version.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+
+      const questionResponses: CreatorQuestionResponseDto[] =
+        [];
+
+      for (const question of questions) {
+        const options =
+          await this.optionRepository.find({
+            where: {
+              questionId: question.id,
+            },
+            order: {
+              order: 'ASC',
+            },
+          });
+
+        const optionResponses: CreatorOptionResponseDto[] =
+          options.map(
+            (
+              option: Option,
+            ): CreatorOptionResponseDto => ({
+              id: option.id,
+              text: option.text,
+              isCorrect: option.isCorrect,
+              order: option.order,
+            }),
+          );
+
+        questionResponses.push({
+          id: question.id,
+          text: question.text,
+          questionType:
+            question.questionType,
+          order: question.order,
+          marks: question.marks,
+          options: optionResponses,
+        });
+      }
+
+      versionResponses.push({
+        id: version.id,
+        version: version.version,
+        status: version.status,
+        publishedAt: version.publishedAt,
+        createdAt: version.createdAt,
+        updatedAt: version.updatedAt,
+        questions: questionResponses,
+      });
+    }
+
+    return {
+      id: quiz.id,
+      title: quiz.title,
+      description: quiz.description,
+      status: quiz.status,
+      creatorId: quiz.creatorId,
+      createdAt: quiz.createdAt,
+      updatedAt: quiz.updatedAt,
+      versions: versionResponses,
+    };
+  }
+
+  async updateQuiz(
+    quizId: string,
+    creatorId: string,
+    dto: UpdateQuizDto,
+  ): Promise<QuizResponseDto> {
+    const quiz = await this.quizRepository.findOne({
+      where: {
+        id: quizId,
+        creatorId,
+      },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException(
+        'Quiz not found',
+      );
+    }
+
+    if (dto.title !== undefined) {
+      quiz.title = dto.title;
+    }
+
+    if (dto.description !== undefined) {
+      quiz.description =
+        dto.description;
+    }
+
+    const savedQuiz =
+      await this.quizRepository.save(quiz);
+
+    return {
+      id: savedQuiz.id,
+      title: savedQuiz.title,
+      description:
+        savedQuiz.description,
+      status: savedQuiz.status,
+      creatorId:
+        savedQuiz.creatorId,
+      createdAt:
+        savedQuiz.createdAt,
+      updatedAt:
+        savedQuiz.updatedAt,
+    };
   }
 }
