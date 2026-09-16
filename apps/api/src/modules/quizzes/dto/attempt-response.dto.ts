@@ -19,13 +19,16 @@ export class AttemptQuestionResponseDto {
 
 export class AttemptResponseDto {
     attemptId: string;
+
     quizId: string;
     quizVersionId: string;
 
     status: AttemptStatus;
 
     startedAt: Date;
+    expiresAt: Date | null;
     submittedAt: Date | null;
+    remainingTimeSeconds: number | null;
 
     score: number | null;
     correctAnswers: number | null;

@@ -17,6 +17,8 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
 import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
 import { UpdateQuizDto } from './dto/update-quiz.dto.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 
 @Controller('quizzes')
 export class QuizController {
@@ -25,13 +27,15 @@ export class QuizController {
   ) { }
 
   @Post()
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   createQuiz(
-    @Body() createQuizDto: CreateQuizDto,
+    @Body() dto: CreateQuizDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizService.createQuiz(
-      createQuizDto.title,
-      createQuizDto.description ?? null,
+      dto.title,
+      dto.description ?? null,
+      dto.timeLimitSeconds ?? null,
       user.userId,
     );
   }
@@ -179,6 +183,34 @@ export class QuizController {
       quizId,
       user.userId,
       dto,
+    );
+  }
+
+  @Patch(
+    ':quizId/versions/:quizVersionId/discard',
+  )
+  discardVersion(
+    @Param('quizId') quizId: string,
+    @Param('quizVersionId') quizVersionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.discardVersion(
+      quizId,
+      quizVersionId,
+      user.userId,
+    );
+  }
+
+  @Get(
+    ':quizId/versions/:quizVersionId',
+  )
+  getPublishedQuizVersion(
+    @Param('quizId') quizId: string,
+    @Param('quizVersionId') quizVersionId: string,
+  ) {
+    return this.quizService.getPublishedQuizVersion(
+      quizId,
+      quizVersionId,
     );
   }
 }

@@ -60,6 +60,13 @@ export class QuizVersion {
   })
   publishedAt: Date | null;
 
+  @Column({
+    name: 'time_limit_seconds',
+    type: 'integer',
+    nullable: true,
+  })
+  timeLimitSeconds: number | null;
+
   @CreateDateColumn({
     name: 'created_at',
   })

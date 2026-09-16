@@ -77,6 +77,13 @@ export class QuizAttempt {
     status: AttemptStatus;
 
     @Column({
+        name: 'expires_at',
+        type: 'timestamptz',
+        nullable: true,
+    })
+    expiresAt: Date | null;
+
+    @Column({
         name: 'started_at',
         type: 'timestamptz',
     })
