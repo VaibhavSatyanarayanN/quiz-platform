@@ -14,7 +14,7 @@ import { QuizModule } from './modules/quizzes/quiz.module.js';
 
 @Module({
   imports: [
-     ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
     }),
     HealthModule,
@@ -29,10 +29,10 @@ import { QuizModule } from './modules/quizzes/quiz.module.js';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-     {
-    provide: APP_GUARD,
-    useClass: RolesGuard,
-  },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule { }

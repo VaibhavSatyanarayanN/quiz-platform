@@ -1,0 +1,117 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-weight: 600;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizes */
+.sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
+  border-radius: 4px;
+}
+
+.md {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  border-radius: 6px;
+}
+
+.lg {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 0.9375rem;
+  border-radius: 6px;
+}
+
+/* Variants */
+.primary {
+  background: var(--brand-600, #2563eb);
+  color: #ffffff;
+  border-color: var(--brand-600, #2563eb);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--brand-700, #1d4ed8);
+  border-color: var(--brand-700, #1d4ed8);
+}
+
+.secondary {
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-primary, #0f172a);
+  border-color: var(--color-border, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--color-surface-hover, #f8fafc);
+  border-color: var(--color-border-hover, #cbd5e1);
+}
+
+.outline {
+  background: #ffffff;
+  color: var(--color-text-primary, #0f172a);
+  border-color: var(--color-border, #cbd5e1);
+}
+
+.outline:hover:not(:disabled) {
+  background: var(--color-surface-hover, #f8fafc);
+  border-color: var(--color-border-hover, #94a3b8);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--color-text-secondary, #475569);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--color-surface-hover, #f1f5f9);
+  color: var(--color-text-primary, #0f172a);
+}
+
+.danger {
+  background: var(--danger-accent, #dc2626);
+  color: #ffffff;
+  border-color: var(--danger-accent, #dc2626);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--danger-text, #b91c1c);
+  border-color: var(--danger-text, #b91c1c);
+}
+
+/* Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

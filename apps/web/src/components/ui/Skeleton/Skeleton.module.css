@@ -1,0 +1,35 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-subtle, #f3f4f6) 0%,
+    var(--color-surface-hover, #e5e7eb) 50%,
+    var(--color-bg-subtle, #f3f4f6) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmerPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.text {
+  height: 1em;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  border-radius: 4px;
+}
+
+.circular {
+  border-radius: 50%;
+}
+
+.rectangular {
+  border-radius: 0;
+}
+
+.rounded {
+  border-radius: var(--radius-xl, 10px);
+}

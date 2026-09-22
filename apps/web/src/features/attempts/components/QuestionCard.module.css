@@ -1,0 +1,213 @@
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.numberBadge {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border: 1px solid var(--brand-200);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme="dark"] .numberBadge {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--brand-300);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.prompt {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-relaxed);
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--brand-50);
+  border: 1px solid var(--brand-200);
+  border-radius: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--brand-800);
+  font-weight: var(--font-weight-medium);
+}
+
+[data-theme="dark"] .hint {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: var(--brand-200);
+}
+
+.hintIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  background: var(--color-surface);
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.optionRow:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-hover);
+}
+
+.optionSelected {
+  border-color: var(--brand-600);
+  background: var(--brand-50);
+}
+
+[data-theme="dark"] .optionSelected {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: var(--brand-400);
+}
+
+.optionControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.customControlBox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  transition: all var(--transition-fast);
+}
+
+.controlRadio { border-radius: 50%; }
+.controlCheckbox { border-radius: var(--radius-xs); }
+
+.optionSelected .customControlBox {
+  border-color: var(--brand-600);
+  background: var(--brand-600);
+}
+
+.controlCheckIcon {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+}
+
+.optionLetter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.optionSelected .optionLetter {
+  background: var(--brand-100);
+  color: var(--brand-800);
+  border-color: var(--brand-300);
+}
+
+[data-theme="dark"] .optionSelected .optionLetter {
+  background: var(--brand-700);
+  color: #ffffff;
+}
+
+.optionContent {
+  flex: 1;
+}
+
+.optionText {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.optionKeyHint {
+  opacity: 0.4;
+  transition: opacity var(--transition-fast);
+}
+
+.optionRow:hover .optionKeyHint {
+  opacity: 1;
+}
+
+.optionKeyHint kbd {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-bottom: 2px solid var(--color-border-hover);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .prompt {
+    font-size: var(--font-size-lg);
+  }
+
+  .optionRow {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+}

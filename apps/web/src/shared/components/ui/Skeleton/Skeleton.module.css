@@ -1,0 +1,31 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-subtle) 0%,
+    var(--color-surface-hover) 50%,
+    var(--color-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerPulse 1.5s ease-in-out infinite;
+}
+
+.text {
+  height: 1em;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  border-radius: var(--radius-xs);
+  transform-origin: 0 60%;
+}
+
+.circular {
+  border-radius: 50%;
+}
+
+.rectangular {
+  border-radius: 0;
+}
+
+.rounded {
+  border-radius: var(--radius-xl);
+}

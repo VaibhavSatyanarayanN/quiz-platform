@@ -1,0 +1,237 @@
+.appContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg-base, #f8fafc);
+  color: var(--color-text-primary, #0f172a);
+}
+
+.header {
+  height: 60px;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-xs);
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.logoIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--brand-600, #4f46e5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoText {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Primary Desktop Horizontal Navigation */
+.desktopNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topNavItem {
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.topNavItem:hover {
+  background: var(--color-surface-hover, #f8fafc);
+  color: var(--color-text-primary, #0f172a);
+}
+
+.topNavItemActive {
+  background: var(--brand-50, #eef2ff);
+  color: var(--brand-600, #4f46e5);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .topNavItemActive {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--brand-300, #a5b4fc);
+}
+
+/* Utility buttons */
+.iconUtilityBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary, #475569);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.iconUtilityBtn:hover {
+  background: var(--color-bg-subtle, #f1f5f9);
+  color: var(--color-text-primary, #0f172a);
+}
+
+.avatarBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-600, #4f46e5);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--brand-200, #c7d2fe);
+  cursor: pointer;
+}
+
+.bodyContainer {
+  display: flex;
+  flex: 1;
+}
+
+.sidebar {
+  display: none;
+}
+
+.mainContent {
+  flex: 1;
+  padding: 32px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.mobileToggleBtn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text-primary, #0f172a);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.userMenuWrapper {
+  position: relative;
+}
+
+.userDropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 220px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-xl, 10px);
+  box-shadow: var(--shadow-modal);
+  padding: 6px;
+  z-index: 100;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #0f172a);
+  text-decoration: none;
+  border-radius: var(--radius-md, 6px);
+  transition: background 0.15s ease;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdownItem:hover {
+  background: var(--color-surface-hover, #f8fafc);
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: var(--color-border, #e2e8f0);
+  margin: 4px 0;
+}
+
+.mobileDrawer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+}
+
+.mobileDrawerBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.mobileDrawerContent {
+  position: relative;
+  width: 280px;
+  max-width: 80vw;
+  height: 100%;
+  background: var(--color-surface, #ffffff);
+  border-right: 1px solid var(--color-border, #e2e8f0);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-modal);
+}
+
+@media (max-width: 768px) {
+  .desktopNav {
+    display: none;
+  }
+  .mobileToggleBtn {
+    display: flex;
+  }
+  .mainContent {
+    padding: 16px;
+  }
+}
