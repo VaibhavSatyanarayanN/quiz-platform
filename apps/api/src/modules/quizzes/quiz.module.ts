@@ -11,8 +11,11 @@ import { QuizAttempt } from './entities/quiz-attempt.entity.js';
 import { Answer } from './entities/answer.entity.js';
 import { AnswerOption } from './entities/answer-option.entity.js';
 
+import { OrganizationModule } from '../organizations/organization.module.js';
+
 @Module({
   imports: [
+    OrganizationModule,
     TypeOrmModule.forFeature([
       Quiz,
       QuizVersion,

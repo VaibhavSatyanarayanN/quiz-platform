@@ -10,7 +10,7 @@ interface MobileNavProps {
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
-  const { user, logout } = useAuth();
+  const { user, isPlatformAdmin, logout } = useAuth();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -21,7 +21,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
   }, [onClose]);
 
   if (!user) return null;
-  const isCreatorOrAdmin = user.role === 'creator' || user.role === 'admin';
+  const isCreatorOrAdmin = user.role === 'creator' || user.role === 'admin' || isPlatformAdmin;
 
   return (
     <div className={styles.mobileDrawer}>
@@ -60,6 +60,12 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
         <Link to="/attempts" className={styles.dropdownItem} onClick={onClose}>
           Attempts
         </Link>
+
+        {isPlatformAdmin && (
+          <Link to="/admin" className={styles.dropdownItem} onClick={onClose}>
+            Admin
+          </Link>
+        )}
 
         <div className={styles.dropdownDivider} />
 

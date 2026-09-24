@@ -6,6 +6,13 @@ export const UserRole = {
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+export interface OrganizationMembership {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  role: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -34,6 +41,8 @@ export interface RegisterResponse {
 export interface AuthUser {
   userId: string;
   role: UserRole;
+  platformRole?: UserRole;
   email?: string;
   username?: string;
+  organizations?: OrganizationMembership[];
 }

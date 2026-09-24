@@ -15,10 +15,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm/data-source/index.js';
 import { UserRole } from '../users/enums/user-role.enum.js';
 
+import { OrganizationService } from '../organizations/organization.service.js';
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
+    private readonly organizationService: OrganizationService,
     private readonly jwtService: JwtService,
 
     @InjectRepository(Session)
@@ -26,6 +29,33 @@ export class AuthService {
 
     private readonly dataSource: DataSource, //used to create a transaction for refresh token rotation or atomic operations
   ) { }
+
+  async getMeProfile(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    const memberships = await this.organizationService.getUserMemberships(userId);
+
+    const organizations = memberships
+      .filter((m) => m.organization?.isActive)
+      .map((m) => ({
+        organizationId: m.organizationId,
+        organizationName: m.organization.name,
+        organizationSlug: m.organization.slug,
+        role: m.role,
+      }));
+
+    return {
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      platformRole: user.role,
+      organizations,
+    };
+  }
 
   private generateRefreshToken(): string {
     return randomBytes(64).toString('hex');

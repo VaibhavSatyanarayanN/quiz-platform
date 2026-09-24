@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { AuthUser, LoginResponse } from '../types/auth.types';
+import type { AuthUser, LoginResponse, OrganizationMembership } from '../types/auth.types';
 
 export const authKeys = {
   all: ['auth'] as const,
@@ -10,6 +10,10 @@ export interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isPlatformAdmin: boolean;
+  isOrganizationCreator: boolean;
+  isIndependentCreator: boolean;
+  currentOrganization: OrganizationMembership | null;
   login: (data: LoginResponse) => void;
   logout: () => void;
 }

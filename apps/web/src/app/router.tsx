@@ -16,6 +16,9 @@ const QuizAttemptPage = lazy(() => import('@/features/attempts/pages/QuizAttempt
 const QuizResultPage = lazy(() => import('@/features/attempts/pages/QuizResultPage'));
 const AttemptHistoryPage = lazy(() => import('@/features/attempts/pages/AttemptHistoryPage'));
 const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'));
+const AdminDashboardPage = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+const AdminOrganizationsPage = lazy(() => import('@/features/admin/pages/AdminOrganizationsPage'));
+const AdminOrganizationDetailPage = lazy(() => import('@/features/admin/pages/AdminOrganizationDetailPage'));
 const NotFoundPage = lazy(() => import('@/components/feedback/NotFoundPage'));
 
 export function AppRouter() {
@@ -35,6 +38,7 @@ export function AppRouter() {
             <Route path="/attempts/:attemptId" element={<QuizAttemptPage />} />
             <Route path="/attempts/:attemptId/result" element={<QuizResultPage />} />
             <Route path="/quiz/:quizId/versions/:quizVersionId" element={<QuizPreviewPage />} />
+            <Route path="/quizzes/:quizId/versions/:quizVersionId" element={<QuizPreviewPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
@@ -45,6 +49,13 @@ export function AppRouter() {
             <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
             <Route path="/quizzes/:quizId/edit" element={<QuizEditPage />} />
             <Route path="/quizzes/:quizId/versions/:versionId" element={<QuizVersionPage />} />
+          </Route>
+
+          {/* Platform Admin-only routes */}
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
+            <Route path="/admin/organizations/:organizationId" element={<AdminOrganizationDetailPage />} />
           </Route>
 
           {/* Catch-all 404 route */}

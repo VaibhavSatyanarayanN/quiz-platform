@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -9,9 +10,13 @@ import {
 } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity.js';
+import { Organization } from '../../organizations/entities/organization.entity.js';
 import { QuizStatus } from '../enums/quiz-status.enum.js';
 
 @Entity('quizzes')
+@Index(['organizationId'])
+@Index(['creatorId'])
+@Index(['organizationId', 'creatorId'])
 export class Quiz {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -45,6 +50,22 @@ export class Quiz {
     name: 'creator_id',
   })
   creator: User;
+
+  @Column({
+    name: 'organization_id',
+    type: 'uuid',
+    nullable: true,
+  })
+  organizationId: string | null;
+
+  @ManyToOne(() => Organization, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({
+    name: 'organization_id',
+  })
+  organization: Organization | null;
 
   @CreateDateColumn({
     name: 'created_at',

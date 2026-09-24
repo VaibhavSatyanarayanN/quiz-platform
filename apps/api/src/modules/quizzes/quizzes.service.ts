@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { OrganizationService } from '../organizations/organization.service.js';
 
 import { Quiz } from './entities/quiz.entity.js';
 import { QuizVersion } from './entities/quiz-version.entity.js';
@@ -56,7 +57,14 @@ export class QuizService {
 
     @InjectRepository(QuizAttempt)
     private readonly quizAttemptRepository: Repository<QuizAttempt>,
+
+    private readonly organizationService: OrganizationService,
   ) { }
+
+  private async getCreatorOrganizationId(creatorId: string): Promise<string | null> {
+    const membership = await this.organizationService.getPrimaryMembership(creatorId);
+    return membership?.organizationId ?? null;
+  }
 
   async createQuiz(
     title: string,
@@ -64,11 +72,14 @@ export class QuizService {
     timeLimitSeconds: number | null,
     creatorId: string,
   ) {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     return this.dataSource.transaction(async (manager) => {
       const quiz = manager.create(Quiz, {
         title,
         description,
         creatorId,
+        organizationId,
         status: QuizStatus.DRAFT,
       });
 
@@ -106,6 +117,8 @@ export class QuizService {
     dto: BulkSaveQuestionsDto,
     creatorId: string,
   ) {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     return this.dataSource.transaction(
       async (manager) => {
         // 1. Verify quiz ownership
@@ -115,6 +128,7 @@ export class QuizService {
             where: {
               id: quizId,
               creatorId,
+              organizationId: organizationId === null ? IsNull() : organizationId,
             },
           },
         );
@@ -1864,9 +1878,12 @@ export class QuizService {
   async getCreatorQuizzes(
     creatorId: string,
   ): Promise<CreatorQuizListResponseDto> {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     const quizzes = await this.quizRepository.find({
       where: {
         creatorId,
+        organizationId: organizationId === null ? IsNull() : organizationId,
       },
       order: {
         updatedAt: 'DESC',
@@ -1896,10 +1913,13 @@ export class QuizService {
     quizId: string,
     creatorId: string,
   ): Promise<CreatorQuizDetailsResponseDto> {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     const quiz = await this.quizRepository.findOne({
       where: {
         id: quizId,
         creatorId,
+        organizationId: organizationId === null ? IsNull() : organizationId,
       },
     });
 
@@ -1998,10 +2018,13 @@ export class QuizService {
     creatorId: string,
     dto: UpdateQuizDto,
   ): Promise<QuizResponseDto> {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     const quiz = await this.quizRepository.findOne({
       where: {
         id: quizId,
         creatorId,
+        organizationId: organizationId === null ? IsNull() : organizationId,
       },
     });
 
@@ -2043,6 +2066,8 @@ export class QuizService {
     quizVersionId: string,
     creatorId: string,
   ): Promise<QuizVersionResponseDto> {
+    const organizationId = await this.getCreatorOrganizationId(creatorId);
+
     return this.dataSource.transaction(
       async (manager) => {
         // 1. Verify quiz ownership
@@ -2052,6 +2077,7 @@ export class QuizService {
             where: {
               id: quizId,
               creatorId,
+              organizationId: organizationId === null ? IsNull() : organizationId,
             },
           },
         );

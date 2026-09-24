@@ -14,7 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
   isMobileMenuOpen,
 }) => {
-  const { user, logout } = useAuth();
+  const { user, isPlatformAdmin, currentOrganization, logout } = useAuth();
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
     return id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'U';
   };
 
-  const isCreatorOrAdmin = user?.role === 'creator' || user?.role === 'admin';
+  const isCreatorOrAdmin = user?.role === 'creator' || user?.role === 'admin' || isPlatformAdmin;
 
   return (
     <header className={styles.header}>
@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
           type="button"
           className={styles.mobileToggleBtn}
           onClick={onToggleMobileMenu}
-          aria-label="Toggle navigation menu"
+          aria-label="Toggle mobile menu"
         >
           {isMobileMenuOpen ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -68,6 +68,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <span className={styles.logoText}>QuizPlatform</span>
         </Link>
+
+        {currentOrganization && (
+          <Badge variant="brand" size="sm" style={{ textTransform: 'none' }}>
+            🏢 {currentOrganization.organizationName}
+          </Badge>
+        )}
 
         {/* Primary Desktop Horizontal Navigation */}
         <nav className={styles.desktopNav}>
@@ -99,6 +105,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Attempts
           </Link>
+          {isPlatformAdmin && (
+            <Link
+              to="/admin"
+              className={`${styles.topNavItem} ${
+                location.pathname.startsWith('/admin') ? styles.topNavItemActive : ''
+              }`}
+            >
+              Admin
+            </Link>
+          )}
         </nav>
       </div>
 

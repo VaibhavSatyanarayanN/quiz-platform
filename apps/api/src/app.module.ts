@@ -11,6 +11,8 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './modules/auth/guards/roles.guard.js';
 import { QuizModule } from './modules/quizzes/quiz.module.js';
+import { OrganizationModule } from './modules/organizations/organization.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 
 @Module({
   imports: [
@@ -21,7 +23,9 @@ import { QuizModule } from './modules/quizzes/quiz.module.js';
     DatabaseModule,
     UsersModule,
     AuthModule,
-    QuizModule
+    QuizModule,
+    OrganizationModule,
+    AdminModule,
   ],
   controllers: [AppController, UsersController],
   providers: [AppService,

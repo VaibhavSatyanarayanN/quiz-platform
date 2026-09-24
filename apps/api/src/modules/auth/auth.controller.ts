@@ -34,7 +34,7 @@ export class AuthController {
 
     @Get('me')
     getMe(@CurrentUser() user: AuthenticatedUser) {
-        return user;
+        return this.authService.getMeProfile(user.userId);
     }
 
     @Roles(UserRole.ADMIN)

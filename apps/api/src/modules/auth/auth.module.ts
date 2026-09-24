@@ -10,9 +10,12 @@ import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
+import { OrganizationModule } from '../organizations/organization.module.js';
+
 @Module({
   imports: [
     UsersModule,
+    OrganizationModule,
     TypeOrmModule.forFeature([Session]),
 
     PassportModule.register({

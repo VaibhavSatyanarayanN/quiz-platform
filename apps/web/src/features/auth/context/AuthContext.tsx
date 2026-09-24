@@ -29,16 +29,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.removeQueries({ queryKey: authKeys.me() });
   }, [queryClient]);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue>(() => {
+    const isPlatformAdmin = user?.role === 'admin' || user?.platformRole === 'admin';
+    const hasOrg = Boolean(user?.organizations && user.organizations.length > 0);
+    const isOrganizationCreator = hasOrg;
+    const isIndependentCreator = user?.role === 'creator' && !hasOrg;
+    const currentOrganization = user?.organizations?.[0] ?? null;
+
+    return {
       user: user ?? null,
       isAuthenticated: !!user,
       isLoading: hasToken && isLoading,
+      isPlatformAdmin,
+      isOrganizationCreator,
+      isIndependentCreator,
+      currentOrganization,
       login,
       logout,
-    }),
-    [user, isLoading, hasToken, login, logout],
-  );
+    };
+  }, [user, isLoading, hasToken, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
