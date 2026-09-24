@@ -12,6 +12,7 @@ import {
 import { Organization } from './organization.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { OrganizationRole } from '../enums/organization-role.enum.js';
+import { OrganizationAdminType } from '../enums/organization-admin-type.enum.js';
 
 @Entity('organization_members')
 @Unique(['organizationId', 'userId'])
@@ -35,8 +36,14 @@ export class OrganizationMember {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'enum', enum: OrganizationRole, default: OrganizationRole.CREATOR })
+  @Column({ type: 'enum', enum: OrganizationRole, default: OrganizationRole.TEACHER })
   role: OrganizationRole;
+
+  @Column({ name: 'admin_type', type: 'enum', enum: OrganizationAdminType, nullable: true })
+  adminType: OrganizationAdminType | null;
+
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

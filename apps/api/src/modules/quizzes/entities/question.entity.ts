@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
@@ -11,6 +12,7 @@ import {
 
 import { QuizVersion } from './quiz-version.entity.js';
 import { QuestionType } from '../enums/question-type.enum.js';
+import type { Option } from './option.entity.js';
 
 @Entity('questions')
 @Unique('UQ_question_order', ['quizVersionId', 'order'])
@@ -54,6 +56,9 @@ export class Question {
     default: 1,
   })
   marks: number;
+
+  @OneToMany('Option', (option: Option) => option.question)
+  options: Option[];
 
   @CreateDateColumn({
     name: 'created_at',

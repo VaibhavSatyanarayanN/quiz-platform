@@ -7,5 +7,5 @@ export class AddMemberDto {
   userId: string;
 
   @IsEnum(OrganizationRole)
-  role: OrganizationRole = OrganizationRole.CREATOR;
+  role: OrganizationRole = OrganizationRole.TEACHER;
 }

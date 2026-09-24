@@ -1,3 +1,5 @@
 export enum OrganizationRole {
-  CREATOR = 'creator',
+  ADMIN = 'admin',
+  TEACHER = 'teacher',
+  STUDENT = 'student',
 }

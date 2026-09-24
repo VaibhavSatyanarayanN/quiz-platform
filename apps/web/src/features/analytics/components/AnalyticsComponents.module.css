@@ -1,0 +1,376 @@
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpiCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+}
+
+.kpiHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpiLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.kpiValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.kpiUnit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.kpiSubtext {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+}
+
+.chartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.chartRow {
+  display: grid;
+  grid-template-columns: 100px 1fr 120px;
+  align-items: center;
+  gap: 1rem;
+}
+
+.chartLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.chartTrack {
+  background-color: var(--color-bg-subtle, #f1f5f9);
+  border-radius: 9999px;
+  height: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.chartFill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.chartValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  text-align: right;
+}
+
+.barSuccess {
+  background-color: #10b981;
+}
+
+.barGood {
+  background-color: #3b82f6;
+}
+
+.barAverage {
+  background-color: #8b5cf6;
+}
+
+.barWarning {
+  background-color: #f59e0b;
+}
+
+.barDanger {
+  background-color: #ef4444;
+}
+
+.emptyNotice {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #94a3b8);
+  font-style: italic;
+  padding: 1rem 0;
+}
+
+.rankBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-bg-subtle, #f1f5f9);
+  color: var(--color-text-secondary, #475569);
+}
+
+.rank1 {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.rank2 {
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+.rank3 {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+.userName {
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.userEmail {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+}
+
+.questionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sectionHeader h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.sectionHeader p {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.questionCard {
+  overflow: hidden;
+}
+
+.questionCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding-bottom: 1rem;
+}
+
+.questionTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.questionNumber {
+  font-weight: 700;
+  color: var(--color-primary, #2563eb);
+  font-size: 1.125rem;
+}
+
+.questionText {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+  line-height: 1.4;
+}
+
+.questionMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.multipleNote {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+  font-style: italic;
+}
+
+.questionStatsSummary {
+  display: flex;
+  gap: 1rem;
+  background-color: var(--color-bg-subtle, #f8fafc);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.statBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.statValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.textSuccess {
+  color: #10b981;
+}
+
+.textDanger {
+  color: #ef4444;
+}
+
+.textMuted {
+  color: #64748b;
+}
+
+.optionsSection {
+  margin-top: 0.5rem;
+}
+
+.optionsTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: 240px 1fr 140px;
+  align-items: center;
+  gap: 1rem;
+  background-color: var(--color-bg-surface, #ffffff);
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #f1f5f9);
+}
+
+.optionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.optionText {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.correctBadge {
+  width: fit-content;
+}
+
+.optionTrack {
+  background-color: var(--color-bg-subtle, #f1f5f9);
+  border-radius: 9999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.optionFill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.optionFillCorrect {
+  background-color: #10b981;
+}
+
+.optionFillNeutral {
+  background-color: #94a3b8;
+}
+
+.optionStats {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  text-align: right;
+}
+
+.orgWidgetContainer {
+  margin-top: 1.5rem;
+}
+
+.orgKpiBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  background-color: var(--color-bg-subtle, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.topQuizzesSection {
+  margin-top: 1.5rem;
+}
+
+.sectionSubTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+  margin-bottom: 0.75rem;
+}
+
+.analyticsLink {
+  color: var(--color-primary, #2563eb);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.analyticsLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .chartRow {
+    grid-template-columns: 80px 1fr 90px;
+  }
+  .optionRow {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .questionCardHeader {
+    flex-direction: column;
+  }
+  .questionStatsSummary {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

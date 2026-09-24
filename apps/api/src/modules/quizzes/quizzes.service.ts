@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { OrganizationService } from '../organizations/organization.service.js';
@@ -18,6 +18,8 @@ import { AttemptStatus } from './enums/attempt-status.enum.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
 import { Answer } from './entities/answer.entity.js';
 import { AnswerOption } from './entities/answer-option.entity.js';
+import { QuizAssignment } from '../quiz-assignments/entities/quiz-assignment.entity.js';
+import { QuizAssignmentRecipient } from '../quiz-assignments/entities/quiz-assignment-recipient.entity.js';
 
 import {
   AttemptOptionResponseDto,
@@ -37,6 +39,16 @@ import { UpdateQuizDto } from './dto/update-quiz.dto.js';
 import { QuizResponseDto } from './dto/quiz-response.dto.js';
 import { QuizVersionResponseDto } from './dto/version-response.dto.js';
 import { TakerOptionResponseDto, TakerQuestionResponseDto, TakerQuizVersionResponseDto } from './dto/taker-quiz-response.dto.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
+import {
+  AnalyticsVersionItemDto,
+  OptionDistributionDto,
+  QuestionAnalyticsDto,
+  QuizAnalyticsResponseDto,
+  ScoreDistributionDto,
+  TopScorerDto,
+} from './dto/quiz-analytics.dto.js';
 
 @Injectable()
 export class QuizService {
@@ -1091,6 +1103,52 @@ export class QuizService {
           throw new BadRequestException(
             'Only published quiz versions can be attempted',
           );
+        }
+
+        // If quiz is owned by an organization, enforce assignment recipient rules
+        if (quiz.organizationId) {
+          const assignments = await manager.find(
+            QuizAssignment,
+            {
+              where: {
+                quizId,
+                quizVersionId,
+                organizationId: quiz.organizationId,
+                isActive: true,
+              },
+            },
+          );
+
+          if (assignments.length > 0) {
+            const now = new Date();
+            const recipientRecords = await manager.find(
+              QuizAssignmentRecipient,
+              {
+                where: {
+                  studentId: userId,
+                },
+              },
+            );
+
+            const validAssignment = assignments.find((a) => {
+              const isRecipient = recipientRecords.some((r) => r.assignmentId === a.id);
+              if (!isRecipient) return false;
+              if (a.startsAt && new Date(a.startsAt) > now) return false;
+              if (a.dueAt && new Date(a.dueAt) < now) return false;
+              return true;
+            });
+
+            if (!validAssignment) {
+              const hasRecipientAccess = assignments.some((a) =>
+                recipientRecords.some((r) => r.assignmentId === a.id),
+              );
+              if (!hasRecipientAccess) {
+                throw new ForbiddenException('You are not assigned to take this quiz');
+              } else {
+                throw new BadRequestException('This quiz assignment is currently unavailable or has expired');
+              }
+            }
+          }
         }
 
         const existingAttempt =
@@ -2592,5 +2650,327 @@ export class QuizService {
           savedVersion.updatedAt,
       };
     });
+  }
+
+  async getQuizAnalytics(
+    quizId: string,
+    versionId?: string,
+    user?: AuthenticatedUser,
+  ): Promise<QuizAnalyticsResponseDto> {
+    const quiz = await this.quizRepository.findOne({
+      where: { id: quizId },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+
+    // Access authorization check
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const isCreator = user?.userId === quiz.creatorId;
+    let isOrgMember = false;
+
+    if (quiz.organizationId && user?.userId) {
+      const membership = await this.organizationService.getPrimaryMembership(user.userId);
+      isOrgMember = membership?.organizationId === quiz.organizationId;
+    }
+
+    if (!isAdmin && !isCreator && !isOrgMember) {
+      throw new ForbiddenException('You do not have permission to view analytics for this quiz');
+    }
+
+    // Fetch all versions for version selector
+    const versions = await this.quizVersionRepository.find({
+      where: { quizId: quiz.id },
+      order: { version: 'DESC' },
+    });
+
+    if (versions.length === 0) {
+      throw new NotFoundException('No versions found for this quiz');
+    }
+
+    let targetVersion = versions[0];
+    if (versionId) {
+      const found = versions.find((v) => v.id === versionId);
+      if (!found) {
+        throw new NotFoundException('Quiz version not found');
+      }
+      targetVersion = found;
+    } else {
+      const published = versions.find((v) => v.status === QuizVersionStatus.PUBLISHED);
+      if (published) {
+        targetVersion = published;
+      }
+    }
+
+    const availableVersions: AnalyticsVersionItemDto[] = versions.map((v) => ({
+      id: v.id,
+      versionNumber: v.version,
+      status: v.status,
+    }));
+
+    // Aggregate attempts for targetVersion
+    const attempts = await this.quizAttemptRepository.find({
+      where: { quizVersionId: targetVersion.id },
+      relations: { user: true },
+    });
+
+    const totalAttempts = attempts.length;
+    const completedAttemptsList = attempts.filter(
+      (a) => a.status === AttemptStatus.SUBMITTED || a.status === AttemptStatus.EXPIRED,
+    );
+    const completedAttempts = completedAttemptsList.length;
+
+    const questions = await this.questionRepository.find({
+      where: { quizVersionId: targetVersion.id },
+      relations: { options: true },
+      order: { order: 'ASC' },
+    });
+
+    const totalQuestions = questions.length;
+    const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 1), 0);
+
+    let avgScore = 0;
+    let avgPercentage = 0;
+    let highestScore = 0;
+    let lowestScore = 0;
+    let avgDurationSeconds = 0;
+    let totalCorrectAnswers = 0;
+    let totalWrongAnswers = 0;
+    let totalUnanswered = 0;
+
+    const scoreBuckets = {
+      range90To100: 0,
+      range80To89: 0,
+      range70To79: 0,
+      range60To69: 0,
+      rangeBelow60: 0,
+    };
+
+    if (completedAttempts > 0) {
+      const scores = completedAttemptsList.map((a) => a.score ?? 0);
+      const percentages = completedAttemptsList.map((a) => Number(a.percentage ?? 0));
+
+      avgScore = Math.round((scores.reduce((a, b) => a + b, 0) / completedAttempts) * 100) / 100;
+      avgPercentage = Math.round((percentages.reduce((a, b) => a + b, 0) / completedAttempts) * 100) / 100;
+      highestScore = Math.max(...scores);
+      lowestScore = Math.min(...scores);
+
+      let totalDuration = 0;
+      let durationCount = 0;
+      for (const attempt of completedAttemptsList) {
+        if (attempt.startedAt && attempt.submittedAt) {
+          const dur = Math.max(0, Math.round((new Date(attempt.submittedAt).getTime() - new Date(attempt.startedAt).getTime()) / 1000));
+          totalDuration += dur;
+          durationCount++;
+        }
+        totalCorrectAnswers += attempt.correctAnswers ?? 0;
+        totalWrongAnswers += attempt.wrongAnswers ?? 0;
+        totalUnanswered += attempt.unanswered ?? 0;
+
+        const p = Number(attempt.percentage ?? 0);
+        if (p >= 90) scoreBuckets.range90To100++;
+        else if (p >= 80) scoreBuckets.range80To89++;
+        else if (p >= 70) scoreBuckets.range70To79++;
+        else if (p >= 60) scoreBuckets.range60To69++;
+        else scoreBuckets.rangeBelow60++;
+      }
+
+      avgDurationSeconds = durationCount > 0 ? Math.round(totalDuration / durationCount) : 0;
+    }
+
+    const calcBucket = (count: number) => ({
+      count,
+      percentage: completedAttempts > 0 ? Math.round((count / completedAttempts) * 10000) / 100 : 0,
+    });
+
+    const scoreDistribution: ScoreDistributionDto = {
+      range90To100: calcBucket(scoreBuckets.range90To100),
+      range80To89: calcBucket(scoreBuckets.range80To89),
+      range70To79: calcBucket(scoreBuckets.range70To79),
+      range60To69: calcBucket(scoreBuckets.range60To69),
+      rangeBelow60: calcBucket(scoreBuckets.rangeBelow60),
+    };
+
+    // Top Scorers Leaderboard
+    const sortedCompleted = [...completedAttemptsList].sort((a, b) => {
+      const pA = Number(a.percentage ?? 0);
+      const pB = Number(b.percentage ?? 0);
+      if (pB !== pA) return pB - pA;
+      const sA = a.score ?? 0;
+      const sB = b.score ?? 0;
+      if (sB !== sA) return sB - sA;
+      return new Date(a.submittedAt ?? 0).getTime() - new Date(b.submittedAt ?? 0).getTime();
+    });
+
+    const topScorers: TopScorerDto[] = sortedCompleted.slice(0, 10).map((a) => {
+      const dur = a.startedAt && a.submittedAt
+        ? Math.max(0, Math.round((new Date(a.submittedAt).getTime() - new Date(a.startedAt).getTime()) / 1000))
+        : 0;
+      return {
+        attemptId: a.id,
+        userId: a.userId,
+        username: a.user?.username ?? 'Anonymous',
+        email: a.user?.email ?? '',
+        score: a.score ?? 0,
+        totalMarks,
+        percentage: Number(a.percentage ?? 0),
+        durationSeconds: dur,
+        submittedAt: a.submittedAt ? a.submittedAt.toISOString() : new Date().toISOString(),
+      };
+    });
+
+    // Question analytics & option selection breakdown
+    const completedAttemptIds = completedAttemptsList.map((a) => a.id);
+    const questionAnalytics: QuestionAnalyticsDto[] = [];
+
+    if (completedAttemptIds.length > 0) {
+      const answers = await this.dataSource.getRepository(Answer).find({
+        where: completedAttemptIds.map((id) => ({ attemptId: id })),
+      });
+      const answerIds = answers.map((ans) => ans.id);
+
+      let answerOptions: AnswerOption[] = [];
+      if (answerIds.length > 0) {
+        answerOptions = await this.dataSource.getRepository(AnswerOption).find({
+          where: answerIds.map((id) => ({ answerId: id })),
+        });
+      }
+
+      const answerOptionMap = new Map<string, string[]>();
+      for (const ao of answerOptions) {
+        const list = answerOptionMap.get(ao.answerId) ?? [];
+        list.push(ao.optionId);
+        answerOptionMap.set(ao.answerId, list);
+      }
+
+      const questionAnswersMap = new Map<string, Map<string, string[]>>();
+      for (const ans of answers) {
+        let qMap = questionAnswersMap.get(ans.questionId);
+        if (!qMap) {
+          qMap = new Map();
+          questionAnswersMap.set(ans.questionId, qMap);
+        }
+        const selectedOptionIds = answerOptionMap.get(ans.id) ?? [];
+        qMap.set(ans.attemptId, selectedOptionIds);
+      }
+
+      for (const q of questions) {
+        const qAnswers = questionAnswersMap.get(q.id) ?? new Map<string, string[]>();
+        const correctOptionIds = new Set(q.options.filter((o) => o.isCorrect).map((o) => o.id));
+
+        let qCorrectCount = 0;
+        let qWrongCount = 0;
+        let qUnansweredCount = 0;
+
+        const optionSelectionCounts = new Map<string, number>();
+        q.options.forEach((o) => optionSelectionCounts.set(o.id, 0));
+
+        for (const attemptId of completedAttemptIds) {
+          const selected = qAnswers.get(attemptId);
+          if (!selected || selected.length === 0) {
+            qUnansweredCount++;
+          } else {
+            for (const optId of selected) {
+              const current = optionSelectionCounts.get(optId) ?? 0;
+              optionSelectionCounts.set(optId, current + 1);
+            }
+
+            const isSetEqual =
+              selected.length === correctOptionIds.size &&
+              selected.every((id) => correctOptionIds.has(id));
+
+            if (isSetEqual) {
+              qCorrectCount++;
+            } else {
+              qWrongCount++;
+            }
+          }
+        }
+
+        const calcPct = (cnt: number) =>
+          completedAttempts > 0 ? Math.round((cnt / completedAttempts) * 10000) / 100 : 0;
+
+        const optionDtos: OptionDistributionDto[] = q.options.map((opt) => {
+          const count = optionSelectionCounts.get(opt.id) ?? 0;
+          return {
+            optionId: opt.id,
+            optionText: opt.text,
+            isCorrect: opt.isCorrect,
+            selectionCount: count,
+            selectionPercentage: calcPct(count),
+          };
+        });
+
+        questionAnalytics.push({
+          questionId: q.id,
+          questionText: q.text,
+          questionType: q.questionType,
+          marks: q.marks,
+          order: q.order,
+          attemptCount: completedAttempts,
+          correctCount: qCorrectCount,
+          correctPercentage: calcPct(qCorrectCount),
+          wrongCount: qWrongCount,
+          wrongPercentage: calcPct(qWrongCount),
+          unansweredCount: qUnansweredCount,
+          unansweredPercentage: calcPct(qUnansweredCount),
+          options: optionDtos,
+        });
+      }
+    } else {
+      for (const q of questions) {
+        questionAnalytics.push({
+          questionId: q.id,
+          questionText: q.text,
+          questionType: q.questionType,
+          marks: q.marks,
+          order: q.order,
+          attemptCount: 0,
+          correctCount: 0,
+          correctPercentage: 0,
+          wrongCount: 0,
+          wrongPercentage: 0,
+          unansweredCount: 0,
+          unansweredPercentage: 0,
+          options: q.options.map((opt) => ({
+            optionId: opt.id,
+            optionText: opt.text,
+            isCorrect: opt.isCorrect,
+            selectionCount: 0,
+            selectionPercentage: 0,
+          })),
+        });
+      }
+    }
+
+    const completionRate =
+      totalAttempts > 0 ? Math.round((completedAttempts / totalAttempts) * 10000) / 100 : 0;
+
+    return {
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      versionId: targetVersion.id,
+      versionNumber: targetVersion.version,
+      availableVersions,
+      summary: {
+        totalAttempts,
+        completedAttempts,
+        completionRate,
+        avgScore,
+        avgPercentage,
+        highestScore,
+        lowestScore,
+        avgDurationSeconds,
+        totalQuestions,
+        totalMarks,
+        totalCorrectAnswers,
+        totalWrongAnswers,
+        totalUnanswered,
+      },
+      scoreDistribution,
+      topScorers,
+      questionAnalytics,
+    };
   }
 }

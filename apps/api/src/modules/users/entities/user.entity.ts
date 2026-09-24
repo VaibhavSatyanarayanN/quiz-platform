@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from '../enums/user-role.enum.js';
+import { PlatformRole } from '../enums/platform-role.enum.js';
 
 @Entity('users')
 export class User {
@@ -23,6 +24,12 @@ export class User {
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER, })
   role: UserRole;
+
+  @Column({ name: 'platform_role', type: 'enum', enum: PlatformRole, default: PlatformRole.USER })
+  platformRole: PlatformRole;
+
+  @Column({ name: 'must_change_password', default: false })
+  mustChangePassword: boolean;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

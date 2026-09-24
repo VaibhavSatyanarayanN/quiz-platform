@@ -17,6 +17,8 @@ import { UserRole } from '../users/enums/user-role.enum.js';
 
 import { OrganizationService } from '../organizations/organization.service.js';
 
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -45,6 +47,7 @@ export class AuthService {
         organizationName: m.organization.name,
         organizationSlug: m.organization.slug,
         role: m.role,
+        adminType: m.adminType,
       }));
 
     return {
@@ -52,9 +55,33 @@ export class AuthService {
       email: user.email,
       username: user.username,
       role: user.role,
-      platformRole: user.role,
+      platformRole: user.platformRole || user.role,
+      mustChangePassword: user.mustChangePassword ?? false,
       organizations,
     };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userService.findById(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    const isValid = await argon2.verify(user.passwordHash, dto.oldPassword);
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newPasswordHash = await argon2.hash(dto.newPassword, {
+      type: argon2.argon2id,
+    });
+
+    user.passwordHash = newPasswordHash;
+    user.mustChangePassword = false;
+
+    await this.userService.save(user);
+
+    return { message: 'Password updated successfully' };
   }
 
   private generateRefreshToken(): string {

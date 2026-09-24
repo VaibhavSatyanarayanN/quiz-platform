@@ -2,6 +2,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    Index,
     JoinColumn,
     ManyToOne,
     PrimaryGeneratedColumn,
@@ -17,6 +18,7 @@ import { Question } from './question.entity.js';
     'attemptId',
     'questionId',
 ])
+@Index(['attemptId', 'questionId'])
 export class Answer {
     @PrimaryGeneratedColumn('uuid')
     id: string;

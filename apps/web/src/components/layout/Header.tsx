@@ -88,14 +88,24 @@ export const Header: React.FC<HeaderProps> = ({
             Dashboard
           </Link>
           {isCreatorOrAdmin && (
-            <Link
-              to="/quizzes"
-              className={`${styles.topNavItem} ${
-                location.pathname.startsWith('/quizzes') ? styles.topNavItemActive : ''
-              }`}
-            >
-              Quizzes
-            </Link>
+            <>
+              <Link
+                to="/quizzes"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/quizzes') ? styles.topNavItemActive : ''
+                }`}
+              >
+                Quizzes
+              </Link>
+              <Link
+                to="/classrooms"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/classrooms') ? styles.topNavItemActive : ''
+                }`}
+              >
+                Classrooms
+              </Link>
+            </>
           )}
           <Link
             to="/attempts"

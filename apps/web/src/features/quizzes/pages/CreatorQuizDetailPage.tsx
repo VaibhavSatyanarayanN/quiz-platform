@@ -269,6 +269,12 @@ export default function CreatorQuizDetailPage() {
         </Link>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <Link to={`/quizzes/${quiz.id}/analytics`}>
+            <Button variant="outline" size="sm">
+              📊 Analytics
+            </Button>
+          </Link>
+
           {isPublished && (
             <Button variant="secondary" size="sm" onClick={handleCreateNewVersion} isLoading={createNewVersionMutation.isPending}>
               Create New Version

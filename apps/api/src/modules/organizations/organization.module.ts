@@ -3,9 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Organization } from './entities/organization.entity.js';
 import { OrganizationMember } from './entities/organization-member.entity.js';
 import { OrganizationService } from './organization.service.js';
+import { OrganizationController } from './organization.controller.js';
+
+import { UsersModule } from '../users/user.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Organization, OrganizationMember])],
+  imports: [
+    UsersModule,
+    TypeOrmModule.forFeature([Organization, OrganizationMember]),
+  ],
+  controllers: [OrganizationController],
   providers: [OrganizationService],
   exports: [OrganizationService, TypeOrmModule],
 })

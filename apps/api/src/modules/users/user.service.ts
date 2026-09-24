@@ -61,4 +61,8 @@ export class UserService {
 
     return this.userRepository.save(user);
   }
+
+  save(user: User) {
+    return this.userRepository.save(user);
+  }
 }

@@ -10,6 +10,8 @@ import { Public } from './decorators/public.decorator.js';
 import { UserRole } from '../users/enums/user-role.enum.js';
 import { Roles } from './decorators/roles.decorator.js';
 
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
@@ -35,6 +37,14 @@ export class AuthController {
     @Get('me')
     getMe(@CurrentUser() user: AuthenticatedUser) {
         return this.authService.getMeProfile(user.userId);
+    }
+
+    @Post('change-password')
+    changePassword(
+        @CurrentUser() user: AuthenticatedUser,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(user.userId, dto);
     }
 
     @Roles(UserRole.ADMIN)

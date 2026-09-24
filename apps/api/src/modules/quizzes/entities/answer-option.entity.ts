@@ -2,6 +2,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    Index,
     JoinColumn,
     ManyToOne,
     PrimaryGeneratedColumn,
@@ -16,6 +17,7 @@ import { Option } from './option.entity.js';
     'answerId',
     'optionId',
 ])
+@Index(['answerId', 'optionId'])
 export class AnswerOption {
     @PrimaryGeneratedColumn('uuid')
     id: string;

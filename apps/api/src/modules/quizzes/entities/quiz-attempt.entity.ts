@@ -22,6 +22,8 @@ import { AttemptStatus } from '../enums/attempt-status.enum.js';
         where: `"status" = 'in_progress'`,
     },
 )
+@Index(['quizId', 'status'])
+@Index(['quizVersionId', 'status'])
 @Entity('quiz_attempts')
 export class QuizAttempt {
     @PrimaryGeneratedColumn('uuid')

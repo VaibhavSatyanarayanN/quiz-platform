@@ -13,6 +13,9 @@ import { RolesGuard } from './modules/auth/guards/roles.guard.js';
 import { QuizModule } from './modules/quizzes/quiz.module.js';
 import { OrganizationModule } from './modules/organizations/organization.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
+import { ClassroomModule } from './modules/classrooms/classroom.module.js';
+import { QuizAssignmentModule } from './modules/quiz-assignments/quiz-assignment.module.js';
+import { DashboardModule } from './modules/dashboards/dashboard.module.js';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { AdminModule } from './modules/admin/admin.module.js';
     QuizModule,
     OrganizationModule,
     AdminModule,
+    ClassroomModule,
+    QuizAssignmentModule,
+    DashboardModule,
   ],
   controllers: [AppController, UsersController],
   providers: [AppService,

@@ -181,11 +181,18 @@ export default function CreatorQuizListPage() {
                         {formatDate(quiz.updatedAt)}
                       </Td>
                       <Td style={{ textAlign: 'right' }}>
-                        <Link to={`/quizzes/${quiz.id}`}>
-                          <Button variant="outline" size="sm">
-                            Open
-                          </Button>
-                        </Link>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <Link to={`/quizzes/${quiz.id}/analytics`}>
+                            <Button variant="ghost" size="sm">
+                              📊 Analytics
+                            </Button>
+                          </Link>
+                          <Link to={`/quizzes/${quiz.id}`}>
+                            <Button variant="outline" size="sm">
+                              Open
+                            </Button>
+                          </Link>
+                        </div>
                       </Td>
                     </Tr>
                   ))}

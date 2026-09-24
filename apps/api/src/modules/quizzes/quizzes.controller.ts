@@ -213,4 +213,17 @@ export class QuizController {
       quizVersionId,
     );
   }
+
+  @Get(':quizId/analytics')
+  getQuizAnalytics(
+    @Param('quizId') quizId: string,
+    @Query('versionId') versionId: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getQuizAnalytics(
+      quizId,
+      versionId,
+      user,
+    );
+  }
 }

@@ -19,6 +19,11 @@ const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'));
 const AdminDashboardPage = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
 const AdminOrganizationsPage = lazy(() => import('@/features/admin/pages/AdminOrganizationsPage'));
 const AdminOrganizationDetailPage = lazy(() => import('@/features/admin/pages/AdminOrganizationDetailPage'));
+const QuizAnalyticsPage = lazy(() => import('@/features/analytics/pages/QuizAnalyticsPage'));
+const ClassroomListPage = lazy(() => import('@/features/classrooms/pages/ClassroomListPage'));
+const ClassroomDetailPage = lazy(() => import('@/features/classrooms/pages/ClassroomDetailPage'));
+const StudentDashboardPage = lazy(() => import('@/features/dashboards/pages/StudentDashboardPage'));
+const TeacherDashboardPage = lazy(() => import('@/features/dashboards/pages/TeacherDashboardPage'));
 const NotFoundPage = lazy(() => import('@/components/feedback/NotFoundPage'));
 
 export function AppRouter() {
@@ -34,6 +39,7 @@ export function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/student/dashboard" element={<StudentDashboardPage />} />
             <Route path="/attempts" element={<AttemptHistoryPage />} />
             <Route path="/attempts/:attemptId" element={<QuizAttemptPage />} />
             <Route path="/attempts/:attemptId/result" element={<QuizResultPage />} />
@@ -42,13 +48,18 @@ export function AppRouter() {
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
-          {/* Creator-only routes */}
+          {/* Creator / Teacher / Admin routes */}
           <Route element={<ProtectedRoute allowedRoles={['creator', 'admin']} />}>
+            <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
             <Route path="/quizzes" element={<CreatorQuizListPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />
             <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
+            <Route path="/quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+            <Route path="/creator/quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
             <Route path="/quizzes/:quizId/edit" element={<QuizEditPage />} />
             <Route path="/quizzes/:quizId/versions/:versionId" element={<QuizVersionPage />} />
+            <Route path="/classrooms" element={<ClassroomListPage />} />
+            <Route path="/classrooms/:classroomId" element={<ClassroomDetailPage />} />
           </Route>
 
           {/* Platform Admin-only routes */}

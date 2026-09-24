@@ -1,10 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Organization } from './entities/organization.entity.js';
 import { OrganizationMember } from './entities/organization-member.entity.js';
 import { OrganizationRole } from './enums/organization-role.enum.js';
 import { randomBytes } from 'node:crypto';
+import { Quiz } from '../quizzes/entities/quiz.entity.js';
+import { QuizAttempt } from '../quizzes/entities/quiz-attempt.entity.js';
+import { QuizStatus } from '../quizzes/enums/quiz-status.enum.js';
+import { AttemptStatus } from '../quizzes/enums/attempt-status.enum.js';
+import { OrganizationAnalyticsResponseDto, TopQuizAnalyticsDto } from './dto/organization-analytics.dto.js';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
 
 function slugify(text: string): string {
   const base = text
@@ -16,6 +23,11 @@ function slugify(text: string): string {
   return base || 'org';
 }
 
+import { UserService } from '../users/user.service.js';
+import * as argon2 from 'argon2';
+import { CreateOrgStudentDto } from './dto/create-student.dto.js';
+import { CreateOrgTeacherDto } from './dto/create-teacher.dto.js';
+
 @Injectable()
 export class OrganizationService {
   constructor(
@@ -24,6 +36,9 @@ export class OrganizationService {
 
     @InjectRepository(OrganizationMember)
     private readonly memberRepository: Repository<OrganizationMember>,
+
+    private readonly dataSource: DataSource,
+    private readonly userService: UserService,
   ) {}
 
   async createOrganization(name: string): Promise<Organization> {
@@ -76,7 +91,7 @@ export class OrganizationService {
   async addMember(
     organizationId: string,
     userId: string,
-    role: OrganizationRole = OrganizationRole.CREATOR,
+    role: OrganizationRole = OrganizationRole.TEACHER,
   ): Promise<OrganizationMember> {
     const organization = await this.findById(organizationId);
     if (!organization) {
@@ -112,5 +127,160 @@ export class OrganizationService {
     return this.memberRepository.count({
       where: { organizationId },
     });
+  }
+
+  async getOrganizationAnalytics(
+    organizationId: string,
+    user: AuthenticatedUser,
+  ): Promise<OrganizationAnalyticsResponseDto> {
+    const org = await this.findById(organizationId);
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    if (!isAdmin) {
+      const membership = await this.memberRepository.findOne({
+        where: { organizationId, userId: user.userId },
+      });
+      if (!membership) {
+        throw new ForbiddenException('You do not belong to this organization');
+      }
+    }
+
+    const totalMembers = await this.memberRepository.count({
+      where: { organizationId },
+    });
+
+    const quizzes = await this.dataSource.getRepository(Quiz).find({
+      where: { organizationId },
+    });
+
+    const totalQuizzes = quizzes.length;
+    const publishedQuizzes = quizzes.filter((q) => q.status === QuizStatus.PUBLISHED).length;
+
+    let totalAttempts = 0;
+    let completedAttempts = 0;
+    let avgPercentage = 0;
+
+    const topQuizzes: TopQuizAnalyticsDto[] = [];
+
+    if (totalQuizzes > 0) {
+      const quizIds = quizzes.map((q) => q.id);
+
+      const attempts = await this.dataSource.getRepository(QuizAttempt).find({
+        where: quizIds.map((id) => ({ quizId: id })),
+      });
+
+      totalAttempts = attempts.length;
+      const completedList = attempts.filter(
+        (a) => a.status === AttemptStatus.SUBMITTED || a.status === AttemptStatus.EXPIRED,
+      );
+      completedAttempts = completedList.length;
+
+      if (completedAttempts > 0) {
+        const sumPct = completedList.reduce((sum, a) => sum + Number(a.percentage ?? 0), 0);
+        avgPercentage = Math.round((sumPct / completedAttempts) * 100) / 100;
+      }
+
+      for (const q of quizzes) {
+        const qAttempts = attempts.filter((a) => a.quizId === q.id);
+        const qCompleted = qAttempts.filter(
+          (a) => a.status === AttemptStatus.SUBMITTED || a.status === AttemptStatus.EXPIRED,
+        );
+        let qAvgPct = 0;
+        if (qCompleted.length > 0) {
+          const qSum = qCompleted.reduce((sum, a) => sum + Number(a.percentage ?? 0), 0);
+          qAvgPct = Math.round((qSum / qCompleted.length) * 100) / 100;
+        }
+
+        topQuizzes.push({
+          quizId: q.id,
+          title: q.title,
+          attemptCount: qAttempts.length,
+          avgPercentage: qAvgPct,
+        });
+      }
+
+      topQuizzes.sort((a, b) => b.attemptCount - a.attemptCount || b.avgPercentage - a.avgPercentage);
+    }
+
+    return {
+      organizationId: org.id,
+      organizationName: org.name,
+      totalQuizzes,
+      publishedQuizzes,
+      totalAttempts,
+      completedAttempts,
+      avgPercentage,
+      totalMembers,
+      topQuizzes: topQuizzes.slice(0, 5),
+    };
+  }
+
+  async createOrgStudent(organizationId: string, dto: CreateOrgStudentDto) {
+    const org = await this.findById(organizationId);
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const email = dto.email.trim().toLowerCase();
+    const username = dto.username.trim();
+
+    const existingUser = await this.userService.findByEmail(email);
+    if (existingUser) throw new ConflictException('User email already exists');
+
+    const passwordHash = await argon2.hash(dto.tempPassword, { type: argon2.argon2id });
+
+    const user = await this.userService.create({
+      email,
+      username,
+      passwordHash,
+      role: UserRole.USER,
+      mustChangePassword: true,
+      isActive: true,
+    });
+
+    const member = await this.addMember(organizationId, user.id, OrganizationRole.STUDENT);
+
+    return {
+      id: member.id,
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      role: OrganizationRole.STUDENT,
+      mustChangePassword: true,
+    };
+  }
+
+  async createOrgTeacher(organizationId: string, dto: CreateOrgTeacherDto) {
+    const org = await this.findById(organizationId);
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const email = dto.email.trim().toLowerCase();
+    const username = dto.username.trim();
+
+    const existingUser = await this.userService.findByEmail(email);
+    if (existingUser) throw new ConflictException('User email already exists');
+
+    const passwordHash = await argon2.hash(dto.tempPassword, { type: argon2.argon2id });
+
+    const user = await this.userService.create({
+      email,
+      username,
+      passwordHash,
+      role: UserRole.CREATOR,
+      mustChangePassword: true,
+      isActive: true,
+    });
+
+    const member = await this.addMember(organizationId, user.id, OrganizationRole.TEACHER);
+
+    return {
+      id: member.id,
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      role: OrganizationRole.TEACHER,
+      mustChangePassword: true,
+    };
   }
 }

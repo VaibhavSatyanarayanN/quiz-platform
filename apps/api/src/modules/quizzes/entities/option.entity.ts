@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Question } from './question.entity.js';
+import type { Question } from './question.entity.js';
 
 @Entity('options')
 @Unique('UQ_option_order', ['questionId', 'order'])
@@ -23,7 +23,7 @@ export class Option {
   })
   questionId: string;
 
-  @ManyToOne(() => Question, {
+  @ManyToOne('Question', (question: Question) => question.options, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({

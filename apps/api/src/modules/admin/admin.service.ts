@@ -144,7 +144,7 @@ export class AdminService {
     const member = await this.organizationService.addMember(
       organizationId,
       user.id,
-      OrganizationRole.CREATOR,
+      OrganizationRole.TEACHER,
     );
 
     return {
