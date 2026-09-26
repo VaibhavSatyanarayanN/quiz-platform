@@ -3,6 +3,7 @@ import type { TopScorer } from '../types/analytics.types.js';
 import { Card, CardHeader, CardTitle, CardBody } from '../../../components/ui/Card/Card.js';
 import { Table } from '../../../components/ui/Table/Table.js';
 import { Badge } from '../../../components/ui/Badge/Badge.js';
+import { Avatar } from '../../../components/ui/Avatar/Avatar.js';
 import styles from './AnalyticsComponents.module.css';
 
 interface Props {
@@ -54,8 +55,13 @@ export const TopScorersTable: React.FC<Props> = ({ scorers }) => {
                       </span>
                     </td>
                     <td>
-                      <div className={styles.userName}>{s.username}</div>
-                      <div className={styles.userEmail}>{s.email}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Avatar username={s.username} email={s.email} size="sm" />
+                        <div>
+                          <div className={styles.userName}>{s.username}</div>
+                          <div className={styles.userEmail}>{s.email}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <strong>

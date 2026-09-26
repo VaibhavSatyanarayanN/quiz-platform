@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { Button } from '../ui/Button/Button';
 import { Badge } from '../ui/Badge/Badge';
+import { Avatar } from '../ui/Avatar/Avatar';
 import styles from './Layout.module.css';
 
 interface MobileNavProps {
@@ -29,12 +30,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
       <div className={styles.mobileDrawerContent}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className={styles.avatarBtn}>{user.userId.slice(0, 2).toUpperCase()}</div>
+            <Avatar email={user.email} username={user.username} size="md" />
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
                 {user.email || `User #${user.userId.slice(0, 8)}`}
               </div>
-              <Badge size="sm">{user.role}</Badge>
+              <Badge variant="coral" size="sm">
+                {isPlatformAdmin ? 'Super Admin' : user.role === 'admin' ? 'Org Admin' : user.role === 'creator' ? 'Teacher' : 'Student'}
+              </Badge>
             </div>
           </div>
           <button type="button" className={styles.mobileToggleBtn} onClick={onClose} aria-label="Close drawer">
@@ -51,20 +54,33 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
           Dashboard
         </Link>
 
-        {isCreatorOrAdmin && (
-          <Link to="/quizzes" className={styles.dropdownItem} onClick={onClose}>
-            Quizzes
+        {isCreatorOrAdmin ? (
+          <>
+            <Link to="/classrooms" className={styles.dropdownItem} onClick={onClose}>
+              Classrooms
+            </Link>
+            <Link to="/quizzes" className={styles.dropdownItem} onClick={onClose}>
+              Quizzes
+            </Link>
+            <Link to="/attempts" className={styles.dropdownItem} onClick={onClose}>
+              Analytics & Submissions
+            </Link>
+          </>
+        ) : (
+          <Link to="/attempts" className={styles.dropdownItem} onClick={onClose}>
+            My Results
           </Link>
         )}
 
-        <Link to="/attempts" className={styles.dropdownItem} onClick={onClose}>
-          Attempts
-        </Link>
-
         {isPlatformAdmin && (
-          <Link to="/admin" className={styles.dropdownItem} onClick={onClose}>
-            Admin
-          </Link>
+          <>
+            <Link to="/admin/organizations" className={styles.dropdownItem} onClick={onClose}>
+              Organizations
+            </Link>
+            <Link to="/admin" className={styles.dropdownItem} onClick={onClose}>
+              Platform Admin
+            </Link>
+          </>
         )}
 
         <div className={styles.dropdownDivider} />

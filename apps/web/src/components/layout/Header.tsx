@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { ThemeToggle } from '../ui/ThemeToggle/ThemeToggle';
 import { Badge } from '../ui/Badge/Badge';
+import { Avatar } from '../ui/Avatar/Avatar';
 import styles from './Layout.module.css';
 
 interface HeaderProps {
@@ -28,11 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const getInitials = (id?: string) => {
-    if (!id) return 'U';
-    return id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'U';
-  };
 
   const isCreatorOrAdmin = user?.role === 'creator' || user?.role === 'admin' || isPlatformAdmin;
 
@@ -70,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
         </Link>
 
         {currentOrganization && (
-          <Badge variant="brand" size="sm" style={{ textTransform: 'none' }}>
+          <Badge variant="coral" size="sm" style={{ textTransform: 'none' }}>
             🏢 {currentOrganization.organizationName}
           </Badge>
         )}
@@ -87,8 +83,17 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Dashboard
           </Link>
-          {isCreatorOrAdmin && (
+
+          {isCreatorOrAdmin ? (
             <>
+              <Link
+                to="/classrooms"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/classrooms') ? styles.topNavItemActive : ''
+                }`}
+              >
+                Classrooms
+              </Link>
               <Link
                 to="/quizzes"
                 className={`${styles.topNavItem} ${
@@ -98,58 +103,51 @@ export const Header: React.FC<HeaderProps> = ({
                 Quizzes
               </Link>
               <Link
-                to="/classrooms"
+                to="/attempts"
                 className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/classrooms') ? styles.topNavItemActive : ''
+                  location.pathname.startsWith('/attempts') ? styles.topNavItemActive : ''
                 }`}
               >
-                Classrooms
+                Analytics & Submissions
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/attempts"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/attempts') ? styles.topNavItemActive : ''
+                }`}
+              >
+                My Results
               </Link>
             </>
           )}
-          <Link
-            to="/attempts"
-            className={`${styles.topNavItem} ${
-              location.pathname.startsWith('/attempts') ? styles.topNavItemActive : ''
-            }`}
-          >
-            Attempts
-          </Link>
+
           {isPlatformAdmin && (
-            <Link
-              to="/admin"
-              className={`${styles.topNavItem} ${
-                location.pathname.startsWith('/admin') ? styles.topNavItemActive : ''
-              }`}
-            >
-              Admin
-            </Link>
+            <>
+              <Link
+                to="/admin/organizations"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/admin/organizations') ? styles.topNavItemActive : ''
+                }`}
+              >
+                Organizations
+              </Link>
+              <Link
+                to="/admin"
+                className={`${styles.topNavItem} ${
+                  location.pathname === '/admin' ? styles.topNavItemActive : ''
+                }`}
+              >
+                Platform Admin
+              </Link>
+            </>
           )}
         </nav>
       </div>
 
       <div className={styles.headerRight}>
-        {/* Utilities: Notification, Help, Theme Toggle */}
-        <button
-          type="button"
-          className={styles.iconUtilityBtn}
-          title="Notifications"
-          aria-label="Notifications"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-        </button>
-
-        <Link to="/profile" className={styles.iconUtilityBtn} title="Help Center" aria-label="Help">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </Link>
-
         <ThemeToggle />
 
         {user && (
@@ -161,19 +159,19 @@ export const Header: React.FC<HeaderProps> = ({
               aria-expanded={isDropdownOpen}
               aria-label="User profile menu"
             >
-              {getInitials(user.userId)}
+              <Avatar email={user.email} username={user.username} size="sm" showStatus />
             </button>
 
             {isDropdownOpen && (
               <div className={styles.userDropdown}>
                 <div style={{ padding: '10px 14px' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Signed in as</div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
                     {user.email || `User #${user.userId.slice(0, 8)}`}
                   </div>
                   <div style={{ marginTop: '6px' }}>
-                    <Badge variant={user.role === 'admin' ? 'danger' : user.role === 'creator' ? 'brand' : 'neutral'} size="sm">
-                      {user.role}
+                    <Badge variant={isPlatformAdmin ? 'coral' : user.role === 'admin' ? 'coral' : user.role === 'creator' ? 'peach' : 'neutral'} size="sm">
+                      {isPlatformAdmin ? 'Super Admin' : user.role === 'admin' ? 'Org Admin' : user.role === 'creator' ? 'Teacher' : 'Student'}
                     </Badge>
                   </div>
                 </div>
@@ -197,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   className={styles.dropdownItem}
-                  style={{ color: 'var(--danger-accent, #dc2626)' }}
+                  style={{ color: 'var(--color-danger)' }}
                   onClick={() => {
                     setIsDropdownOpen(false);
                     logout();

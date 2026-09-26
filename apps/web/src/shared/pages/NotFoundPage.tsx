@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { Layout } from '@/shared/components/Layout';
-import { Card, CardBody } from '@/shared/components/ui/Card/Card';
-import { Button } from '@/shared/components/ui/Button/Button';
+import { Card, CardBody } from '@/components/ui/Card/Card';
+import { Button } from '@/components/ui/Button/Button';
 
 export default function NotFoundPage() {
   return (

@@ -6,6 +6,7 @@ export interface AlertProps {
   children: React.ReactNode;
   onClose?: () => void;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export const Alert: React.FC<AlertProps> = ({
@@ -14,6 +15,7 @@ export const Alert: React.FC<AlertProps> = ({
   children,
   onClose,
   className = '',
+  style: customStyle,
 }) => {
   const stylesMap = {
     info: {
@@ -38,7 +40,7 @@ export const Alert: React.FC<AlertProps> = ({
     },
   };
 
-  const style = stylesMap[variant];
+  const currentVariantStyle = stylesMap[variant];
 
   return (
     <div
@@ -47,15 +49,16 @@ export const Alert: React.FC<AlertProps> = ({
       style={{
         padding: '14px 16px',
         borderRadius: '8px',
-        backgroundColor: style.bg,
-        border: `1px solid ${style.border}`,
-        color: style.text,
+        backgroundColor: currentVariantStyle.bg,
+        border: `1px solid ${currentVariantStyle.border}`,
+        color: currentVariantStyle.text,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         gap: '12px',
         fontSize: '0.875rem',
         lineHeight: '1.4',
+        ...customStyle,
       }}
     >
       <div>

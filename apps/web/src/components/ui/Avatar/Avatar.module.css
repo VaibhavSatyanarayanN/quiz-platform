@@ -1,0 +1,57 @@
+/* Avatar.module.css — Premium Brand Avatars */
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: #FFFFFF;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+  user-select: none;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(36, 35, 33, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 1.5px solid var(--color-surface);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.avatarInitials {
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  line-height: 1;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+}
+
+.avatarIcon {
+  line-height: 1;
+}
+
+.statusDot {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Sizes */
+.xs { width: 1.5rem; height: 1.5rem; font-size: 0.675rem; }
+.sm { width: 2rem; height: 2rem; font-size: 0.75rem; }
+.md { width: 2.5rem; height: 2.5rem; font-size: 0.875rem; }
+.lg { width: 3.25rem; height: 3.25rem; font-size: 1.125rem; }
+.xl { width: 4.5rem; height: 4.5rem; font-size: 1.5rem; }
+.xxl { width: 6rem; height: 6rem; font-size: 2rem; }
+
+.bordered {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-coral);
+}

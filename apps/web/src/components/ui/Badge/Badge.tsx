@@ -2,8 +2,8 @@ import React from 'react';
 import styles from './Badge.module.css';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'brand' | 'success' | 'warning' | 'danger' | 'neutral';
-  size?: 'sm' | 'md';
+  variant?: 'brand' | 'peach' | 'pink' | 'coral' | 'mustard' | 'success' | 'warning' | 'danger' | 'neutral';
+  size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
 }
 

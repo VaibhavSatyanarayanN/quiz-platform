@@ -44,5 +44,6 @@ export interface AuthUser {
   platformRole?: UserRole;
   email?: string;
   username?: string;
+  mustChangePassword?: boolean;
   organizations?: OrganizationMembership[];
 }

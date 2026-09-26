@@ -1,62 +1,72 @@
+/* Badge.module.css — Clean SaaS Badges */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1, 4px);
-  font-family: var(--font-sans, system-ui, sans-serif);
-  font-weight: 600;
-  border-radius: 4px;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  user-select: none;
-  width: fit-content;
+  gap: var(--space-1);
   white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  line-height: 1;
+  border: 1px solid transparent;
 }
 
 /* Sizes */
 .sm {
-  padding: 4px 10px;
-  font-size: 0.65rem;
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
 }
-
 .md {
-  padding: 5px 14px;
-  font-size: 0.725rem;
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+}
+.lg {
+  padding: 6px 12px;
+  font-size: var(--font-size-sm);
 }
 
 /* Variants */
 .brand {
-  background: var(--brand-50, #eef2ff);
-  color: var(--brand-600, #4f46e5);
-  border: 1px solid var(--brand-200, #c7d2fe);
+  background: rgba(227, 154, 123, 0.12);
+  color: #AF6448;
+  border-color: rgba(227, 154, 123, 0.25);
 }
-
-[data-theme="dark"] .brand {
-  background: rgba(99, 102, 241, 0.15);
-  color: var(--brand-300, #a5b4fc);
-  border-color: rgba(99, 102, 241, 0.35);
+.peach {
+  background: rgba(255, 211, 172, 0.25);
+  color: #8C4B33;
+  border-color: rgba(255, 211, 172, 0.4);
 }
-
+.pink {
+  background: rgba(255, 181, 171, 0.2);
+  color: #993333;
+  border-color: rgba(255, 181, 171, 0.35);
+}
+.coral {
+  background: rgba(227, 154, 123, 0.15);
+  color: #C97E60;
+  border-color: rgba(227, 154, 123, 0.3);
+}
+.mustard {
+  background: rgba(219, 176, 107, 0.2);
+  color: #8A5F1C;
+  border-color: rgba(219, 176, 107, 0.35);
+}
 .success {
-  background: var(--success-bg, #ecfdf5);
-  color: var(--success-text, #047857);
-  border: 1px solid var(--success-border, #a7f3d0);
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
 }
-
 .warning {
-  background: var(--warning-bg, #fffbeb);
-  color: var(--warning-text, #b45309);
-  border: 1px solid var(--warning-border, #fde68a);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
 }
-
 .danger {
-  background: var(--danger-bg, #fef2f2);
-  color: var(--danger-text, #b91c1c);
-  border: 1px solid var(--danger-border, #fecaca);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
 }
-
 .neutral {
-  background: var(--color-bg-subtle, #f3f4f6);
-  color: var(--color-text-secondary, #4b5563);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
 }

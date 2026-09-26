@@ -1,82 +1,47 @@
+/* QuestionCard.module.css — Clean Student Assessment Interface */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 6px);
-  padding: var(--space-6);
   box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-6);
 }
 
 .header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.meta {
-  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 .numberBadge {
-  background: var(--brand-50);
-  color: var(--brand-700);
-  border: 1px solid var(--brand-200);
-  padding: var(--space-1) var(--space-3);
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-[data-theme="dark"] .numberBadge {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--brand-300);
-  border-color: rgba(59, 130, 246, 0.3);
-}
-
-.prompt {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  line-height: var(--line-height-relaxed);
-}
-
-.hint {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--brand-50);
-  border: 1px solid var(--brand-200);
-  border-radius: 4px;
+  padding: 4px 12px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-xs);
-  color: var(--brand-800);
+}
+
+.points {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
 }
 
-[data-theme="dark"] .hint {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.25);
-  color: var(--brand-200);
+.text {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-relaxed);
 }
 
-.hintIcon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
-
-.optionsList {
+.options {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -85,129 +50,61 @@
 .optionRow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 6px);
-  cursor: pointer;
+  gap: var(--space-4);
+  padding: var(--space-4);
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
   user-select: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .optionRow:hover {
-  border-color: var(--color-border-hover);
+  border-color: var(--color-coral);
   background: var(--color-surface-hover);
 }
 
 .optionSelected {
-  border-color: var(--brand-600);
-  background: var(--brand-50);
-}
-
-[data-theme="dark"] .optionSelected {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: var(--brand-400);
-}
-
-.optionControl {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.customControlBox {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--color-border-hover);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface);
-  transition: all var(--transition-fast);
-}
-
-.controlRadio { border-radius: 50%; }
-.controlCheckbox { border-radius: var(--radius-xs); }
-
-.optionSelected .customControlBox {
-  border-color: var(--brand-600);
-  background: var(--brand-600);
-}
-
-.controlCheckIcon {
-  width: 12px;
-  height: 12px;
-  color: #ffffff;
+  border-color: var(--color-coral) !important;
+  background: rgba(227, 154, 123, 0.08) !important;
+  box-shadow: 0 0 0 1px var(--color-coral);
 }
 
 .optionLetter {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-subtle);
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .optionSelected .optionLetter {
-  background: var(--brand-100);
-  color: var(--brand-800);
-  border-color: var(--brand-300);
-}
-
-[data-theme="dark"] .optionSelected .optionLetter {
-  background: var(--brand-700);
-  color: #ffffff;
-}
-
-.optionContent {
-  flex: 1;
+  background: var(--color-coral);
+  color: var(--color-text-inverse);
+  border-color: var(--color-coral);
 }
 
 .optionText {
-  font-size: var(--font-size-base);
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
+  flex-grow: 1;
 }
 
-.optionKeyHint {
-  opacity: 0.4;
-  transition: opacity var(--transition-fast);
-}
-
-.optionRow:hover .optionKeyHint {
-  opacity: 1;
-}
-
-.optionKeyHint kbd {
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  border-bottom: 2px solid var(--color-border-hover);
-  border-radius: var(--radius-xs);
-  padding: 2px 6px;
-  font-size: 0.7rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary);
-}
-
-@media (max-width: 640px) {
-  .card {
-    padding: var(--space-4);
-    gap: var(--space-4);
-  }
-
-  .prompt {
-    font-size: var(--font-size-lg);
-  }
-
-  .optionRow {
-    padding: var(--space-3) var(--space-4);
-    gap: var(--space-3);
-  }
+.hint {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: rgba(219, 176, 107, 0.12);
+  border: 1px solid rgba(219, 176, 107, 0.3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: #8A5F1C;
 }

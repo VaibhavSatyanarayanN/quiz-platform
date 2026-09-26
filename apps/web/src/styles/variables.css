@@ -1,11 +1,85 @@
 /* ==========================================================================
-   Design Tokens & Variable Engine — High-Fidelity SaaS Aesthetic
-   Inspired by Linear, Stripe, Raycast, Vercel & Resend
+   Design Tokens & Variable Engine — Premium SaaS Palette & Typography
+   Palette: Peach (#FFD3AC), Pink (#FFB5AB), Coral (#E39A7B), Mustard (#DBB06B)
    ========================================================================== */
 
 :root {
   /* ------------------------------------------------------------------------
-     1. Spatial 8px Grid System
+     1. Brand Palette Tokens
+     ------------------------------------------------------------------------ */
+  --color-peach: #FFD3AC;
+  --color-pink: #FFB5AB;
+  --color-coral: #E39A7B;
+  --color-mustard: #DBB06B;
+
+  /* Brand Scale Mappings */
+  --brand-50: rgba(227, 154, 123, 0.08);
+  --brand-100: rgba(227, 154, 123, 0.15);
+  --brand-200: #FFD3AC;
+  --brand-300: #FFB5AB;
+  --brand-400: #E39A7B;
+  --brand-500: #E39A7B;
+  --brand-600: #C97E60;
+  --brand-700: #AF6448;
+  --brand-800: #8C4B33;
+  --brand-900: #663421;
+  --brand-text: #FFFFFF;
+
+  /* ------------------------------------------------------------------------
+     2. Neutral Surfaces & Backgrounds
+     ------------------------------------------------------------------------ */
+  --color-background: #FAF9F7;
+  --color-bg: #FAF9F7;
+  --color-bg-base: #FAF9F7;
+  --color-bg-subtle: #F5F3F0;
+
+  --color-surface: #FFFFFF;
+  --color-surface-subtle: #F5F3F0;
+  --color-surface-hover: #F0EEEA;
+  --color-surface-active: #E9E5E0;
+  --color-surface-raised: #FFFFFF;
+
+  /* Text Colors */
+  --color-text-primary: #242321;
+  --color-text-secondary: #6D6A66;
+  --color-text-muted: #96918B;
+  --color-text-inverse: #FFFFFF;
+
+  /* Borders */
+  --color-border: #E9E5E0;
+  --color-border-strong: #D9D3CC;
+  --color-border-hover: #D9D3CC;
+  --color-border-focus: var(--color-coral);
+  --color-border-subtle: #F0EEEA;
+
+  /* Semantic Feedback */
+  --color-success: #32845C;
+  --color-warning: #B77C25;
+  --color-danger: #C84D4D;
+  --color-info: #587C9B;
+
+  --success-bg: rgba(50, 132, 92, 0.08);
+  --success-border: rgba(50, 132, 92, 0.2);
+  --success-text: #32845C;
+  --success-accent: #32845C;
+
+  --warning-bg: rgba(183, 124, 37, 0.08);
+  --warning-border: rgba(183, 124, 37, 0.2);
+  --warning-text: #B77C25;
+  --warning-accent: #B77C25;
+
+  --danger-bg: rgba(200, 77, 77, 0.08);
+  --danger-border: rgba(200, 77, 77, 0.2);
+  --danger-text: #C84D4D;
+  --danger-accent: #C84D4D;
+
+  --info-bg: rgba(88, 124, 155, 0.08);
+  --info-border: rgba(88, 124, 155, 0.2);
+  --info-text: #587C9B;
+  --info-accent: #587C9B;
+
+  /* ------------------------------------------------------------------------
+     3. Spatial 4px / 8px Grid System
      ------------------------------------------------------------------------ */
   --space-0: 0px;
   --space-1: 4px;   /* 0.25rem */
@@ -21,20 +95,20 @@
   --space-20: 80px; /* 5rem */
 
   /* ------------------------------------------------------------------------
-     2. Radii Scale (Modern SaaS Hierarchy)
+     4. Radii Scale
      ------------------------------------------------------------------------ */
   --radius-none: 0px;
   --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  --radius-2xl: 12px;
-  --radius-3xl: 14px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
   --radius-full: 9999px;
 
   /* ------------------------------------------------------------------------
-     3. Typography Tokens
+     5. Typography Tokens
      ------------------------------------------------------------------------ */
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -55,12 +129,38 @@
   --font-weight-bold: 700;
   --font-weight-extrabold: 800;
 
-  --line-height-tight: 1.2;
+  --line-height-tight: 1.25;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.6;
 
   /* ------------------------------------------------------------------------
-     4. Animation & Easing
+     6. Shadows & Elevations (Clean Modern SaaS)
+     ------------------------------------------------------------------------ */
+  --shadow-xs: 0 1px 2px rgba(36, 35, 33, 0.04);
+  --shadow-sm: 0 1px 3px rgba(36, 35, 33, 0.06), 0 1px 2px rgba(36, 35, 33, 0.04);
+  --shadow-md: 0 4px 12px rgba(36, 35, 33, 0.06), 0 1px 3px rgba(36, 35, 33, 0.04);
+  --shadow-lg: 0 10px 24px rgba(36, 35, 33, 0.08), 0 2px 6px rgba(36, 35, 33, 0.04);
+  --shadow-modal: 0 20px 40px rgba(36, 35, 33, 0.12);
+
+  /* Fallback aliases for legacy neu references */
+  --shadow-neu-sm: var(--shadow-sm);
+  --shadow-neu-md: var(--shadow-md);
+  --shadow-neu-lg: var(--shadow-lg);
+  --shadow-neu-inset: inset 0 1px 2px rgba(36, 35, 33, 0.06);
+  --shadow-neu-inset-sm: inset 0 1px 2px rgba(36, 35, 33, 0.04);
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, var(--color-coral) 0%, #C97E60 100%);
+  --gradient-hero: linear-gradient(180deg, var(--color-surface) 0%, var(--color-background) 100%);
+  --gradient-card-border: none;
+
+  /* Focus Ring */
+  --focus-ring: 0 0 0 3px rgba(227, 154, 123, 0.25);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: var(--color-border);
+
+  /* ------------------------------------------------------------------------
+     7. Motion & Animations
      ------------------------------------------------------------------------ */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -73,154 +173,12 @@
   --transition-fast: 120ms ease;
   --transition-normal: 180ms ease;
   --transition-spring: 250ms ease;
-
-  /* ------------------------------------------------------------------------
-     5. Light Theme Color Palette (Modern SaaS Default)
-     ------------------------------------------------------------------------ */
-  --color-bg: #f8fafc;
-  --color-bg-base: #f8fafc;
-  --color-bg-subtle: #f1f5f9;
-  --color-surface: #ffffff;
-  --color-surface-hover: #f8fafc;
-  --color-surface-active: #f1f5f9;
-  --color-surface-raised: #ffffff;
-
-  --color-border: #e2e8f0;
-  --color-border-hover: #cbd5e1;
-  --color-border-focus: #4f46e5;
-  --color-border-subtle: #e2e8f0;
-
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
-  --color-text-inverse: #ffffff;
-
-  /* Brand Premium Indigo Palette */
-  --brand-50: #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-200: #c7d2fe;
-  --brand-300: #a5b4fc;
-  --brand-400: #818cf8;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;
-  --brand-800: #3730a3;
-  --brand-900: #312e81;
-  --brand-text: #ffffff;
-
-  /* Gradients */
-  --gradient-brand: none;
-  --gradient-hero: none;
-  --gradient-card-border: none;
-
-  /* Semantics */
-  --success-bg: #ecfdf5;
-  --success-border: #a7f3d0;
-  --success-accent: #10b981;
-  --success-text: #065f46;
-
-  --warning-bg: #fffbeb;
-  --warning-border: #fde68a;
-  --warning-accent: #f59e0b;
-  --warning-text: #92400e;
-
-  --danger-bg: #fef2f2;
-  --danger-border: #fecaca;
-  --danger-accent: #ef4444;
-  --danger-text: #991b1b;
-
-  /* Elevations */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --shadow-glow: none;
-  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-
-  /* Glassmorphism */
-  --glass-bg: #ffffff;
-  --glass-border: #e2e8f0;
-
-  /* Focus Ring */
-  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.2);
 }
 
-/* ------------------------------------------------------------------------
-   6. Dark Theme Color Palette
-   ------------------------------------------------------------------------ */
-[data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-bg-base: #0f172a;
-  --color-bg-subtle: #1e293b;
-  --color-surface: #1e293b;
-  --color-surface-hover: #334155;
-  --color-surface-active: #475569;
-  --color-surface-raised: #1e293b;
-
-  --color-border: #334155;
-  --color-border-hover: #475569;
-  --color-border-focus: #3b82f6;
-  --color-border-subtle: #334155;
-
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
-  --color-text-inverse: #0f172a;
-
-  /* Brand Dark */
-  --brand-50: rgba(59, 130, 246, 0.15);
-  --brand-100: rgba(59, 130, 246, 0.25);
-  --brand-200: rgba(59, 130, 246, 0.35);
-  --brand-300: #93c5fd;
-  --brand-400: #60a5fa;
-  --brand-500: #3b82f6;
-  --brand-600: #2563eb;
-  --brand-700: #1d4ed8;
-  --brand-text: #ffffff;
-
-  /* Dark Gradients */
-  --gradient-hero: none;
-  --gradient-card-border: none;
-
-  /* Semantics Dark */
-  --success-bg: rgba(22, 163, 74, 0.15);
-  --success-border: rgba(34, 197, 94, 0.3);
-  --success-accent: #4ade80;
-  --success-text: #86efac;
-
-  --warning-bg: rgba(217, 119, 6, 0.15);
-  --warning-border: rgba(245, 158, 11, 0.3);
-  --warning-accent: #fbbf24;
-  --warning-text: #fcd34d;
-
-  --danger-bg: rgba(220, 38, 38, 0.15);
-  --danger-border: rgba(239, 68, 68, 0.3);
-  --danger-accent: #f87171;
-  --danger-text: #fca5a5;
-
-  /* Elevations Dark */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-glow: none;
-  --shadow-modal: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
-
-  /* Glassmorphism Dark */
-  --glass-bg: #1e293b;
-  --glass-border: #334155;
-
-  /* Focus Ring Dark */
-  --focus-ring: 0 0 0 2px #3b82f6;
-}
-
-/* ------------------------------------------------------------------------
-   7. Keyframes & Animation Library
-   ------------------------------------------------------------------------ */
 @keyframes modalPopIn {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(10px);
+    transform: scale(0.96) translateY(8px);
   }
   to {
     opacity: 1;
@@ -229,36 +187,16 @@
 }
 
 @keyframes shimmerPulse {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(0.95);
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* Respect Reduced Motion Preferences */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
