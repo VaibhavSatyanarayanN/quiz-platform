@@ -66,6 +66,36 @@
   color: var(--color-text-primary);
 }
 
+/* Organization Badge Header Context */
+.orgBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(227, 154, 123, 0.1);
+  border: 1px solid rgba(227, 154, 123, 0.25);
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+}
+
+.orgBadge:hover {
+  background: rgba(227, 154, 123, 0.16);
+  border-color: rgba(227, 154, 123, 0.38);
+}
+
+.orgIcon {
+  color: #D96E43;
+  flex-shrink: 0;
+}
+
+.orgName {
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-semibold);
+  color: #8C4B33;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 /* Primary Desktop Horizontal Navigation */
 .desktopNav {
   display: flex;
@@ -148,10 +178,8 @@
 
 .mainContent {
   flex: 1;
-  padding: 32px 24px;
-  max-width: 1240px;
+  padding: 32px 36px;
   width: 100%;
-  margin: 0 auto;
 }
 
 .mobileToggleBtn {

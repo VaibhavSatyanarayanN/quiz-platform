@@ -40,4 +40,5 @@ export interface CreateCreatorRequest {
   email: string;
   username: string;
   password?: string;
+  role?: 'admin' | 'teacher';
 }

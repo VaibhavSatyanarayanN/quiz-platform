@@ -14,7 +14,6 @@
   position: sticky;
   top: var(--space-3);
   z-index: 100;
-  max-width: 1240px;
   width: calc(100% - (var(--space-6) * 2));
   margin: var(--space-3) auto 0 auto;
   padding: 0 var(--space-5);
@@ -434,8 +433,6 @@
 .main {
   flex: 1;
   width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
   padding: var(--space-6) var(--space-6) var(--space-12) var(--space-6);
 }
 

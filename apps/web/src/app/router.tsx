@@ -24,6 +24,7 @@ const ClassroomListPage = lazy(() => import('@/features/classrooms/pages/Classro
 const ClassroomDetailPage = lazy(() => import('@/features/classrooms/pages/ClassroomDetailPage'));
 const StudentDashboardPage = lazy(() => import('@/features/dashboards/pages/StudentDashboardPage'));
 const TeacherDashboardPage = lazy(() => import('@/features/dashboards/pages/TeacherDashboardPage'));
+const OrganizationMembersPage = lazy(() => import('@/features/organizations/pages/OrganizationMembersPage'));
 const NotFoundPage = lazy(() => import('@/components/feedback/NotFoundPage'));
 
 export function AppRouter() {
@@ -60,6 +61,7 @@ export function AppRouter() {
             <Route path="/quizzes/:quizId/versions/:versionId" element={<QuizVersionPage />} />
             <Route path="/classrooms" element={<ClassroomListPage />} />
             <Route path="/classrooms/:classroomId" element={<ClassroomDetailPage />} />
+            <Route path="/organization/members" element={<OrganizationMembersPage />} />
           </Route>
 
           {/* Platform Admin-only routes */}

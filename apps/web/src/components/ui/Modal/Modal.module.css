@@ -2,8 +2,9 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(36, 35, 33, 0.4);
+  background: rgba(36, 35, 33, 0.45);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -34,39 +35,60 @@
 .header {
   padding: var(--space-5) var(--space-6);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .title {
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+  line-height: var(--line-height-tight);
 }
 
-.closeBtn {
+.description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.closeButton, .closeBtn {
   background: transparent;
   border: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  padding: var(--space-2);
+  padding: 6px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  margin-left: var(--space-4);
+  flex-shrink: 0;
 }
-.closeBtn:hover {
+
+.closeButton:hover, .closeBtn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
-.content {
+.body, .content {
   padding: var(--space-6);
   overflow-y: auto;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .footer {
@@ -74,6 +96,7 @@
   background: var(--color-surface-subtle);
   border-top: 1px solid var(--color-border-subtle);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
 }

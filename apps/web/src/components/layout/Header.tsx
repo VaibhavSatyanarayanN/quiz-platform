@@ -65,12 +65,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className={styles.logoText}>QuizPlatform</span>
         </Link>
 
-        {currentOrganization && (
-          <Badge variant="coral" size="sm" style={{ textTransform: 'none' }}>
-            🏢 {currentOrganization.organizationName}
-          </Badge>
-        )}
-
         {/* Primary Desktop Horizontal Navigation */}
         <nav className={styles.desktopNav}>
           <Link
@@ -93,6 +87,14 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 Classrooms
+              </Link>
+              <Link
+                to="/organization/members"
+                className={`${styles.topNavItem} ${
+                  location.pathname.startsWith('/organization') ? styles.topNavItemActive : ''
+                }`}
+              >
+                Organization Members
               </Link>
               <Link
                 to="/quizzes"
@@ -148,6 +150,25 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className={styles.headerRight}>
+        {currentOrganization && (
+          <div className={styles.orgBadge}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.orgIcon}>
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+              <path d="M9 22v-4h6v4" />
+              <path d="M8 6h.01" />
+              <path d="M16 6h.01" />
+              <path d="M12 6h.01" />
+              <path d="M12 10h.01" />
+              <path d="M12 14h.01" />
+              <path d="M16 10h.01" />
+              <path d="M16 14h.01" />
+              <path d="M8 10h.01" />
+              <path d="M8 14h.01" />
+            </svg>
+            <span className={styles.orgName}>{currentOrganization.organizationName}</span>
+          </div>
+        )}
+
         <ThemeToggle />
 
         {user && (

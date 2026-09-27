@@ -8,11 +8,11 @@ import {
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card/Card';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Button } from '@/components/ui/Button/Button';
-import { Input } from '@/components/ui/Input/Input';
 import { Modal } from '@/components/ui/Modal/Modal';
 import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 import { Alert } from '@/components/feedback/Alert';
 import { TableContainer, Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table/Table';
+import { StudentSearchSelect } from '../components/StudentSearchSelect';
 
 export const ClassroomDetailPage: React.FC = () => {
   const { classroomId } = useParams<{ classroomId: string }>();
@@ -22,7 +22,7 @@ export const ClassroomDetailPage: React.FC = () => {
   const removeStudentMutation = useRemoveClassroomStudent();
 
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
-  const [studentIdInput, setStudentIdInput] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
 
   if (isLoading) {
@@ -42,17 +42,21 @@ export const ClassroomDetailPage: React.FC = () => {
     );
   }
 
+  const enrolledStudentIds = (classroom.students || [])
+    .map((s) => s.studentId)
+    .filter((id): id is string => Boolean(id));
+
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentIdInput.trim() || !classroomId) return;
+    if (!selectedStudentId || !classroomId) return;
 
     setModalError(null);
     addStudentMutation.mutate(
-      { classroomId, studentId: studentIdInput.trim() },
+      { classroomId, studentId: selectedStudentId },
       {
         onSuccess: () => {
           setIsStudentModalOpen(false);
-          setStudentIdInput('');
+          setSelectedStudentId(null);
         },
         onError: (err) => {
           setModalError((err as Error)?.message || 'Failed to enroll student');
@@ -169,18 +173,22 @@ export const ClassroomDetailPage: React.FC = () => {
       <Modal isOpen={isStudentModalOpen} onClose={() => setIsStudentModalOpen(false)} title="Enroll Student">
         <form onSubmit={handleAddStudent} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {modalError && <Alert variant="danger">{modalError}</Alert>}
-          <Input
-            label="Student User ID"
-            value={studentIdInput}
-            onChange={(e) => setStudentIdInput(e.target.value)}
-            placeholder="Enter Student User UUID"
-            required
+          <StudentSearchSelect
+            organizationId={classroom.organizationId}
+            enrolledStudentIds={enrolledStudentIds}
+            selectedStudentId={selectedStudentId}
+            onSelectStudent={(id) => setSelectedStudentId(id)}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
             <Button type="button" variant="ghost" onClick={() => setIsStudentModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={addStudentMutation.isPending}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!selectedStudentId}
+              isLoading={addStudentMutation.isPending}
+            >
               Enroll Student
             </Button>
           </div>

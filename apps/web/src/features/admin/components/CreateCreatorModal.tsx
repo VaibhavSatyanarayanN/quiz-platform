@@ -23,14 +23,15 @@ export function CreateCreatorModal({
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'admin' | 'teacher'>('teacher');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim() || !username.trim()) {
-      setError('Email and username are required.');
+    if (!email.trim() || !username.trim() || !password.trim()) {
+      setError('Email, username, and password are required.');
       return;
     }
 
@@ -40,7 +41,8 @@ export function CreateCreatorModal({
         data: {
           email: email.trim().toLowerCase(),
           username: username.trim(),
-          password: password ? password : undefined,
+          password: password.trim(),
+          role,
         },
       },
       {
@@ -48,10 +50,11 @@ export function CreateCreatorModal({
           setEmail('');
           setUsername('');
           setPassword('');
+          setRole('teacher');
           onClose();
         },
         onError: (err) => {
-          setError(err instanceof Error ? err.message : 'Failed to create creator');
+          setError(err instanceof Error ? err.message : 'Failed to create member');
         },
       },
     );
@@ -61,8 +64,8 @@ export function CreateCreatorModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Organization Creator"
-      description={`Add a new creator member to ${organizationName || 'the organization'}.`}
+      title="Create Organization Member"
+      description={`Add an admin or teacher member to ${organizationName || 'the organization'}.`}
       size="md"
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -76,13 +79,36 @@ export function CreateCreatorModal({
           disabled
         />
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            Organization Role *
+          </label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as 'admin' | 'teacher')}
+            disabled={createCreatorMutation.isPending}
+            style={{
+              height: '38px',
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border, #cbd5e1)',
+              backgroundColor: 'var(--color-surface, #ffffff)',
+              color: 'var(--color-text-primary, #0f172a)',
+              fontSize: '0.875rem',
+            }}
+          >
+            <option value="admin">Organization Admin (Principal / Org Manager)</option>
+            <option value="teacher">Teacher / Instructor</option>
+          </select>
+        </div>
+
         <Input
           label="Email Address *"
           id="creator-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="creator@organization.com"
+          placeholder="user@organization.com"
           required
           disabled={createCreatorMutation.isPending}
         />
@@ -99,14 +125,15 @@ export function CreateCreatorModal({
         />
 
         <Input
-          label="Initial Password (Optional)"
+          label="Member Password *"
           id="creator-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Leave empty to generate temporary password"
-          helperText="Min 8 characters. If empty, a temporary password will be generated automatically."
-          minLength={8}
+          placeholder="Enter member password"
+          helperText="Min 6 characters. Required for account login."
+          required
+          minLength={6}
           disabled={createCreatorMutation.isPending}
         />
 

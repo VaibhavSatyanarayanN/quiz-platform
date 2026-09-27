@@ -1,6 +1,15 @@
 import { apiClient } from '@/lib/api/client';
 import type { Classroom, CreateClassroomRequest } from '../types/classroom.types.js';
 
+export interface OrganizationStudent {
+  id: string;
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  joinedAt: string;
+}
+
 export const classroomsApi = {
   getClassrooms: async (organizationId?: string): Promise<Classroom[]> => {
     const response = await apiClient.get<Classroom[]>('/classrooms', {
@@ -11,6 +20,11 @@ export const classroomsApi = {
 
   getClassroomDetails: async (classroomId: string): Promise<Classroom> => {
     const response = await apiClient.get<Classroom>(`/classrooms/${classroomId}`);
+    return response.data;
+  },
+
+  getOrganizationStudents: async (organizationId: string): Promise<OrganizationStudent[]> => {
+    const response = await apiClient.get<OrganizationStudent[]>(`/organizations/${organizationId}/students`);
     return response.data;
   },
 
@@ -33,5 +47,27 @@ export const classroomsApi = {
 
   removeStudent: async (classroomId: string, studentId: string): Promise<void> => {
     await apiClient.delete(`/classrooms/${classroomId}/students/${studentId}`);
+  },
+
+  createOrgStudent: async (
+    organizationId: string,
+    data: { email: string; username: string; tempPassword?: string },
+  ): Promise<OrganizationStudent> => {
+    const response = await apiClient.post<OrganizationStudent>(
+      `/organizations/${organizationId}/students`,
+      data,
+    );
+    return response.data;
+  },
+
+  createOrgTeacher: async (
+    organizationId: string,
+    data: { email: string; username: string; tempPassword?: string },
+  ): Promise<OrganizationStudent> => {
+    const response = await apiClient.post<OrganizationStudent>(
+      `/organizations/${organizationId}/teachers`,
+      data,
+    );
+    return response.data;
   },
 };

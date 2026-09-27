@@ -10,7 +10,11 @@ export class CreateOrganizationCreatorDto {
   username: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+
+  @IsString()
   @IsOptional()
-  @MinLength(8)
-  password?: string;
+  role?: 'admin' | 'teacher';
 }

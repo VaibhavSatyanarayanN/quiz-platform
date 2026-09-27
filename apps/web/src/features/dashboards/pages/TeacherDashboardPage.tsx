@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { useTeacherDashboard } from '../hooks/use-dashboards.js';
+import { useAuth } from '@/features/auth/hooks/use-auth';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card/Card';
 import { Button } from '@/components/ui/Button/Button';
 import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 import { Alert } from '@/components/feedback/Alert';
 import { TableContainer, Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table/Table';
+import { CreateStudentModal } from '@/features/classrooms/components/CreateStudentModal';
 
 export const TeacherDashboardPage: React.FC = () => {
+  const { currentOrganization } = useAuth();
   const { data, isLoading, error } = useTeacherDashboard();
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+
+  const organizationId = currentOrganization?.organizationId || '';
 
   if (isLoading) {
     return <LoadingSpinner message="Loading your teacher dashboard..." />;
@@ -33,7 +40,12 @@ export const TeacherDashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {organizationId && (
+            <Button variant="outline" onClick={() => setIsStudentModalOpen(true)}>
+              + Register Student
+            </Button>
+          )}
           <Link to="/classrooms">
             <Button variant="outline">+ Classrooms</Button>
           </Link>
@@ -42,6 +54,8 @@ export const TeacherDashboardPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {banner && <Alert variant="success">{banner}</Alert>}
 
       {/* KPI Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
@@ -134,6 +148,18 @@ export const TeacherDashboardPage: React.FC = () => {
           )}
         </CardBody>
       </Card>
+
+      {organizationId && (
+        <CreateStudentModal
+          organizationId={organizationId}
+          isOpen={isStudentModalOpen}
+          onClose={() => setIsStudentModalOpen(false)}
+          onStudentCreated={(newStudent) => {
+            setBanner(`Student "${newStudent.username}" (${newStudent.email}) registered successfully!`);
+            setTimeout(() => setBanner(null), 4000);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -218,19 +218,128 @@ export class OrganizationService {
     };
   }
 
-  async createOrgStudent(organizationId: string, dto: CreateOrgStudentDto) {
+  async getOrganizationStudents(
+    organizationId: string,
+    user: AuthenticatedUser,
+  ) {
+    const org = await this.findById(organizationId);
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (!isPlatformAdmin) {
+      const membership = await this.memberRepository.findOne({
+        where: { organizationId, userId: user.userId },
+      });
+      if (!membership) {
+        throw new ForbiddenException('You do not belong to this organization');
+      }
+    }
+
+    const members = await this.memberRepository.find({
+      where: { organizationId },
+      relations: { user: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    return members
+      .filter(
+        (m) =>
+          m.isActive &&
+          m.user &&
+          m.user.isActive &&
+          (m.role === OrganizationRole.STUDENT || m.user.role === UserRole.USER),
+      )
+      .map((m) => ({
+        id: m.id,
+        userId: m.user.id,
+        username: m.user.username,
+        email: m.user.email,
+        role: m.role,
+        joinedAt: m.createdAt,
+      }));
+  }
+
+  async getOrganizationCreators(
+    organizationId: string,
+    user: AuthenticatedUser,
+  ) {
+    const org = await this.findById(organizationId);
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (!isPlatformAdmin) {
+      const membership = await this.memberRepository.findOne({
+        where: { organizationId, userId: user.userId },
+      });
+      if (!membership) {
+        throw new ForbiddenException('You do not belong to this organization');
+      }
+    }
+
+    const members = await this.memberRepository.find({
+      where: { organizationId },
+      relations: { user: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      items: members
+        .filter((m) => m.user)
+        .map((m) => ({
+          id: m.id,
+          userId: m.user.id,
+          username: m.user.username,
+          name: m.user.username,
+          email: m.user.email,
+          isActive: m.user.isActive,
+          role: m.role,
+          createdAt: m.createdAt,
+        })),
+    };
+  }
+
+  async createOrgStudent(
+    organizationId: string,
+    dto: CreateOrgStudentDto,
+    user: AuthenticatedUser,
+  ) {
     const org = await this.findById(organizationId);
     if (!org) throw new NotFoundException('Organization not found');
+
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (!isPlatformAdmin) {
+      const membership = await this.memberRepository.findOne({
+        where: { organizationId, userId: user.userId },
+      });
+      if (!membership) {
+        throw new ForbiddenException('You do not belong to this organization');
+      }
+      const canCreateStudent =
+        membership.role === OrganizationRole.ADMIN ||
+        membership.role === OrganizationRole.TEACHER ||
+        user.role === UserRole.CREATOR;
+      if (!canCreateStudent) {
+        throw new ForbiddenException('You do not have permission to create students in this organization');
+      }
+    }
 
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim();
 
+    if (!dto.tempPassword || !dto.tempPassword.trim()) {
+      throw new ConflictException('Password is required');
+    }
+
     const existingUser = await this.userService.findByEmail(email);
     if (existingUser) throw new ConflictException('User email already exists');
 
-    const passwordHash = await argon2.hash(dto.tempPassword, { type: argon2.argon2id });
+    const passwordHash = await argon2.hash(dto.tempPassword.trim(), { type: argon2.argon2id });
 
-    const user = await this.userService.create({
+    const newUser = await this.userService.create({
       email,
       username,
       passwordHash,
@@ -239,31 +348,49 @@ export class OrganizationService {
       isActive: true,
     });
 
-    const member = await this.addMember(organizationId, user.id, OrganizationRole.STUDENT);
+    const member = await this.addMember(organizationId, newUser.id, OrganizationRole.STUDENT);
 
     return {
       id: member.id,
-      userId: user.id,
-      username: user.username,
-      email: user.email,
+      userId: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
       role: OrganizationRole.STUDENT,
       mustChangePassword: true,
     };
   }
 
-  async createOrgTeacher(organizationId: string, dto: CreateOrgTeacherDto) {
+  async createOrgTeacher(
+    organizationId: string,
+    dto: CreateOrgTeacherDto,
+    user: AuthenticatedUser,
+  ) {
     const org = await this.findById(organizationId);
     if (!org) throw new NotFoundException('Organization not found');
+
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (!isPlatformAdmin) {
+      const membership = await this.memberRepository.findOne({
+        where: { organizationId, userId: user.userId },
+      });
+      if (!membership || membership.role !== OrganizationRole.ADMIN) {
+        throw new ForbiddenException('Only organization admins can create teachers/creators in this organization');
+      }
+    }
 
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim();
 
+    if (!dto.tempPassword || !dto.tempPassword.trim()) {
+      throw new ConflictException('Password is required');
+    }
+
     const existingUser = await this.userService.findByEmail(email);
     if (existingUser) throw new ConflictException('User email already exists');
 
-    const passwordHash = await argon2.hash(dto.tempPassword, { type: argon2.argon2id });
+    const passwordHash = await argon2.hash(dto.tempPassword.trim(), { type: argon2.argon2id });
 
-    const user = await this.userService.create({
+    const newUser = await this.userService.create({
       email,
       username,
       passwordHash,
@@ -272,13 +399,13 @@ export class OrganizationService {
       isActive: true,
     });
 
-    const member = await this.addMember(organizationId, user.id, OrganizationRole.TEACHER);
+    const member = await this.addMember(organizationId, newUser.id, OrganizationRole.TEACHER);
 
     return {
       id: member.id,
-      userId: user.id,
-      username: user.username,
-      email: user.email,
+      userId: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
       role: OrganizationRole.TEACHER,
       mustChangePassword: true,
     };

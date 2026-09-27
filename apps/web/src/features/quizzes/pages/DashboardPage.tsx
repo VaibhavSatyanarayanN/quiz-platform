@@ -118,22 +118,32 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardBody style={{ paddingTop: '12px' }}>
-          <form onSubmit={handleJoinQuiz} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <form onSubmit={handleJoinQuiz} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label htmlFor="quiz-link-input" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              Assessment Link or ID
+            </label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '280px' }}>
                 <Input
                   id="quiz-link-input"
-                  label="Assessment Link or ID"
                   placeholder="e.g. /quizzes/quizId/versions/versionId"
                   value={quizInput}
-                  onChange={(e) => setQuizInput(e.target.value)}
-                  error={inputError ?? undefined}
+                  onChange={(e) => {
+                    setQuizInput(e.target.value);
+                    if (inputError) setInputError(null);
+                  }}
+                  error={inputError ? '' : undefined}
                 />
               </div>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" style={{ height: '38px', flexShrink: 0 }}>
                 Open Quiz
               </Button>
             </div>
+            {inputError && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-danger, #ef4444)', marginTop: '2px', fontWeight: 500 }} role="alert">
+                {inputError}
+              </span>
+            )}
           </form>
         </CardBody>
       </Card>

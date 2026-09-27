@@ -31,7 +31,7 @@ export const adminApi = {
   },
 
   getOrganizationCreators: async (organizationId: string): Promise<AdminCreatorListResponse> => {
-    const response = await apiClient.get<AdminCreatorListResponse>(`/admin/organizations/${organizationId}/creators`);
+    const response = await apiClient.get<AdminCreatorListResponse>(`/organizations/${organizationId}/creators`);
     return response.data;
   },
 

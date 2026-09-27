@@ -128,10 +128,16 @@ export class AdminService {
       throw new ConflictException('A user with this username already exists');
     }
 
-    const plainPassword = dto.password || randomBytes(8).toString('hex');
+    if (!dto.password || !dto.password.trim()) {
+      throw new ConflictException('Password is required');
+    }
+
+    const plainPassword = dto.password.trim();
     const passwordHash = await argon2.hash(plainPassword, {
       type: argon2.argon2id,
     });
+
+    const targetOrgRole = dto.role === 'admin' ? OrganizationRole.ADMIN : OrganizationRole.TEACHER;
 
     const user = await this.userService.create({
       email,
@@ -144,7 +150,7 @@ export class AdminService {
     const member = await this.organizationService.addMember(
       organizationId,
       user.id,
-      OrganizationRole.TEACHER,
+      targetOrgRole,
     );
 
     return {

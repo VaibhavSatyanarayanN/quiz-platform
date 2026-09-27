@@ -17,6 +17,14 @@ export function useClassroomDetails(classroomId: string) {
   });
 }
 
+export function useOrganizationStudents(organizationId?: string) {
+  return useQuery({
+    queryKey: ['organization-students', organizationId],
+    queryFn: () => classroomsApi.getOrganizationStudents(organizationId!),
+    enabled: !!organizationId,
+  });
+}
+
 export function useCreateClassroom() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -45,6 +53,46 @@ export function useRemoveClassroomStudent() {
       classroomsApi.removeStudent(classroomId, studentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['classroom-details', variables.classroomId] });
+    },
+  });
+}
+
+export function useCreateOrgStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      email,
+      username,
+      tempPassword,
+    }: {
+      organizationId: string;
+      email: string;
+      username: string;
+      tempPassword?: string;
+    }) => classroomsApi.createOrgStudent(organizationId, { email, username, tempPassword }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['organization-students', variables.organizationId] });
+    },
+  });
+}
+
+export function useCreateOrgTeacher() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      email,
+      username,
+      tempPassword,
+    }: {
+      organizationId: string;
+      email: string;
+      username: string;
+      tempPassword?: string;
+    }) => classroomsApi.createOrgTeacher(organizationId, { email, username, tempPassword }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['classrooms'] });
     },
   });
 }

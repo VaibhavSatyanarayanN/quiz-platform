@@ -10,6 +10,7 @@ export class CreateOrgStudentDto {
   username: string;
 
   @IsString()
+  @IsNotEmpty()
   @MinLength(6)
   tempPassword: string;
 
