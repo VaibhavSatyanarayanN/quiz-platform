@@ -10,8 +10,10 @@ import {
 } from '@nestjs/common';
 
 import { QuizService } from './quizzes.service.js';
+import { QuizGenerationService } from './quiz-generation.service.js';
 import { CreateQuizDto } from './dto/create-quiz.dto.js';
 import { BulkSaveQuestionsDto } from './dto/bulk-save-questions.dto.js';
+import { GenerateQuestionsDto } from './dto/generate-questions.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
@@ -24,6 +26,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 export class QuizController {
   constructor(
     private readonly quizService: QuizService,
+    private readonly quizGenerationService: QuizGenerationService,
   ) { }
 
   @Post()
@@ -223,6 +226,48 @@ export class QuizController {
     return this.quizService.getQuizAnalytics(
       quizId,
       versionId,
+      user,
+    );
+  }
+
+  @Post(':quizId/versions/:quizVersionId/ai-generate')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  generateQuestions(
+    @Param('quizId') quizId: string,
+    @Param('quizVersionId') quizVersionId: string,
+    @Body() dto: GenerateQuestionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.createGeneration(
+      quizId,
+      quizVersionId,
+      dto,
+      user,
+    );
+  }
+
+  @Get(':quizId/ai-generations/:generationId/status')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  getGenerationStatus(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.getGenerationStatus(
+      quizId,
+      generationId,
+      user,
+    );
+  }
+
+  @Get(':quizId/ai-generations')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  listGenerations(
+    @Param('quizId') quizId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.listGenerations(
+      quizId,
       user,
     );
   }

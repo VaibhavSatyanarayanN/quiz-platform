@@ -3,6 +3,7 @@ import { HealthModule } from './health/health.module.js';
 import { AppService } from './app.service.js';
 import { AppController } from './app.controller.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
+import { QueueModule } from './infrastructure/queue/queue.module.js';
 import { UsersModule } from './modules/users/user.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -24,6 +25,7 @@ import { DashboardModule } from './modules/dashboards/dashboard.module.js';
     }),
     HealthModule,
     DatabaseModule,
+    QueueModule,
     UsersModule,
     AuthModule,
     QuizModule,

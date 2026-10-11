@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { QuizController } from './quizzes.controller.js';
 import { QuizService } from './quizzes.service.js';
+import { QuizGenerationService } from './quiz-generation.service.js';
 
 describe('QuizController', () => {
   let controller: QuizController;
@@ -15,6 +16,14 @@ describe('QuizController', () => {
             createQuiz: vi.fn(),
             getQuizzes: vi.fn(),
             getQuizById: vi.fn(),
+          },
+        },
+        {
+          provide: QuizGenerationService,
+          useValue: {
+            createGeneration: vi.fn(),
+            getGenerationStatus: vi.fn(),
+            listGenerations: vi.fn(),
           },
         },
       ],
