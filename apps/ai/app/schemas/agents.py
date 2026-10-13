@@ -74,6 +74,15 @@ class GeneratedQuestion(StrictSchema):
     ]
     learning_objective_id: str = Field(min_length=1, max_length=50)
     source_pages: list[int] = Field(default_factory=list)
+    source_evidence: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "Short verbatim excerpts from the supplied source that support "
+            "the question, answer, and explanation. Empty for open-world "
+            "questions when no reference source is supplied."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_question(self):

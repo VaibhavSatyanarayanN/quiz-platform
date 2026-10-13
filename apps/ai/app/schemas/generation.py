@@ -66,6 +66,7 @@ class GenerationRequest(StrictSchema):
         return self
 
 
+
 class GenerationResponse(StrictSchema):
     status: Literal["completed", "needs_review"]
     curriculum_plan: CurriculumPlan
