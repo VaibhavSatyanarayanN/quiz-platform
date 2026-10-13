@@ -7,12 +7,6 @@ from app.agents.question_generator import QuestionGeneratorAgent
 from app.agents.validator import ValidationAgent
 from app.agents.pedagogy import PedagogyAgent
 
-from app.schemas.agents import (
-    CurriculumPlan,
-    PedagogyReport,
-    QuestionSet,
-    ValidationReport,
-)
 from app.schemas.generation import (
     GenerationRequest,
     GenerationResponse,
