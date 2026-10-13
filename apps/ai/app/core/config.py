@@ -1,4 +1,3 @@
-
 import os
 
 from dotenv import load_dotenv
@@ -10,27 +9,30 @@ class Settings:
     """Environment-based AI service configuration."""
 
     def __init__(self) -> None:
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
-        self.gemini_model = os.getenv(
-            "GEMINI_MODEL",
-            "gemini-2.5-flash",
+        self.groq_api_key = os.getenv("GROQ_API_KEY", "")
+        self.groq_model = os.getenv(
+            "GROQ_MODEL",
+            "openai/gpt-oss-120b",
         )
-        self.gemini_timeout_seconds = float(
-            os.getenv("GEMINI_TIMEOUT_SECONDS", "60")
+        self.groq_timeout_seconds = float(
+            os.getenv("GROQ_TIMEOUT_SECONDS", "60")
         )
         self.max_input_chars = int(
             os.getenv("MAX_INPUT_CHARS", "200000")
         )
 
     def validate_llm_config(self) -> None:
-        if not self.gemini_api_key:
+        if not self.groq_api_key:
             raise RuntimeError(
-                "GEMINI_API_KEY is missing from the environment."
+                "GROQ_API_KEY is missing from the environment."
             )
 
-        if self.gemini_timeout_seconds <= 0:
+        if not self.groq_model.strip():
+            raise RuntimeError("GROQ_MODEL must not be empty.")
+
+        if self.groq_timeout_seconds <= 0:
             raise RuntimeError(
-                "GEMINI_TIMEOUT_SECONDS must be positive."
+                "GROQ_TIMEOUT_SECONDS must be positive."
             )
 
         if self.max_input_chars < 1:
