@@ -25,6 +25,7 @@ class OpenAIProvider(LLMProvider):
         system_prompt: str,
         user_prompt: str,
         response_model: type[BaseModel],
+        agent_name: str | None = None,
     ) -> BaseModel:
         completion = await self.client.beta.chat.completions.parse(
             model=self.model,

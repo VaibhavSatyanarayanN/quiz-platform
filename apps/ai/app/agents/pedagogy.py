@@ -74,6 +74,7 @@ Return a PedagogyReport with exactly one assessment per question.
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 response_model=PedagogyReport,
+                agent_name="PedagogyAgent",
             ),
         )
 

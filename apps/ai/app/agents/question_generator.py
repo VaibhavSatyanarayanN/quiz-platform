@@ -31,16 +31,26 @@ class QuestionGeneratorAgent:
 
         context_parts: list[str] = []
 
-        if request.topic:
-            context_parts.append(f"Requested topic:\n{request.topic}")
-
-        if source_text:
+        if knowledge_mode == "document":
             context_parts.append(
-                "Reference material:\n"
-                "Use this material as the factual source for questions. "
-                "Do not invent unsupported source-specific claims.\n"
+                "DOCUMENT CONTENT (Extracted from uploaded PDF):\n"
                 f"{source_text}"
             )
+        elif knowledge_mode == "reference_url":
+            context_parts.append(
+                "REFERENCE CONTENT (Retrieved from URL):\n"
+                f"{source_text}"
+            )
+        else:
+            if request.topic:
+                context_parts.append(f"Requested topic:\n{request.topic}")
+            if source_text:
+                context_parts.append(
+                    "Reference material:\n"
+                    "Use this material as the factual source for questions. "
+                    "Do not invent unsupported source-specific claims.\n"
+                    f"{source_text}"
+                )
 
         context = "\n\n".join(context_parts)
 
@@ -80,7 +90,7 @@ If source material is supplied, populate source_pages only with page
 numbers that are actually provided as source metadata. If page metadata
 is unavailable, leave source_pages empty. Never invent page numbers.
 
-Return only data matching the provided structured response schema.
+CRITICAL: Return only a valid JSON object matching the requested schema. Do not output conversational text, disclaimers, or refusals.
 """
         system_prompt += "\n\n" + get_source_policy(knowledge_mode)
 
@@ -127,6 +137,7 @@ Use only the allowed question types.
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 response_model=QuestionSet,
+                agent_name="QuestionGeneratorAgent",
             ),
         )
 
@@ -191,8 +202,13 @@ Use only the allowed question types.
         }
 
         def normalize_text(value: str) -> str:
-                """Normalize whitespace for matching extracted PDF/web text."""
-                return re.sub(r"\s+", " ", value).strip()
+            """Normalize whitespace and typographic variants for matching extracted text."""
+            val = value.strip().strip('"\'“”')
+            val = val.replace("’", "'").replace("‘", "'")
+            val = val.replace("“", '"').replace("”", '"')
+            val = val.replace("–", "-").replace("—", "-")
+            val = val.replace("\u00a0", " ")
+            return re.sub(r"\s+", " ", val).strip()
 
         if knowledge_mode in ("document", "reference_url"):
             normalized_source = normalize_text(source_text)

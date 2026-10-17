@@ -18,6 +18,7 @@ class LLMProvider(ABC):
         system_prompt: str,
         user_prompt: str,
         response_model: type[T],
+        agent_name: str | None = None,
     ) -> T:
         """Return a validated instance of the requested schema."""
         raise NotImplementedError

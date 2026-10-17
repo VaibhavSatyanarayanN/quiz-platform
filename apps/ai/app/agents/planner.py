@@ -30,15 +30,25 @@ class CurriculumAgent:
 
         context_parts: list[str] = []
 
-        if request.topic:
-            context_parts.append(f"Requested topic:\n{request.topic}")
-
-        if source_text:
+        if knowledge_mode == "document":
             context_parts.append(
-                "Source material:\n"
-                "Treat this material as the primary source of facts.\n"
+                "DOCUMENT CONTENT (Extracted from uploaded PDF):\n"
                 f"{source_text}"
             )
+        elif knowledge_mode == "reference_url":
+            context_parts.append(
+                "REFERENCE CONTENT (Retrieved from URL):\n"
+                f"{source_text}"
+            )
+        else:
+            if request.topic:
+                context_parts.append(f"Requested topic:\n{request.topic}")
+            if source_text:
+                context_parts.append(
+                    "Source material:\n"
+                    "Treat this material as the primary source of facts.\n"
+                    f"{source_text}"
+                )
 
         context = "\n\n".join(context_parts)
 
@@ -90,6 +100,7 @@ Use the supplied difficulty distribution without changing its counts.
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 response_model=CurriculumPlan,
+                agent_name="CurriculumAgent",
             ),
         )
 

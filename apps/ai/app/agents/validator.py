@@ -76,6 +76,7 @@ Return a ValidationReport containing exactly one result per question.
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 response_model=ValidationReport,
+                agent_name="ValidationAgent",
             ),
         )
 

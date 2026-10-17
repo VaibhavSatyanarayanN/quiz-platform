@@ -14,10 +14,10 @@ STRICT DOCUMENT-ONLY MODE:
 - Every question, correct answer, and explanation must be supported
   by the extracted document.
 - Include short verbatim source_evidence excerpts for each question.
-- If the document does not contain enough information, do not
-  invent facts or force a question. Report insufficient source
-  material rather than fabricating content.
+- Focus questions strictly on the concepts, definitions, and facts that
+  are explicitly stated in the document. Do not invent facts or extrapolate.
 - Do not invent PDF page numbers.
+- Always output a valid JSON object matching the requested schema.
 """
 
     if mode == "reference_url":
@@ -28,6 +28,7 @@ REFERENCE-URL MODE:
   fails or the page contains insufficient information.
 - Include short verbatim source_evidence excerpts for each question.
 - Do not invent facts, quotations, or source metadata.
+- Always output a valid JSON object matching the requested schema.
 """
 
     return """

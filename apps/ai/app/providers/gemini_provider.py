@@ -27,6 +27,7 @@ class GeminiProvider(LLMProvider):
         system_prompt: str,
         user_prompt: str,
         response_model: type[BaseModel],
+        agent_name: str | None = None,
     ) -> BaseModel:
         response = await self.client.aio.models.generate_content(
             model=self.model,
