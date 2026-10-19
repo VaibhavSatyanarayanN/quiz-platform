@@ -1,4 +1,5 @@
 
+import asyncio
 from dataclasses import dataclass
 
 from app.agents.knowledge_mode_router import KnowledgeModeRouter
@@ -97,25 +98,37 @@ class GenerationWorkflow:
 
         # Initial generation + up to max_revision_attempts retries.
         while True:
-            question_set = await self.question_generator.generate(
-                effective_request,
-                curriculum_plan,
-                knowledge_mode=decision.mode,
-                revision_feedback=revision_feedback,
-            )
+            try:
+                question_set = await self.question_generator.generate(
+                    effective_request,
+                    curriculum_plan,
+                    knowledge_mode=decision.mode,
+                    revision_feedback=revision_feedback,
+                )
+            except ValueError as val_err:
+                if revision_attempts < request.max_revision_attempts:
+                    revision_attempts += 1
+                    revision_feedback = (
+                        f"PREVIOUS GENERATION FAILED VALIDATION:\n{val_err}\n\n"
+                        "Please ensure all questions meet the requirements and source evidence "
+                        "consists of exact word-for-word excerpts from the document."
+                    )
+                    continue
+                raise
 
-            validation_report = await self.validator.validate(
-                question_set,
-                curriculum_plan,
-                knowledge_mode=decision.mode,
-                source_text=source_text,
-            )
-
-            pedagogy_report = await self.pedagogy.assess(
-                question_set,
-                curriculum_plan,
-                knowledge_mode=decision.mode,
-                source_text=source_text,
+            validation_report, pedagogy_report = await asyncio.gather(
+                self.validator.validate(
+                    question_set,
+                    curriculum_plan,
+                    knowledge_mode=decision.mode,
+                    source_text=source_text,
+                ),
+                self.pedagogy.assess(
+                    question_set,
+                    curriculum_plan,
+                    knowledge_mode=decision.mode,
+                    source_text=source_text,
+                ),
             )
 
             validation_passed = validation_report.approved

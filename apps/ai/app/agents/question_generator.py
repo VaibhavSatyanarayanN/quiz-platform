@@ -86,6 +86,10 @@ Every question must include an explanation that clarifies why its answer
 is correct. Do not include contradictory answers or misleading distractors.
 
 SOURCE REFERENCES
+For document and reference_url modes, each question MUST include source_evidence:
+a list containing an exact, verbatim excerpt (5 to 30 contiguous words) copied
+directly from the supplied document content that supports the question and answer.
+Do not paraphrase, summarize, or alter any words.
 If source material is supplied, populate source_pages only with page
 numbers that are actually provided as source metadata. If page metadata
 is unavailable, leave source_pages empty. Never invent page numbers.
@@ -201,18 +205,36 @@ Use only the allowed question types.
             for objective in curriculum_plan.learning_objectives
         }
 
-        def normalize_text(value: str) -> str:
-            """Normalize whitespace and typographic variants for matching extracted text."""
-            val = value.strip().strip('"\'“”')
-            val = val.replace("’", "'").replace("‘", "'")
-            val = val.replace("“", '"').replace("”", '"')
-            val = val.replace("–", "-").replace("—", "-")
-            val = val.replace("\u00a0", " ")
-            return re.sub(r"\s+", " ", val).strip()
+        def is_verbatim_excerpt(evidence: str, source: str) -> bool:
+            """Check if evidence words appear contiguously in source text."""
+            parts = [
+                p.strip()
+                for p in re.split(r"\.{2,}|…", evidence)
+                if p.strip()
+            ]
+            if not parts:
+                return False
+
+            source_words = re.findall(r"\w+", source.lower())
+            if not source_words:
+                return False
+
+            for part in parts:
+                part_words = re.findall(r"\w+", part.lower())
+                if not part_words:
+                    continue
+                n = len(part_words)
+                if n > len(source_words):
+                    return False
+                matched = any(
+                    source_words[i : i + n] == part_words
+                    for i in range(len(source_words) - n + 1)
+                )
+                if not matched:
+                    return False
+            return True
 
         if knowledge_mode in ("document", "reference_url"):
-            normalized_source = normalize_text(source_text)
-
             for question in question_set.questions:
                 if not question.source_evidence:
                     raise ValueError(
@@ -220,7 +242,7 @@ Use only the allowed question types.
                     )
 
                 for evidence in question.source_evidence:
-                    if normalize_text(evidence) not in normalized_source:
+                    if not is_verbatim_excerpt(evidence, source_text):
                         raise ValueError(
                             f"Question {question.question_id} contains evidence "
                             "that does not match the retrieved source."

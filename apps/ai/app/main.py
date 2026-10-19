@@ -137,9 +137,13 @@ async def generate_quiz_from_pdf(
     except PDFExtractionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ValidationError as exc:
+        formatted_errors = [
+            {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
+            for err in exc.errors()
+        ]
         raise HTTPException(
             status_code=422,
-            detail=exc.errors(include_input=False),
+            detail=formatted_errors,
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

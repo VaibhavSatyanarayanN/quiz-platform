@@ -6,10 +6,11 @@ from app.orchestration.workflow import GenerationWorkflow
 from app.agents.validator import ValidationAgent
 from app.agents.pedagogy import PedagogyAgent
 from app.providers.groq_provider import GroqProvider
+from app.providers.gemini_provider import GeminiProvider
 
 
 def create_generation_workflow() -> GenerationWorkflow:
-    provider = GroqProvider()
+    provider = GeminiProvider()
 
     return GenerationWorkflow(
         router=KnowledgeModeRouter(),
