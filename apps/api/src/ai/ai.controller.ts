@@ -1,44 +1,61 @@
-
 import {
   BadRequestException,
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
   UploadedFile,
+  UseFilters,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { AiService } from './ai.service.js';
-import type {
+import {
   GenerateFromPdfDto,
   GenerateQuizDto,
 } from './dto/generate-quiz.dto.js';
-import { Public } from '../modules/auth/decorators/public.decorator.js';
+import { Roles } from '../modules/auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../modules/auth/decorators/current-user.decorator.js';
+import { UserRole } from '../modules/users/enums/user-role.enum.js';
+import type { AuthenticatedUser } from '../modules/auth/types/authenticated-user.type.js';
+import { AiThrottlerGuard } from './guards/ai-throttler.guard.js';
+import { MulterExceptionFilter } from './filters/multer-exception.filter.js';
 
-const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
 @Controller('ai')
+@UseGuards(AiThrottlerGuard)
+@UseFilters(MulterExceptionFilter)
 export class AiController {
-  constructor(private readonly aiService: AiService) { }
+  constructor(private readonly aiService: AiService) {}
 
   @Post('generate')
-  @Public()
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  async generate(@Body() body: GenerateQuizDto) {
-    return this.aiService.generateQuiz(body);
+  async generate(
+    @Body() body: GenerateQuizDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-request-id') correlationId?: string,
+  ) {
+    return this.aiService.generateQuiz(body, user, correlationId);
   }
 
   @Post('generate-from-pdf')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @Public()
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: MAX_PDF_BYTES },
+      limits: {
+        fileSize: MAX_PDF_BYTES,
+        files: 1,
+      },
       fileFilter: (_request, file, callback) => {
-        const hasPdfExtension = /\.pdf$/i.test(file.originalname);
+        const originalName = file.originalname || '';
+        const hasPdfExtension = /\.pdf$/i.test(originalName);
         const validMimeType =
           !file.mimetype ||
           file.mimetype === 'application/pdf' ||
@@ -46,7 +63,9 @@ export class AiController {
 
         if (!hasPdfExtension || !validMimeType) {
           return callback(
-            new BadRequestException('Please upload a PDF file.'),
+            new BadRequestException(
+              'Please upload a valid PDF file with a .pdf extension.',
+            ),
             false,
           );
         }
@@ -58,18 +77,29 @@ export class AiController {
   async generateFromPdf(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() body: GenerateFromPdfDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-request-id') correlationId?: string,
   ) {
     if (!file) {
       throw new BadRequestException('A PDF file is required.');
     }
 
-    // Check the actual file signature, not just its filename or MIME type.
-    const pdfSignature = file.buffer.subarray(0, 5).toString('ascii');
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException('The uploaded PDF file is empty.');
+    }
 
-    if (pdfSignature !== '%PDF-') {
+    if (file.buffer.length < 5) {
       throw new BadRequestException('The uploaded file is not a valid PDF.');
     }
 
-    return this.aiService.generateQuizFromPdf(file, body);
+    // Verify PDF magic bytes '%PDF-'
+    const pdfSignature = file.buffer.subarray(0, 5).toString('ascii');
+    if (pdfSignature !== '%PDF-') {
+      throw new BadRequestException(
+        'The uploaded file is not a valid PDF (invalid signature).',
+      );
+    }
+
+    return this.aiService.generateQuizFromPdf(file, body, user, correlationId);
   }
 }
