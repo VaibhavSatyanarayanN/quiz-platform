@@ -17,6 +17,7 @@ import { AdminModule } from './modules/admin/admin.module.js';
 import { ClassroomModule } from './modules/classrooms/classroom.module.js';
 import { QuizAssignmentModule } from './modules/quiz-assignments/quiz-assignment.module.js';
 import { DashboardModule } from './modules/dashboards/dashboard.module.js';
+import { AiModule } from './ai/ai.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DashboardModule } from './modules/dashboards/dashboard.module.js';
     ClassroomModule,
     QuizAssignmentModule,
     DashboardModule,
+    AiModule,
   ],
   controllers: [AppController, UsersController],
   providers: [AppService,

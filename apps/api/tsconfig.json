@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    "types": [
+      "node",
+      "multer",
+      "vitest/globals"
+    ],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
@@ -17,6 +22,5 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "types": ["vitest/globals", "node"]
   }
 }
