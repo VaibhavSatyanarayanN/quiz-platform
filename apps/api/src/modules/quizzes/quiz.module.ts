@@ -13,12 +13,16 @@ import { Answer } from './entities/answer.entity.js';
 import { AnswerOption } from './entities/answer-option.entity.js';
 import { QuizQuestionGeneration } from './entities/quiz-question-generation.entity.js';
 import { QuizGenerationService } from './quiz-generation.service.js';
+import { AiPdfStorageService } from './services/ai-pdf-storage.service.js';
+import { AiQuestionGenerationProcessor } from './processors/ai-question-generation.processor.js';
 
 import { OrganizationModule } from '../organizations/organization.module.js';
+import { AiModule } from '../../ai/ai.module.js';
 
 @Module({
   imports: [
     OrganizationModule,
+    AiModule,
     TypeOrmModule.forFeature([
       Quiz,
       QuizVersion,
@@ -49,7 +53,12 @@ import { OrganizationModule } from '../organizations/organization.module.js';
     }),
   ],
   controllers: [QuizController],
-  providers: [QuizService, QuizGenerationService],
-  exports: [QuizService, QuizGenerationService],
+  providers: [
+    QuizService,
+    QuizGenerationService,
+    AiPdfStorageService,
+    AiQuestionGenerationProcessor,
+  ],
+  exports: [QuizService, QuizGenerationService, AiPdfStorageService],
 })
 export class QuizModule { }

@@ -12,5 +12,7 @@ export interface AiQuestionGenerationJobPayload {
     bloomTaxonomyLevel?: string;
     customInstructions?: string;
     language?: string;
+    sourcePdfPath?: string;
+    originalFilename?: string;
   };
 }

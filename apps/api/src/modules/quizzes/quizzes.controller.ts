@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,13 +8,17 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { QuizService } from './quizzes.service.js';
 import { QuizGenerationService } from './quiz-generation.service.js';
 import { CreateQuizDto } from './dto/create-quiz.dto.js';
 import { BulkSaveQuestionsDto } from './dto/bulk-save-questions.dto.js';
 import { GenerateQuestionsDto } from './dto/generate-questions.dto.js';
+import { GenerateQuestionsFromPdfDto } from './dto/generate-questions-from-pdf.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
@@ -241,6 +246,51 @@ export class QuizController {
     return this.quizGenerationService.createGeneration(
       quizId,
       quizVersionId,
+      dto,
+      user,
+    );
+  }
+
+  @Post(':quizId/versions/:quizVersionId/ai-generate-from-pdf')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10 MB
+        files: 1,
+      },
+      fileFilter: (_request, file, callback) => {
+        const originalName = file.originalname || '';
+        const hasPdfExtension = /\.pdf$/i.test(originalName);
+        const validMimeType =
+          !file.mimetype ||
+          file.mimetype === 'application/pdf' ||
+          file.mimetype === 'application/octet-stream';
+
+        if (!hasPdfExtension || !validMimeType) {
+          return callback(
+            new BadRequestException(
+              'Please upload a valid PDF file with a .pdf extension.',
+            ),
+            false,
+          );
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
+  generateQuestionsFromPdf(
+    @Param('quizId') quizId: string,
+    @Param('quizVersionId') quizVersionId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() dto: GenerateQuestionsFromPdfDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.createGenerationFromPdf(
+      quizId,
+      quizVersionId,
+      file,
       dto,
       user,
     );
