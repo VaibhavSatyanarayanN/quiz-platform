@@ -15,7 +15,11 @@ import { Quiz } from './entities/quiz.entity.js';
 import { QuizVersion } from './entities/quiz-version.entity.js';
 import { QuizVersionStatus } from './enums/quiz-version-status.enum.js';
 import { QuizQuestionGeneration } from './entities/quiz-question-generation.entity.js';
-import { GenerationStatus } from './enums/generation-status.enum.js';
+import {
+  GenerationLifecycleStage,
+  GenerationStatus,
+} from './enums/generation-status.enum.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
 import { GenerateQuestionsDto } from './dto/generate-questions.dto.js';
 import { GenerateQuestionsFromPdfDto } from './dto/generate-questions-from-pdf.dto.js';
 import { GenerateQuestionsResponseDto } from './dto/generate-questions-response.dto.js';
@@ -68,6 +72,10 @@ export class QuizGenerationService {
   }
 
   private async verifyQuizAccess(quizId: string, user: AuthenticatedUser): Promise<Quiz> {
+    if (user.role !== UserRole.CREATOR && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You do not have permission to access this quiz');
+    }
+
     const quiz = await this.quizRepository.findOne({
       where: { id: quizId },
     });
@@ -94,17 +102,112 @@ export class QuizGenerationService {
 
   private sanitizePromptParams(params: Record<string, any>): Record<string, any> {
     if (!params || typeof params !== 'object') return {};
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { sourcePdfPath, ...safeParams } = params;
+    const {
+      sourcePdfPath: _sourcePdfPath,
+      _lifecycleStage: _stage,
+      ...safeParams
+    } = params;
     return safeParams;
   }
 
   private sanitizeErrorMessage(msg: string | null): string | null {
     if (!msg) return null;
-    // Strip local filesystem paths, IP addresses, and tracebacks
+    // Strip stack traces, credentials/secrets, internal URLs, and local filesystem paths
     return msg
-      .replace(/[a-zA-Z]:\\[^ \n\r\t]+|\/[a-zA-Z0-9_\-./]+/g, '[internal path]')
+      .replace(/\r?\n\s*at\s+[\s\S]*/g, '')
+      .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [redacted]')
+      .replace(/\bsk-[A-Za-z0-9\-_]{8,}\b/g, '[redacted-key]')
+      .replace(
+        /(?:api[_-]?key|x-internal-api-key|secret|password|token)\s*[:=]\s*[^\s,;'"}\]]+/gi,
+        '[redacted-secret]',
+      )
+      .replace(/(?:postgres(?:ql)?|redis|https?):\/\/[^\s'")\]]+/gi, '[internal-url]')
+      .replace(/[a-zA-Z]:\\[^ \n\r\t'":]+|\/[a-zA-Z0-9_\-./]+/g, '[internal path]')
+      .trim()
       .slice(0, 500);
+  }
+
+  private resolveLifecycleStage(generation: QuizQuestionGeneration): GenerationLifecycleStage {
+    switch (generation.status) {
+      case GenerationStatus.PENDING:
+        return GenerationLifecycleStage.QUEUED;
+      case GenerationStatus.COMPLETED:
+        return GenerationLifecycleStage.COMPLETED;
+      case GenerationStatus.FAILED:
+        return GenerationLifecycleStage.FAILED;
+      case GenerationStatus.CANCELLED:
+        return GenerationLifecycleStage.CANCELLED;
+      case GenerationStatus.PROCESSING: {
+        const rawStage = generation.promptParams?._lifecycleStage;
+        const validProcessingStages: GenerationLifecycleStage[] = [
+          GenerationLifecycleStage.PROCESSING,
+          GenerationLifecycleStage.CALLING_AI_SERVICE,
+          GenerationLifecycleStage.VALIDATING_QUESTIONS,
+          GenerationLifecycleStage.SAVING_QUESTIONS,
+        ];
+        if (validProcessingStages.includes(rawStage)) {
+          return rawStage;
+        }
+        return GenerationLifecycleStage.PROCESSING;
+      }
+      default:
+        return GenerationLifecycleStage.PROCESSING;
+    }
+  }
+
+  private getStageDescription(stage: GenerationLifecycleStage): string {
+    switch (stage) {
+      case GenerationLifecycleStage.QUEUED:
+        return 'Generation request is queued and waiting for a worker.';
+      case GenerationLifecycleStage.PROCESSING:
+        return 'Preparing question generation request.';
+      case GenerationLifecycleStage.CALLING_AI_SERVICE:
+        return 'Generating questions with the AI service.';
+      case GenerationLifecycleStage.VALIDATING_QUESTIONS:
+        return 'Validating generated questions and answer options.';
+      case GenerationLifecycleStage.SAVING_QUESTIONS:
+        return 'Saving validated questions to the draft quiz version.';
+      case GenerationLifecycleStage.COMPLETED:
+        return 'Question generation completed successfully.';
+      case GenerationLifecycleStage.FAILED:
+        return 'Question generation failed.';
+      case GenerationLifecycleStage.CANCELLED:
+        return 'Question generation was cancelled.';
+    }
+  }
+
+  private isTerminalStatus(status: GenerationStatus): boolean {
+    return (
+      status === GenerationStatus.COMPLETED ||
+      status === GenerationStatus.FAILED ||
+      status === GenerationStatus.CANCELLED
+    );
+  }
+
+  private toGenerationStatusResponseDto(
+    generation: QuizQuestionGeneration,
+  ): GenerationStatusResponseDto {
+    const stage = this.resolveLifecycleStage(generation);
+    const isTerminal = this.isTerminalStatus(generation.status);
+
+    return {
+      generationId: generation.id,
+      jobId: generation.jobId,
+      quizId: generation.quizId,
+      targetVersionId: generation.targetVersionId,
+      status: generation.status,
+      stage,
+      stageDescription: this.getStageDescription(stage),
+      isTerminal,
+      canCancel: !isTerminal,
+      promptParams: this.sanitizePromptParams(generation.promptParams),
+      generatedQuestions: generation.generatedQuestions ?? null,
+      errorMessage: this.sanitizeErrorMessage(generation.errorMessage),
+      tokensUsed: generation.tokensUsed ?? null,
+      createdAt: generation.createdAt,
+      updatedAt: generation.updatedAt ?? generation.createdAt,
+      completedAt: generation.completedAt ?? null,
+    };
   }
 
   async createGeneration(
@@ -357,19 +460,7 @@ export class QuizGenerationService {
       throw new NotFoundException('Generation record not found for this quiz');
     }
 
-    return {
-      generationId: generation.id,
-      jobId: generation.jobId,
-      quizId: generation.quizId,
-      targetVersionId: generation.targetVersionId,
-      status: generation.status,
-      promptParams: this.sanitizePromptParams(generation.promptParams),
-      generatedQuestions: generation.generatedQuestions,
-      errorMessage: this.sanitizeErrorMessage(generation.errorMessage),
-      tokensUsed: generation.tokensUsed,
-      createdAt: generation.createdAt,
-      completedAt: generation.completedAt,
-    };
+    return this.toGenerationStatusResponseDto(generation);
   }
 
   async listGenerations(
@@ -383,19 +474,119 @@ export class QuizGenerationService {
       order: { createdAt: 'DESC' },
     });
 
-    return generations.map((generation) => ({
-      generationId: generation.id,
-      jobId: generation.jobId,
-      quizId: generation.quizId,
-      targetVersionId: generation.targetVersionId,
-      status: generation.status,
-      promptParams: this.sanitizePromptParams(generation.promptParams),
-      generatedQuestions: generation.generatedQuestions,
-      errorMessage: this.sanitizeErrorMessage(generation.errorMessage),
-      tokensUsed: generation.tokensUsed,
-      createdAt: generation.createdAt,
-      completedAt: generation.completedAt,
-    }));
+    return generations.map((generation) =>
+      this.toGenerationStatusResponseDto(generation),
+    );
+  }
+
+  /**
+   * Cancels an active (PENDING or PROCESSING) generation request.
+   * - Enforces quiz ownership/organization authorization.
+   * - Acquires a pessimistic write lock in a DB transaction so cancellation cannot race with persistence.
+   * - Handles repeated cancellation requests idempotently (returns 200 with CANCELLED status).
+   * - Rejects cancellation if the generation is already in COMPLETED or FAILED terminal status.
+   * - Safely removes queued (waiting/delayed) BullMQ jobs and relies on cooperative worker cancellation for active jobs.
+   */
+  async cancelGeneration(
+    quizId: string,
+    generationId: string,
+    user: AuthenticatedUser,
+  ): Promise<GenerationStatusResponseDto> {
+    await this.verifyQuizAccess(quizId, user);
+
+    const { generation, wasTransitioned, previousStatus } =
+      await this.dataSource.transaction(async (manager) => {
+        const record = await manager.findOne(QuizQuestionGeneration, {
+          where: { id: generationId, quizId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!record) {
+          throw new NotFoundException('Generation record not found for this quiz');
+        }
+
+        // Idempotent handling: already CANCELLED returns cleanly without error
+        if (record.status === GenerationStatus.CANCELLED) {
+          return {
+            generation: record,
+            wasTransitioned: false,
+            previousStatus: GenerationStatus.CANCELLED,
+          };
+        }
+
+        // Terminal states COMPLETED and FAILED cannot be transitioned to CANCELLED
+        if (
+          record.status === GenerationStatus.COMPLETED ||
+          record.status === GenerationStatus.FAILED
+        ) {
+          throw new BadRequestException(
+            `Cannot cancel a generation that is already ${record.status.toLowerCase()}.`,
+          );
+        }
+
+        const prevStatus = record.status;
+        const now = new Date();
+        record.status = GenerationStatus.CANCELLED;
+        record.promptParams = {
+          ...(record.promptParams ?? {}),
+          _lifecycleStage: GenerationLifecycleStage.CANCELLED,
+        };
+        record.errorMessage = null;
+        record.updatedAt = now;
+        record.completedAt = now;
+
+        const saved = await manager.save(QuizQuestionGeneration, record);
+        return {
+          generation: saved,
+          wasTransitioned: true,
+          previousStatus: prevStatus,
+        };
+      });
+
+    if (wasTransitioned) {
+      let removedFromQueue = false;
+
+      if (generation.jobId && typeof this.aiQueue.getJob === 'function') {
+        try {
+          const job = await this.aiQueue.getJob(generation.jobId);
+          if (job) {
+            const jobState = await job.getState();
+            if (
+              jobState === 'waiting' ||
+              jobState === 'delayed' ||
+              jobState === 'prioritized' ||
+              jobState === 'waiting-children'
+            ) {
+              await job.remove();
+              removedFromQueue = true;
+              this.logger.log(
+                `Removed queued BullMQ job [${generation.jobId}] (state: ${jobState}) for cancelled generation [${generation.id}].`,
+              );
+            } else {
+              this.logger.log(
+                `BullMQ job [${generation.jobId}] is in state [${jobState}]. Relying on cooperative worker cancellation for generation [${generation.id}].`,
+              );
+            }
+          }
+        } catch (queueError) {
+          this.logger.warn(
+            `Unable to remove BullMQ job [${generation.jobId}] during cancellation (worker will abort cooperatively): ${
+              queueError instanceof Error ? queueError.message : String(queueError)
+            }`,
+          );
+        }
+      }
+
+      const sourcePdfPath = generation.promptParams?.sourcePdfPath;
+      if (
+        sourcePdfPath &&
+        (removedFromQueue || previousStatus === GenerationStatus.PENDING)
+      ) {
+        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      }
+    }
+
+    return this.toGenerationStatusResponseDto(generation);
   }
 
   async updateGenerationState(
@@ -415,11 +606,8 @@ export class QuizGenerationService {
       throw new NotFoundException('Generation record not found');
     }
 
-    // Protection against late-arriving or out-of-order queue events
-    if (
-      generation.status === GenerationStatus.COMPLETED ||
-      generation.status === GenerationStatus.CANCELLED
-    ) {
+    // Protection against late-arriving or out-of-order queue events overwriting terminal states
+    if (this.isTerminalStatus(generation.status)) {
       return generation;
     }
 
@@ -430,14 +618,14 @@ export class QuizGenerationService {
     }
 
     if (payload?.errorMessage !== undefined) {
-      generation.errorMessage = payload.errorMessage;
+      generation.errorMessage = this.sanitizeErrorMessage(payload.errorMessage);
     }
 
     if (payload?.tokensUsed !== undefined) {
       generation.tokensUsed = payload.tokensUsed;
     }
 
-    if (status === GenerationStatus.COMPLETED || status === GenerationStatus.FAILED || status === GenerationStatus.CANCELLED) {
+    if (this.isTerminalStatus(status)) {
       generation.completedAt = new Date();
     }
 
@@ -480,6 +668,11 @@ export class QuizGenerationService {
 
       if (generation.status === GenerationStatus.CANCELLED) {
         this.logger.warn(`Generation [${generationId}] was CANCELLED. Aborting persistence.`);
+        return generation;
+      }
+
+      if (generation.status === GenerationStatus.FAILED) {
+        this.logger.warn(`Generation [${generationId}] is already FAILED. Aborting persistence.`);
         return generation;
       }
 
@@ -534,11 +727,17 @@ export class QuizGenerationService {
       }
 
       // 5. Update generation record to COMPLETED in the same transaction
+      const now = new Date();
       generation.status = GenerationStatus.COMPLETED;
+      generation.promptParams = {
+        ...(generation.promptParams ?? {}),
+        _lifecycleStage: GenerationLifecycleStage.COMPLETED,
+      };
       generation.generatedQuestions = formattedQuestions as any;
       generation.tokensUsed = tokensUsed ?? null;
       generation.errorMessage = null;
-      generation.completedAt = new Date();
+      generation.updatedAt = now;
+      generation.completedAt = now;
 
       const completedGeneration = await manager.save(QuizQuestionGeneration, generation);
       this.logger.log(

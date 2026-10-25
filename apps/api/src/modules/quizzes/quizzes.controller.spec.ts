@@ -29,6 +29,7 @@ describe('QuizController', () => {
       createGeneration: vi.fn().mockResolvedValue({ generationId: 'gen-1' } as any),
       createGenerationFromPdf: vi.fn().mockResolvedValue({ generationId: 'gen-2' } as any),
       getGenerationStatus: vi.fn().mockResolvedValue({ status: 'PENDING' } as any),
+      cancelGeneration: vi.fn().mockResolvedValue({ status: 'CANCELLED' } as any),
       listGenerations: vi.fn().mockResolvedValue([]),
     };
 
@@ -112,6 +113,26 @@ describe('QuizController', () => {
       expect(result).toEqual([]);
       expect(mockQuizGenerationService.listGenerations).toHaveBeenCalledWith(
         'quiz-1',
+        mockUser,
+      );
+    });
+
+    it('cancelGeneration should delegate to quizGenerationService.cancelGeneration', async () => {
+      const result = await controller.cancelGeneration('quiz-1', 'gen-1', mockUser);
+      expect(result).toEqual({ status: 'CANCELLED' });
+      expect(mockQuizGenerationService.cancelGeneration).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        mockUser,
+      );
+    });
+
+    it('cancelGenerationViaPost should delegate to quizGenerationService.cancelGeneration', async () => {
+      const result = await controller.cancelGenerationViaPost('quiz-1', 'gen-1', mockUser);
+      expect(result).toEqual({ status: 'CANCELLED' });
+      expect(mockQuizGenerationService.cancelGeneration).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
         mockUser,
       );
     });

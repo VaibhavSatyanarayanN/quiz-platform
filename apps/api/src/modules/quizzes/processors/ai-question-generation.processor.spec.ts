@@ -346,5 +346,112 @@ describe('AiQuestionGenerationProcessor', () => {
         }),
       );
     });
+
+    it('should NOT persist questions if generation is cancelled while AI request is in flight', async () => {
+      mockGenerationRepo.findOne = vi
+        .fn()
+        // 1st call at start of process(): PENDING
+        .mockResolvedValueOnce({ ...sampleGeneration, status: GenerationStatus.PENDING })
+        // 2nd call right after AI service returns: CANCELLED by user while AI was running
+        .mockResolvedValueOnce({ ...sampleGeneration, status: GenerationStatus.CANCELLED });
+
+      const job = createMockJob();
+
+      await expect(processor.process(job)).resolves.not.toThrow();
+      expect(mockAiService.generateQuiz).toHaveBeenCalledTimes(1);
+      expect(
+        mockQuizGenerationService.persistGeneratedQuestionsTransactionally,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should NOT overwrite CANCELLED status or retry if AI throws after generation was cancelled', async () => {
+      mockGenerationRepo.findOne = vi
+        .fn()
+        // 1st call at start: PENDING
+        .mockResolvedValueOnce({ ...sampleGeneration, status: GenerationStatus.PENDING })
+        // 2nd call inside catch block: CANCELLED by user
+        .mockResolvedValueOnce({ ...sampleGeneration, status: GenerationStatus.CANCELLED });
+
+      mockAiService.generateQuiz = vi.fn().mockRejectedValue(new Error('AI timeout'));
+
+      const job = createMockJob(0, 3);
+
+      // Should resolve cleanly without re-throwing for retry and without saving FAILED
+      await expect(processor.process(job)).resolves.not.toThrow();
+      expect(mockGenerationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should preserve PDF file on transient failure when retry attempts remain, and succeed on retry', async () => {
+      const pdfGen = {
+        ...sampleGeneration,
+        promptParams: {
+          ...sampleGeneration.promptParams,
+          sourcePdfPath: '/uploads/retry-doc.pdf',
+          originalFilename: 'retry-doc.pdf',
+        },
+      };
+
+      mockGenerationRepo.findOne = vi.fn().mockResolvedValue({ ...pdfGen });
+      mockAiService.generateQuizFromPdf = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('503 Service Unavailable'))
+        .mockResolvedValueOnce(validAiResponse);
+
+      // Attempt 1 fails transiently
+      const attempt1Job = createMockJob(0, 3, {
+        promptParams: pdfGen.promptParams,
+      });
+      await expect(processor.process(attempt1Job)).rejects.toThrow('503 Service Unavailable');
+
+      // PDF must NOT be deleted on transient failure when retries remain
+      expect(mockPdfStorage.deletePdfFile).not.toHaveBeenCalled();
+      expect(mockGenerationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: GenerationStatus.PROCESSING,
+          errorMessage: expect.stringContaining('Transient failure on attempt 1'),
+        }),
+      );
+
+      // Attempt 2 succeeds and cleans up PDF
+      const attempt2Job = createMockJob(1, 3, {
+        promptParams: pdfGen.promptParams,
+      });
+      await expect(processor.process(attempt2Job)).resolves.not.toThrow();
+      expect(
+        mockQuizGenerationService.persistGeneratedQuestionsTransactionally,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockPdfStorage.deletePdfFile).toHaveBeenCalledWith('/uploads/retry-doc.pdf');
+    });
+  });
+
+  describe('onFailed Worker Event Reconciliation', () => {
+    it('should transition a stuck PROCESSING record to FAILED when job permanently fails', async () => {
+      mockGenerationRepo.findOne = vi.fn().mockResolvedValueOnce({
+        ...sampleGeneration,
+        status: GenerationStatus.PROCESSING,
+      });
+
+      const failedJob = createMockJob(3, 3);
+      await processor.onFailed(failedJob, new Error('Worker stalled out'));
+
+      expect(mockGenerationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: GenerationStatus.FAILED,
+          errorMessage: expect.stringContaining('Worker stalled out'),
+        }),
+      );
+    });
+
+    it('should NEVER overwrite an authoritative COMPLETED or CANCELLED status on late failed event', async () => {
+      mockGenerationRepo.findOne = vi.fn().mockResolvedValueOnce({
+        ...sampleGeneration,
+        status: GenerationStatus.CANCELLED,
+      });
+
+      const failedJob = createMockJob(3, 3);
+      await processor.onFailed(failedJob, new Error('Stale error'));
+
+      expect(mockGenerationRepo.save).not.toHaveBeenCalled();
+    });
   });
 });

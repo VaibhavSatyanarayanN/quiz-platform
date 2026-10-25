@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -296,7 +298,10 @@ export class QuizController {
     );
   }
 
-  @Get(':quizId/ai-generations/:generationId/status')
+  @Get([
+    ':quizId/ai-generations/:generationId/status',
+    ':quizId/ai-generations/:generationId',
+  ])
   @Roles(UserRole.CREATOR, UserRole.ADMIN)
   getGenerationStatus(
     @Param('quizId') quizId: string,
@@ -304,6 +309,35 @@ export class QuizController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizGenerationService.getGenerationStatus(
+      quizId,
+      generationId,
+      user,
+    );
+  }
+
+  @Patch(':quizId/ai-generations/:generationId/cancel')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  cancelGeneration(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.cancelGeneration(
+      quizId,
+      generationId,
+      user,
+    );
+  }
+
+  @Post(':quizId/ai-generations/:generationId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  cancelGenerationViaPost(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.cancelGeneration(
       quizId,
       generationId,
       user,

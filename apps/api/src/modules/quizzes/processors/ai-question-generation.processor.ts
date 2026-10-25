@@ -1,11 +1,14 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job, UnrecoverableError } from 'bullmq';
 
 import { QuizQuestionGeneration } from '../entities/quiz-question-generation.entity.js';
-import { GenerationStatus } from '../enums/generation-status.enum.js';
+import {
+  GenerationLifecycleStage,
+  GenerationStatus,
+} from '../enums/generation-status.enum.js';
 import { Quiz } from '../entities/quiz.entity.js';
 import { QuizVersion } from '../entities/quiz-version.entity.js';
 import { QuizVersionStatus } from '../enums/quiz-version-status.enum.js';
@@ -61,6 +64,11 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
     }
 
     if (generation.status === GenerationStatus.CANCELLED) {
+      if (generation.promptParams?.sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(
+          generation.promptParams.sourcePdfPath,
+        );
+      }
       this.logger.log(`Generation [${generationId}] was cancelled by creator. Aborting.`);
       return;
     }
@@ -71,9 +79,24 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
       return;
     }
 
+    if (generation.status === GenerationStatus.FAILED) {
+      if (generation.promptParams?.sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(
+          generation.promptParams.sourcePdfPath,
+        );
+      }
+      this.logger.log(`Generation [${generationId}] is already marked FAILED. Skipping processing.`);
+      return;
+    }
+
+    const sourcePdfPath = generation.promptParams?.sourcePdfPath;
+
     // 2. Validate that target quiz and version still exist and are eligible
     const quiz = await this.quizRepository.findOne({ where: { id: quizId } });
     if (!quiz) {
+      if (sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      }
       await this.markPermanentFailure(
         generation,
         `Target quiz [${quizId}] no longer exists.`,
@@ -86,6 +109,9 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
     });
 
     if (!version) {
+      if (sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      }
       await this.markPermanentFailure(
         generation,
         `Target quiz version [${targetVersionId}] not found.`,
@@ -94,6 +120,9 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
     }
 
     if (version.status !== QuizVersionStatus.DRAFT) {
+      if (sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      }
       await this.markPermanentFailure(
         generation,
         `Target quiz version [${targetVersionId}] is in status ${version.status}. Only DRAFT versions can receive AI questions.`,
@@ -103,13 +132,46 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
       );
     }
 
-    // 3. Transition PENDING -> PROCESSING using a safe atomic update
-    await this.generationRepository.update(
-      { id: generation.id, status: GenerationStatus.PENDING },
-      { status: GenerationStatus.PROCESSING, updatedAt: new Date() },
+    // 3. Transition PENDING/PROCESSING -> PROCESSING using a safe atomic conditional update
+    const previousStatus = generation.status;
+    const nextPromptParams: Record<string, any> = {
+      ...(generation.promptParams ?? {}),
+      _lifecycleStage: GenerationLifecycleStage.CALLING_AI_SERVICE,
+    };
+
+    const updateResult = await this.generationRepository.update(
+      { id: generation.id, status: previousStatus },
+      {
+        status: GenerationStatus.PROCESSING,
+        promptParams: nextPromptParams as any,
+        updatedAt: new Date(),
+      },
     );
 
-    const sourcePdfPath = generation.promptParams?.sourcePdfPath;
+    if (updateResult?.affected === 0) {
+      const freshGen = await this.generationRepository.findOne({
+        where: { id: generation.id },
+      });
+      if (
+        !freshGen ||
+        freshGen.status === GenerationStatus.CANCELLED ||
+        freshGen.status === GenerationStatus.COMPLETED ||
+        freshGen.status === GenerationStatus.FAILED
+      ) {
+        if (freshGen?.status === GenerationStatus.CANCELLED && sourcePdfPath) {
+          await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+        }
+        this.logger.log(
+          `Generation [${generation.id}] transitioned concurrently to ${freshGen?.status ?? 'missing'} before AI execution. Aborting job.`,
+        );
+        return;
+      }
+    }
+
+    generation.status = GenerationStatus.PROCESSING;
+    generation.promptParams = nextPromptParams;
+
+    let shouldCleanupPdf = false;
 
     try {
       // 4. Call AiService
@@ -121,30 +183,81 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
         aiResult = await this.executeTextGeneration(generation, job.id);
       }
 
+      // Cooperative cancellation & idempotency check right after expensive AI call
+      const postAiGeneration = await this.generationRepository.findOne({
+        where: { id: generation.id },
+      });
+
+      if (!postAiGeneration || postAiGeneration.status === GenerationStatus.CANCELLED) {
+        shouldCleanupPdf = true;
+        this.logger.log(
+          `Generation [${generationId}] was cancelled while AI service call was in flight. Discarding generated output without persisting.`,
+        );
+        return;
+      }
+
+      if (postAiGeneration.status === GenerationStatus.COMPLETED) {
+        shouldCleanupPdf = true;
+        this.logger.log(
+          `Generation [${generationId}] is already completed. Skipping duplicate persistence.`,
+        );
+        return;
+      }
+
       // 5. Validate AI response schema
+      await this.updateStageSafely(
+        generation,
+        GenerationLifecycleStage.VALIDATING_QUESTIONS,
+      );
       const formattedQuestions = this.validateAndTransformAiResponse(aiResult);
 
       // 6. Persist questions transactionally into PostgreSQL
-      const tokensUsed = (aiResult as { tokens_used?: Record<string, any> })?.tokens_used ?? null;
-      await this.quizGenerationService.persistGeneratedQuestionsTransactionally(
-        generation.id,
-        quiz.id,
-        version.id,
-        formattedQuestions,
-        tokensUsed,
+      await this.updateStageSafely(
+        generation,
+        GenerationLifecycleStage.SAVING_QUESTIONS,
       );
+      const tokensUsed = (aiResult as { tokens_used?: Record<string, any> })?.tokens_used ?? null;
+      const persistedGeneration =
+        await this.quizGenerationService.persistGeneratedQuestionsTransactionally(
+          generation.id,
+          quiz.id,
+          version.id,
+          formattedQuestions,
+          tokensUsed,
+        );
+
+      shouldCleanupPdf = true;
+
+      if (persistedGeneration?.status === GenerationStatus.CANCELLED) {
+        this.logger.log(
+          `Generation [${generationId}] was cancelled prior to transaction commit. No questions were persisted.`,
+        );
+        return;
+      }
 
       this.logger.log(
         `AI question generation completed successfully for generation [${generationId}]. Saved ${formattedQuestions.length} questions.`,
       );
     } catch (error: unknown) {
-      // Clean up source PDF on error if applicable
-      if (sourcePdfPath) {
-        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      // Verify if generation was concurrently cancelled or completed while in flight
+      const latestGeneration = await this.generationRepository.findOne({
+        where: { id: generation.id },
+      });
+
+      if (
+        latestGeneration?.status === GenerationStatus.CANCELLED ||
+        latestGeneration?.status === GenerationStatus.COMPLETED
+      ) {
+        shouldCleanupPdf = true;
+        this.logger.log(
+          `Generation [${generationId}] is already ${latestGeneration.status}. Suppressing worker error handling and retry.`,
+        );
+        return;
       }
 
       // Check if error is unrecoverable (permanent)
       if (error instanceof UnrecoverableError) {
+        shouldCleanupPdf = true;
         await this.markPermanentFailure(generation, error.message);
         throw error;
       }
@@ -155,19 +268,26 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
       );
 
       if (isLastAttempt) {
-        // Retries exhausted -> mark as FAILED in database
+        // Retries exhausted -> mark as FAILED in database and clean up PDF
+        shouldCleanupPdf = true;
         this.logger.error(
           `AI generation job [${job.id}] exhausted all retries. Marking FAILED: ${sanitizedMessage}`,
         );
         generation.status = GenerationStatus.FAILED;
+        generation.promptParams = {
+          ...(generation.promptParams ?? {}),
+          _lifecycleStage: GenerationLifecycleStage.FAILED,
+        };
         generation.errorMessage = sanitizedMessage;
         generation.completedAt = new Date();
         await this.generationRepository.save(generation);
       } else {
-        // Retryable error: record note and allow BullMQ exponential backoff
+        // Retryable error: preserve PDF file on disk for next attempt and record transient note
+        shouldCleanupPdf = false;
         this.logger.warn(
           `AI generation job [${job.id}] encountered transient error (attempt ${job.attemptsMade + 1}): ${sanitizedMessage}. Will retry.`,
         );
+        generation.status = GenerationStatus.PROCESSING;
         generation.errorMessage = `Transient failure on attempt ${job.attemptsMade + 1}: ${sanitizedMessage}`;
         await this.generationRepository.save(generation);
       }
@@ -175,11 +295,94 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
       // Re-throw so BullMQ handles retry / backoff
       throw error;
     } finally {
-      // Ensure source PDF is cleaned up after successful execution
-      if (sourcePdfPath) {
+      // Clean up source PDF only on terminal outcomes (success, cancellation, permanent failure, or exhausted retries)
+      if (sourcePdfPath && shouldCleanupPdf) {
         await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
       }
     }
+  }
+
+  /**
+   * Worker-level failed event listener.
+   * Ensures a generation record is never left permanently stuck in PROCESSING if a job fails
+   * outside normal process() handling (e.g., stalled job exhaustion), while never overwriting
+   * an authoritative terminal database status (COMPLETED, CANCELLED, or FAILED).
+   */
+  @OnWorkerEvent('failed')
+  async onFailed(
+    job: Job<AiQuestionGenerationJobPayload> | undefined,
+    error: Error,
+  ): Promise<void> {
+    if (!job?.data?.generationId) {
+      return;
+    }
+
+    const maxAttempts = job.opts?.attempts ?? 3;
+    const isPermanent =
+      error instanceof UnrecoverableError || job.attemptsMade >= maxAttempts;
+
+    if (!isPermanent) {
+      return;
+    }
+
+    try {
+      const generation = await this.generationRepository.findOne({
+        where: { id: job.data.generationId },
+      });
+
+      if (!generation) {
+        return;
+      }
+
+      // Never overwrite an authoritative terminal status with a queue event
+      if (
+        generation.status === GenerationStatus.COMPLETED ||
+        generation.status === GenerationStatus.CANCELLED ||
+        generation.status === GenerationStatus.FAILED
+      ) {
+        return;
+      }
+
+      const sourcePdfPath = generation.promptParams?.sourcePdfPath;
+      generation.status = GenerationStatus.FAILED;
+      generation.promptParams = {
+        ...(generation.promptParams ?? {}),
+        _lifecycleStage: GenerationLifecycleStage.FAILED,
+      };
+      generation.errorMessage = this.sanitizeErrorMessage(
+        error?.message || 'Generation job failed unexpectedly.',
+      );
+      generation.completedAt = new Date();
+      await this.generationRepository.save(generation);
+
+      if (sourcePdfPath) {
+        await this.aiPdfStorageService.deletePdfFile(sourcePdfPath);
+      }
+    } catch (reconcileError) {
+      this.logger.error(
+        `Failed to reconcile FAILED status in onFailed handler for generation [${job.data.generationId}]`,
+        reconcileError,
+      );
+    }
+  }
+
+  private async updateStageSafely(
+    generation: QuizQuestionGeneration,
+    stage: GenerationLifecycleStage,
+  ): Promise<void> {
+    const nextPromptParams: Record<string, any> = {
+      ...(generation.promptParams ?? {}),
+      _lifecycleStage: stage,
+    };
+    generation.promptParams = nextPromptParams;
+
+    await this.generationRepository.update(
+      { id: generation.id, status: GenerationStatus.PROCESSING },
+      {
+        promptParams: nextPromptParams as any,
+        updatedAt: new Date(),
+      },
+    );
   }
 
   private async executePdfGeneration(
@@ -395,6 +598,10 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
     reason: string,
   ): Promise<void> {
     generation.status = GenerationStatus.FAILED;
+    generation.promptParams = {
+      ...(generation.promptParams ?? {}),
+      _lifecycleStage: GenerationLifecycleStage.FAILED,
+    };
     generation.errorMessage = this.sanitizeErrorMessage(reason);
     generation.completedAt = new Date();
     await this.generationRepository.save(generation);
@@ -404,7 +611,16 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
   private sanitizeErrorMessage(msg: string | null): string {
     if (!msg) return 'An error occurred during AI question generation.';
     return msg
-      .replace(/[a-zA-Z]:\\[^ \n\r\t]+|\/[a-zA-Z0-9_\-./]+/g, '[internal path]')
+      .replace(/\r?\n\s*at\s+[\s\S]*/g, '')
+      .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [redacted]')
+      .replace(/\bsk-[A-Za-z0-9\-_]{8,}\b/g, '[redacted-key]')
+      .replace(
+        /(?:api[_-]?key|x-internal-api-key|secret|password|token)\s*[:=]\s*[^\s,;'"}\]]+/gi,
+        '[redacted-secret]',
+      )
+      .replace(/(?:postgres(?:ql)?|redis|https?):\/\/[^\s'")\]]+/gi, '[internal-url]')
+      .replace(/[a-zA-Z]:\\[^ \n\r\t'":]+|\/[a-zA-Z0-9_\-./]+/g, '[internal path]')
+      .trim()
       .slice(0, 500);
   }
 }
