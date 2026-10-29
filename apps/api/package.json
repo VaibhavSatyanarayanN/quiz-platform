@@ -20,6 +20,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "test:integration": "vitest run --config ./vitest.config.e2e.ts",
     "migration:generate": "typeorm-ts-node-esm -d src/infrastructure/database/data-source.ts migration:generate src/infrastructure/database/migrations/Init",
     "migration:run": "typeorm-ts-node-esm -d src/infrastructure/database/data-source.ts migration:run",
     "migration:revert": "typeorm-ts-node-esm -d src/infrastructure/database/data-source.ts migration:revert"

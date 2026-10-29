@@ -1,55 +1,87 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  calculateCountdownSnapshot,
+  computeServerClockSkewOffsetMs,
+  LOW_TIME_WARNING_THRESHOLD_SECONDS,
+  URGENT_TIME_WARNING_THRESHOLD_SECONDS,
+  type CountdownResult,
+  type TimerUrgencyLevel,
+} from '../features/attempts/utils/attempt-persistence.ts';
 
-interface CountdownResult {
-  minutes: number;
-  seconds: number;
-  totalSeconds: number;
-  isExpired: boolean;
-  formatted: string;
-}
+export {
+  calculateCountdownSnapshot,
+  computeServerClockSkewOffsetMs,
+  LOW_TIME_WARNING_THRESHOLD_SECONDS,
+  URGENT_TIME_WARNING_THRESHOLD_SECONDS,
+  type CountdownResult,
+  type TimerUrgencyLevel,
+};
 
-export function useCountdown(expiresAt: string | null): CountdownResult {
-  const calculateRemaining = useCallback((): number => {
-    if (!expiresAt) return -1;
-    const diff = new Date(expiresAt).getTime() - Date.now();
-    return Math.max(0, Math.floor(diff / 1000));
-  }, [expiresAt]);
+export function useCountdown(
+  expiresAt: string | null,
+  serverRemainingTimeSeconds?: number | null,
+): CountdownResult {
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
-  const [totalSeconds, setTotalSeconds] = useState<number>(() => calculateRemaining());
+  const clockSkewOffsetMs = useMemo(
+    () =>
+      computeServerClockSkewOffsetMs(expiresAt, serverRemainingTimeSeconds),
+    [expiresAt, serverRemainingTimeSeconds],
+  );
 
   useEffect(() => {
-    if (!expiresAt) return;
+    if (!expiresAt) {
+      return;
+    }
+
+    const tick = () => {
+      const currentNow = Date.now();
+      setNowMs(currentNow);
+      const currentSnap = calculateCountdownSnapshot(
+        expiresAt,
+        currentNow,
+        clockSkewOffsetMs,
+      );
+      return currentSnap.isExpired;
+    };
 
     const interval = setInterval(() => {
-      const remaining = calculateRemaining();
-      setTotalSeconds(remaining);
-
-      if (remaining <= 0) {
+      if (tick()) {
         clearInterval(interval);
       }
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [expiresAt, calculateRemaining]);
-
-  if (!expiresAt || totalSeconds < 0) {
-    return {
-      minutes: 0,
-      seconds: 0,
-      totalSeconds: 0,
-      isExpired: false,
-      formatted: '--:--',
+    const handleVisibilityOrFocus = () => {
+      if (
+        typeof document === 'undefined' ||
+        document.visibilityState === 'visible'
+      ) {
+        if (tick()) {
+          clearInterval(interval);
+        }
+      }
     };
-  }
 
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleVisibilityOrFocus);
+    }
 
-  return {
-    minutes,
-    seconds,
-    totalSeconds,
-    isExpired: totalSeconds <= 0,
-    formatted: `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
-  };
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener(
+          'visibilitychange',
+          handleVisibilityOrFocus,
+        );
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleVisibilityOrFocus);
+      }
+    };
+  }, [expiresAt, clockSkewOffsetMs]);
+
+  return calculateCountdownSnapshot(expiresAt, nowMs, clockSkewOffsetMs);
 }

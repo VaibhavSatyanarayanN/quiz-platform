@@ -1,110 +1,82 @@
 /* QuestionCard.module.css — Clean Student Assessment Interface */
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
   box-shadow: var(--shadow-sm);
-  border-radius: var(--radius-xl);
-  padding: var(--space-8);
+  border-radius: var(--radius-xl, 16px);
+  padding: var(--space-8, 32px);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-6, 24px);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .numberBadge {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  background: var(--color-surface-subtle);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-xs);
+  background: var(--color-surface-subtle, #f8fafc);
+  color: var(--color-text-secondary, #475569);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-full, 9999px);
+  font-weight: 700;
+  font-size: 0.8125rem;
 }
 
-.points {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+.prompt {
+  font-size: 1.2rem;
+  color: var(--color-text-primary, #0f172a);
+  font-weight: 650;
+  line-height: 1.55;
 }
 
-.text {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-relaxed);
-}
-
-.options {
+.optionsList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .optionRow {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--color-surface, #ffffff);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-lg, 12px);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
   user-select: none;
+  width: 100%;
+  text-align: left;
 }
 
-.optionRow:hover {
-  border-color: var(--color-coral);
-  background: var(--color-surface-hover);
+.optionRow:hover:not(:disabled) {
+  border-color: var(--brand-500, #3b82f6);
+  background: var(--color-surface-hover, #f8fafc);
 }
 
 .optionSelected {
-  border-color: var(--color-coral) !important;
-  background: rgba(227, 154, 123, 0.08) !important;
-  box-shadow: 0 0 0 1px var(--color-coral);
+  border-color: var(--brand-600, #2563eb) !important;
+  background: #f8faff !important;
+  box-shadow: 0 0 0 1px var(--brand-600, #2563eb);
 }
 
-.optionLetter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.optionSelected .optionLetter {
-  background: var(--color-coral);
-  color: var(--color-text-inverse);
-  border-color: var(--color-coral);
-}
-
-.optionText {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  flex-grow: 1;
-}
-
-.hint {
-  margin-top: var(--space-4);
-  padding: var(--space-4);
-  background: rgba(219, 176, 107, 0.12);
-  border: 1px solid rgba(219, 176, 107, 0.3);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: #8A5F1C;
+.optionDisabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }

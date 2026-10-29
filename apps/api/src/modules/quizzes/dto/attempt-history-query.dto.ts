@@ -1,12 +1,17 @@
 import {
     IsInt,
     IsOptional,
+    IsUUID,
     Max,
     Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AttemptHistoryQueryDto {
+    @IsOptional()
+    @IsUUID()
+    quizId?: string;
+
     @IsOptional()
     @Type(() => Number)
     @IsInt()

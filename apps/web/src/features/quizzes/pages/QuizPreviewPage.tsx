@@ -26,7 +26,7 @@ export default function QuizPreviewPage() {
   if (error || !quizVersion) {
     return (
       <div style={{ maxWidth: '640px', margin: '40px auto' }}>
-        <Alert variant="danger">
+        <Alert variant="danger" title="Quiz Unavailable">
           {error instanceof Error ? error.message : 'Quiz version not found or no longer published.'}
         </Alert>
         <div style={{ marginTop: '16px' }}>
@@ -38,8 +38,15 @@ export default function QuizPreviewPage() {
     );
   }
 
+  const displayTitle = quizVersion.quizTitle || quizVersion.title;
+  const displayDescription = quizVersion.quizDescription ?? quizVersion.description;
+  const totalQuestions = quizVersion.questions.length;
+  const totalMarks =
+    quizVersion.totalMarks ??
+    quizVersion.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+
   const handleStartQuiz = () => {
-    if (!quizId || !quizVersionId) return;
+    if (!quizId || !quizVersionId || totalQuestions === 0) return;
     startAttemptMutation.mutate(
       { quizId, versionId: quizVersionId },
       {
@@ -63,11 +70,11 @@ export default function QuizPreviewPage() {
         <CardHeader>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <Badge variant="brand" size="sm">v{quizVersion.version}</Badge>
-            <Badge variant="success" size="sm">{quizVersion.status}</Badge>
+            <Badge variant="success" size="sm">{quizVersion.status ?? 'published'}</Badge>
           </div>
-          <CardTitle style={{ fontSize: '1.5rem', fontWeight: 700 }}>{quizVersion.quizTitle}</CardTitle>
+          <CardTitle style={{ fontSize: '1.5rem', fontWeight: 700 }}>{displayTitle}</CardTitle>
           <CardDescription style={{ fontSize: '0.9375rem', marginTop: '4px' }}>
-            {quizVersion.quizDescription || 'No description provided.'}
+            {displayDescription || 'No description provided.'}
           </CardDescription>
         </CardHeader>
 
@@ -89,7 +96,7 @@ export default function QuizPreviewPage() {
                 Questions
               </div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-                {quizVersion.questions.length}
+                {totalQuestions}
               </div>
             </div>
 
@@ -98,7 +105,7 @@ export default function QuizPreviewPage() {
                 Total Marks
               </div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-                {quizVersion.totalMarks}
+                {totalMarks}
               </div>
             </div>
 
@@ -111,6 +118,20 @@ export default function QuizPreviewPage() {
               </div>
             </div>
           </div>
+
+          {totalQuestions === 0 && (
+            <Alert variant="warning" title="No Questions Available">
+              This published quiz version currently has no questions available for taking.
+            </Alert>
+          )}
+
+          {startAttemptMutation.isError && (
+            <Alert variant="danger" title="Unable to Start Attempt">
+              {startAttemptMutation.error instanceof Error
+                ? startAttemptMutation.error.message
+                : 'You are not authorized or eligible to start this quiz attempt.'}
+            </Alert>
+          )}
 
           <Alert variant="info" title="Important Note Before Starting">
             Starting the quiz creates an official attempt session. For timed quizzes, your countdown timer begins immediately upon clicking Start Quiz.
@@ -125,6 +146,7 @@ export default function QuizPreviewPage() {
             variant="primary"
             size="md"
             onClick={handleStartQuiz}
+            disabled={totalQuestions === 0 || startAttemptMutation.isPending}
             isLoading={startAttemptMutation.isPending}
           >
             Start Quiz

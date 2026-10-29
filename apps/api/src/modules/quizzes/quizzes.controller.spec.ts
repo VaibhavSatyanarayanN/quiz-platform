@@ -6,6 +6,8 @@ import { UserRole } from '../users/enums/user-role.enum.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { QuestionType } from './enums/question-type.enum.js';
 import { DifficultyLevel } from './enums/difficulty-level.enum.js';
+import { AttemptStatus } from './enums/attempt-status.enum.js';
+import { SubmitAttemptDto } from './dto/submit-attempt.dto.js';
 
 describe('QuizController', () => {
   let controller: QuizController;
@@ -18,11 +20,53 @@ describe('QuizController', () => {
     role: UserRole.CREATOR,
   };
 
+  const mockLearner: AuthenticatedUser = {
+    userId: 'learner-1',
+    email: 'learner@example.com',
+    role: UserRole.TAKER,
+  };
+
   beforeEach(async () => {
     mockQuizService = {
       createQuiz: vi.fn(),
       getCreatorQuizzes: vi.fn(),
       getCreatorQuizDetails: vi.fn(),
+      startAttempt: vi.fn().mockResolvedValue({
+        id: 'attempt-1',
+        attemptId: 'attempt-1',
+        quizId: 'quiz-1',
+        quizVersionId: 'ver-1',
+        status: AttemptStatus.IN_PROGRESS,
+      } as any),
+      saveAnswer: vi.fn().mockResolvedValue({
+        answerId: 'ans-1',
+        attemptId: 'attempt-1',
+        questionId: 'q-1',
+        optionIds: ['opt-1'],
+      } as any),
+      getAttempt: vi.fn().mockResolvedValue({
+        id: 'attempt-1',
+        attemptId: 'attempt-1',
+        quizId: 'quiz-1',
+        quizVersionId: 'ver-1',
+        status: AttemptStatus.IN_PROGRESS,
+        questions: [],
+      } as any),
+      getAttemptResult: vi.fn().mockResolvedValue({
+        attemptId: 'attempt-1',
+        quizId: 'quiz-1',
+        quizVersionId: 'ver-1',
+        status: AttemptStatus.SUBMITTED,
+        score: 5,
+        totalMarks: 5,
+      } as any),
+      getAttemptHistory: vi.fn().mockResolvedValue({
+        items: [],
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      }),
     };
 
     mockQuizGenerationService = {
@@ -56,6 +100,96 @@ describe('QuizController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('Learner Attempt Endpoints', () => {
+    it('startAttempt should delegate to quizService.startAttempt with authenticated learner', async () => {
+      const result = await controller.startAttempt('quiz-1', 'ver-1', mockLearner);
+      expect(result.attemptId).toBe('attempt-1');
+      expect(mockQuizService.startAttempt).toHaveBeenCalledWith(
+        'quiz-1',
+        'ver-1',
+        mockLearner,
+      );
+    });
+
+    it('getAttempt should delegate to quizService.getAttempt with authenticated user', async () => {
+      const result = await controller.getAttempt('attempt-1', mockLearner);
+      expect(result.attemptId).toBe('attempt-1');
+      expect(mockQuizService.getAttempt).toHaveBeenCalledWith(
+        'attempt-1',
+        mockLearner,
+      );
+    });
+
+    it('getAttemptForQuiz should delegate to quizService.getAttempt with expected quizId', async () => {
+      const result = await controller.getAttemptForQuiz('quiz-1', 'attempt-1', mockLearner);
+      expect(result.attemptId).toBe('attempt-1');
+      expect(mockQuizService.getAttempt).toHaveBeenCalledWith(
+        'attempt-1',
+        mockLearner,
+        'quiz-1',
+      );
+    });
+
+    it('getAttemptResult should delegate to quizService.getAttemptResult with authenticated user', async () => {
+      const result = await controller.getAttemptResult('attempt-1', mockLearner);
+      expect(result.attemptId).toBe('attempt-1');
+      expect(mockQuizService.getAttemptResult).toHaveBeenCalledWith(
+        'attempt-1',
+        mockLearner,
+      );
+    });
+
+    it('saveAnswer and saveAnswerViaPost should delegate to quizService.saveAnswer with authenticated user', async () => {
+      const dto = { optionIds: ['opt-1'] };
+      const putRes = await controller.saveAnswer('attempt-1', 'q-1', dto, mockLearner);
+      expect(putRes.optionIds).toEqual(['opt-1']);
+      expect(mockQuizService.saveAnswer).toHaveBeenCalledWith(
+        'attempt-1',
+        'q-1',
+        dto,
+        mockLearner,
+      );
+
+      const postRes = await controller.saveAnswerViaPost('attempt-1', 'q-1', dto, mockLearner);
+      expect(postRes.optionIds).toEqual(['opt-1']);
+      expect(mockQuizService.saveAnswer).toHaveBeenCalledTimes(2);
+    });
+
+    it('submitAttempt should delegate to quizService.submitAttempt with attemptId and authenticated user', async () => {
+      mockQuizService.submitAttempt = vi.fn().mockResolvedValue({
+        attemptId: 'attempt-1',
+        status: AttemptStatus.SUBMITTED,
+        score: 6,
+        totalMarks: 6,
+        percentage: 100,
+      } as any);
+
+      const result = await controller.submitAttempt('attempt-1', mockLearner, new SubmitAttemptDto());
+      expect(result.status).toBe(AttemptStatus.SUBMITTED);
+      expect(mockQuizService.submitAttempt).toHaveBeenCalledWith('attempt-1', mockLearner);
+    });
+
+    it('getMyAttemptHistory should delegate to quizService.getAttemptHistory with user.userId', async () => {
+      const query = { page: 1, limit: 10 };
+      const result = await controller.getMyAttemptHistory(query, mockLearner);
+      expect(result).toEqual({ items: [], page: 1, limit: 10, total: 0, totalPages: 0 });
+      expect(mockQuizService.getAttemptHistory).toHaveBeenCalledWith(
+        mockLearner.userId,
+        query,
+      );
+    });
+
+    it('getAttemptHistory should delegate to quizService.getAttemptHistory with user.userId and quizId', async () => {
+      const query = { page: 1, limit: 10 };
+      const result = await controller.getAttemptHistory('quiz-1', query, mockLearner);
+      expect(result).toEqual({ items: [], page: 1, limit: 10, total: 0, totalPages: 0 });
+      expect(mockQuizService.getAttemptHistory).toHaveBeenCalledWith(
+        mockLearner.userId,
+        { ...query, quizId: 'quiz-1' },
+      );
+    });
   });
 
   describe('AI Generation Endpoints', () => {

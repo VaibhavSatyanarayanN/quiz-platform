@@ -5,6 +5,9 @@ interface SubmitConfirmModalProps {
   isOpen: boolean;
   totalQuestions: number;
   answeredCount: number;
+  unsavedCount?: number;
+  savingCount?: number;
+  onRetryUnsaved?: () => void;
   onClose: () => void;
   onConfirm: () => void;
   isSubmitting: boolean;
@@ -14,11 +17,14 @@ export function SubmitConfirmModal({
   isOpen,
   totalQuestions,
   answeredCount,
+  unsavedCount = 0,
+  savingCount = 0,
+  onRetryUnsaved,
   onClose,
   onConfirm,
   isSubmitting,
 }: SubmitConfirmModalProps) {
-  const unansweredCount = totalQuestions - answeredCount;
+  const unansweredCount = Math.max(0, totalQuestions - answeredCount);
 
   return (
     <Modal
@@ -37,10 +43,21 @@ export function SubmitConfirmModal({
           >
             Keep Reviewing
           </Button>
+          {unsavedCount > 0 && onRetryUnsaved && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRetryUnsaved}
+              disabled={isSubmitting || savingCount > 0}
+            >
+              Retry Unsaved ({unsavedCount})
+            </Button>
+          )}
           <Button
             type="button"
             variant="primary"
             onClick={onConfirm}
+            disabled={savingCount > 0}
             isLoading={isSubmitting}
           >
             Confirm & Submit
@@ -79,6 +96,40 @@ export function SubmitConfirmModal({
             </strong>
           </div>
         </div>
+
+        {savingCount > 0 && (
+          <div
+            role="status"
+            style={{
+              background: 'var(--warning-bg, #fffbeb)',
+              border: '1px solid var(--warning-border, #fde68a)',
+              color: 'var(--warning-text, #b45309)',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+            }}
+          >
+            ⏳ Saving {savingCount} answer{savingCount > 1 ? 's' : ''}... Please wait a moment before confirming submission.
+          </div>
+        )}
+
+        {unsavedCount > 0 && (
+          <div
+            role="alert"
+            style={{
+              background: 'var(--danger-bg, #fef2f2)',
+              border: '1px solid var(--danger-border, #fecaca)',
+              color: 'var(--danger-text, #b91c1c)',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+            }}
+          >
+            ⚠️ You have <strong>{unsavedCount}</strong> answer{unsavedCount > 1 ? 's' : ''} that failed to save to the server. Click <strong>Retry Unsaved</strong> so your latest choices are recorded before submitting.
+          </div>
+        )}
 
         {unansweredCount > 0 && (
           <div

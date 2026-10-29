@@ -13,6 +13,7 @@ const AiGenerationReviewPage = lazy(() => import('@/features/quizzes/pages/AiGen
 const QuizPreviewPage = lazy(() => import('@/features/quizzes/pages/QuizPreviewPage'));
 const QuizAttemptPage = lazy(() => import('@/features/attempts/pages/QuizAttemptPage'));
 const QuizResultPage = lazy(() => import('@/features/attempts/pages/QuizResultPage'));
+const AttemptHistoryPage = lazy(() => import('@/features/attempts/pages/AttemptHistoryPage'));
 const NotFoundPage = lazy(() => import('@/shared/pages/NotFoundPage'));
 
 export function AppRouter() {
@@ -42,6 +43,8 @@ export function AppRouter() {
               path="/quizzes/:quizId/versions/:quizVersionId"
               element={<QuizPreviewPage />}
             />
+            <Route path="/attempts" element={<AttemptHistoryPage />} />
+            <Route path="/quizzes/:quizId/attempts" element={<AttemptHistoryPage />} />
             <Route path="/attempts/:attemptId" element={<QuizAttemptPage />} />
             <Route path="/attempts/:attemptId/result" element={<QuizResultPage />} />
           </Route>

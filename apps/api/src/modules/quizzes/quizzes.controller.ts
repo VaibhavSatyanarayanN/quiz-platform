@@ -30,6 +30,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
 import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
 import { UpdateQuizDto } from './dto/update-quiz.dto.js';
+import { SubmitAttemptDto } from './dto/submit-attempt.dto.js';
 import { UserRole } from '../users/enums/user-role.enum.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
@@ -102,11 +103,14 @@ export class QuizController {
     return this.quizService.startAttempt(
       quizId,
       quizVersionId,
-      user.userId,
+      user,
     );
   }
 
-  @Put('attempts/:attemptId/answers/:questionId')
+  @Put([
+    'attempts/:attemptId/answers/:questionId',
+    'attempts/:attemptId/questions/:questionId/answers',
+  ])
   saveAnswer(
     @Param('attemptId') attemptId: string,
     @Param('questionId') questionId: string,
@@ -117,7 +121,23 @@ export class QuizController {
       attemptId,
       questionId,
       dto,
-      user.userId,
+      user,
+    );
+  }
+
+  @Post('attempts/:attemptId/questions/:questionId/answers')
+  @HttpCode(HttpStatus.OK)
+  saveAnswerViaPost(
+    @Param('attemptId') attemptId: string,
+    @Param('questionId') questionId: string,
+    @Body() dto: SaveAnswerDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.saveAnswer(
+      attemptId,
+      questionId,
+      dto,
+      user,
     );
   }
 
@@ -125,10 +145,11 @@ export class QuizController {
   submitAttempt(
     @Param('attemptId') attemptId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Body() _dto?: SubmitAttemptDto,
   ) {
     return this.quizService.submitAttempt(
       attemptId,
-      user.userId,
+      user,
     );
   }
 
@@ -139,7 +160,20 @@ export class QuizController {
   ) {
     return this.quizService.getAttempt(
       attemptId,
-      user.userId,
+      user,
+    );
+  }
+
+  @Get(':quizId/attempts/:attemptId')
+  getAttemptForQuiz(
+    @Param('quizId') quizId: string,
+    @Param('attemptId') attemptId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getAttempt(
+      attemptId,
+      user,
+      quizId,
     );
   }
 
@@ -150,7 +184,18 @@ export class QuizController {
   ) {
     return this.quizService.getAttemptResult(
       attemptId,
+      user,
+    );
+  }
+
+  @Get('attempts')
+  getMyAttemptHistory(
+    @Query() query: AttemptHistoryQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.getAttemptHistory(
       user.userId,
+      query,
     );
   }
 
@@ -161,9 +206,8 @@ export class QuizController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizService.getAttemptHistory(
-      quizId,
       user.userId,
-      query,
+      { ...query, quizId },
     );
   }
 

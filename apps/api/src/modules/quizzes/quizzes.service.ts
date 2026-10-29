@@ -25,8 +25,13 @@ import {
   AttemptOptionResponseDto,
   AttemptQuestionResponseDto,
   AttemptResponseDto,
+  StartAttemptResponseDto,
 } from './dto/attempt-response.dto.js';
-import { AttemptResultResponseDto } from './dto/attempt-result-response.dto.js';
+import {
+  AttemptQuestionReviewDto,
+  AttemptResultResponseDto,
+  AttemptReviewOptionDto,
+} from './dto/attempt-result-response.dto.js';
 import {
   AttemptHistoryItemDto,
   AttemptHistoryResponseDto,
@@ -78,12 +83,27 @@ export class QuizService {
     return membership?.organizationId ?? null;
   }
 
+  private validateTimeLimitSeconds(
+    timeLimitSeconds: number | null | undefined,
+  ): void {
+    if (
+      timeLimitSeconds !== null &&
+      timeLimitSeconds !== undefined &&
+      (!Number.isInteger(timeLimitSeconds) || timeLimitSeconds < 1)
+    ) {
+      throw new BadRequestException(
+        'timeLimitSeconds must be a positive integer or null',
+      );
+    }
+  }
+
   async createQuiz(
     title: string,
     description: string | null,
     timeLimitSeconds: number | null,
     creatorId: string,
   ) {
+    this.validateTimeLimitSeconds(timeLimitSeconds);
     const organizationId = await this.getCreatorOrganizationId(creatorId);
 
     return this.dataSource.transaction(async (manager) => {
@@ -1057,203 +1077,380 @@ export class QuizService {
     });
   }
 
+  private resolveUserPrincipal(
+    userOrUserId: AuthenticatedUser | string,
+  ): { userId: string; role?: UserRole } {
+    if (typeof userOrUserId === 'string') {
+      return { userId: userOrUserId };
+    }
+    return {
+      userId: userOrUserId.userId,
+      role: userOrUserId.role as UserRole,
+    };
+  }
+
+  private isUniqueActiveAttemptViolation(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const err = error as { code?: string; constraint?: string; message?: string };
+    return (
+      err.code === '23505' ||
+      err.constraint === 'UQ_active_attempt_user_version' ||
+      Boolean(err.message && err.message.includes('UQ_active_attempt_user_version'))
+    );
+  }
+
+  private isAttemptDeadlineReached(
+    attempt: Pick<QuizAttempt, 'expiresAt'>,
+    referenceNow: Date = new Date(),
+  ): boolean {
+    if (attempt.expiresAt === null || attempt.expiresAt === undefined) {
+      return false;
+    }
+    return referenceNow.getTime() >= new Date(attempt.expiresAt).getTime();
+  }
+
+  private async expireAttemptInTransaction(
+    manager: EntityManager,
+    attempt: QuizAttempt,
+    isAlreadyLocked = false,
+  ): Promise<QuizAttempt> {
+    let targetAttempt = attempt;
+
+    if (!isAlreadyLocked) {
+      const lockedAttempt = await manager.findOne(QuizAttempt, {
+        where: { id: attempt.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (lockedAttempt) {
+        targetAttempt = lockedAttempt;
+      }
+    }
+
+    if (targetAttempt.status !== AttemptStatus.IN_PROGRESS) {
+      return targetAttempt;
+    }
+
+    const result = await this.calculateAttemptScore(manager, targetAttempt);
+    targetAttempt.status = AttemptStatus.EXPIRED;
+    targetAttempt.submittedAt = targetAttempt.expiresAt
+      ? new Date(targetAttempt.expiresAt)
+      : new Date();
+    targetAttempt.score = result.score;
+    targetAttempt.correctAnswers = result.correctAnswers;
+    targetAttempt.wrongAnswers = result.wrongAnswers;
+    targetAttempt.unanswered = result.unanswered;
+    targetAttempt.percentage = result.percentage;
+
+    return manager.save(QuizAttempt, targetAttempt);
+  }
+
+  private buildStartAttemptResponse(
+    attempt: QuizAttempt,
+    quiz: Quiz,
+    version: QuizVersion,
+    totalQuestions: number,
+    totalMarks: number,
+    resumed: boolean,
+  ): StartAttemptResponseDto {
+    return {
+      id: attempt.id,
+      attemptId: attempt.id,
+      quizId: attempt.quizId,
+      quizVersionId: attempt.quizVersionId,
+      version: version.version,
+      quizTitle: quiz.title,
+      status: attempt.status,
+      startedAt: attempt.startedAt,
+      expiresAt: attempt.expiresAt,
+      remainingTimeSeconds: this.getRemainingTimeSeconds(attempt),
+      totalQuestions,
+      totalMarks,
+      resumed,
+    };
+  }
+
   async startAttempt(
     quizId: string,
     quizVersionId: string,
-    userId: string,
-  ) {
-    return this.dataSource.transaction(
-      async (manager) => {
-        const quiz = await manager.findOne(
-          Quiz,
-          {
-            where: {
-              id: quizId,
-            },
-          },
-        );
+    userOrUserId: AuthenticatedUser | string,
+  ): Promise<StartAttemptResponseDto> {
+    const { userId } = this.resolveUserPrincipal(userOrUserId);
+    if (!userId) {
+      throw new ForbiddenException('Authenticated learner identity is required');
+    }
 
-        if (!quiz) {
-          throw new NotFoundException(
-            'Quiz not found',
-          );
-        }
+    let quizSnapshot: Quiz | null = null;
+    let versionSnapshot: QuizVersion | null = null;
+    let totalQuestionsSnapshot = 0;
+    let totalMarksSnapshot = 0;
 
-        const version =
-          await manager.findOne(
-            QuizVersion,
+    try {
+      return await this.dataSource.transaction(
+        async (manager) => {
+          const quiz = await manager.findOne(
+            Quiz,
             {
               where: {
-                id: quizVersionId,
-                quizId,
+                id: quizId,
               },
             },
           );
 
-        if (!version) {
-          throw new NotFoundException(
-            'Quiz version not found',
-          );
-        }
+          if (!quiz) {
+            throw new NotFoundException(
+              'Quiz not found',
+            );
+          }
 
-        if (
-          version.status !==
-          QuizVersionStatus.PUBLISHED
-        ) {
-          throw new BadRequestException(
-            'Only published quiz versions can be attempted',
-          );
-        }
+          if (quiz.status !== QuizStatus.PUBLISHED) {
+            throw new BadRequestException(
+              'Only published quizzes can be attempted',
+            );
+          }
 
-        // If quiz is owned by an organization, enforce assignment recipient rules
-        if (quiz.organizationId) {
-          const assignments = await manager.find(
-            QuizAssignment,
-            {
-              where: {
-                quizId,
-                quizVersionId,
-                organizationId: quiz.organizationId,
-                isActive: true,
-              },
-            },
-          );
-
-          if (assignments.length > 0) {
-            const now = new Date();
-            const recipientRecords = await manager.find(
-              QuizAssignmentRecipient,
+          const version =
+            await manager.findOne(
+              QuizVersion,
               {
                 where: {
-                  studentId: userId,
+                  id: quizVersionId,
+                  quizId: quiz.id,
                 },
               },
             );
 
-            const validAssignment = assignments.find((a) => {
-              const isRecipient = recipientRecords.some((r) => r.assignmentId === a.id);
-              if (!isRecipient) return false;
-              if (a.startsAt && new Date(a.startsAt) > now) return false;
-              if (a.dueAt && new Date(a.dueAt) < now) return false;
-              return true;
-            });
+          if (!version) {
+            throw new NotFoundException(
+              'Quiz version not found',
+            );
+          }
 
-            if (!validAssignment) {
-              const hasRecipientAccess = assignments.some((a) =>
-                recipientRecords.some((r) => r.assignmentId === a.id),
+          if (version.quizId && version.quizId !== quiz.id) {
+            throw new BadRequestException(
+              'Quiz version does not belong to the specified quiz',
+            );
+          }
+
+          if (
+            version.status !==
+            QuizVersionStatus.PUBLISHED
+          ) {
+            throw new BadRequestException(
+              'Only published quiz versions can be attempted',
+            );
+          }
+
+          // Validate that the published version contains eligible questions
+          const questions = await manager.find(Question, {
+            where: {
+              quizVersionId: version.id,
+            },
+            order: {
+              order: 'ASC',
+            },
+          });
+
+          if (!questions || questions.length === 0) {
+            throw new BadRequestException(
+              'This quiz version has no eligible questions available for taking',
+            );
+          }
+
+          const totalQuestions = questions.length;
+          const totalMarks = questions.reduce(
+            (sum, q) => sum + (q.marks || 1),
+            0,
+          );
+
+          quizSnapshot = quiz;
+          versionSnapshot = version;
+          totalQuestionsSnapshot = totalQuestions;
+          totalMarksSnapshot = totalMarks;
+
+          // If quiz is owned by an organization, enforce assignment recipient rules
+          if (quiz.organizationId) {
+            const assignments = await manager.find(
+              QuizAssignment,
+              {
+                where: {
+                  quizId,
+                  quizVersionId,
+                  organizationId: quiz.organizationId,
+                  isActive: true,
+                },
+              },
+            );
+
+            if (assignments.length > 0) {
+              const now = new Date();
+              const recipientRecords = await manager.find(
+                QuizAssignmentRecipient,
+                {
+                  where: {
+                    studentId: userId,
+                  },
+                },
               );
-              if (!hasRecipientAccess) {
-                throw new ForbiddenException('You are not assigned to take this quiz');
-              } else {
-                throw new BadRequestException('This quiz assignment is currently unavailable or has expired');
+
+              const validAssignment = assignments.find((a) => {
+                const isRecipient = recipientRecords.some((r) => r.assignmentId === a.id);
+                if (!isRecipient) return false;
+                if (a.startsAt && new Date(a.startsAt) > now) return false;
+                if (a.dueAt && new Date(a.dueAt) < now) return false;
+                return true;
+              });
+
+              if (!validAssignment) {
+                const hasRecipientAccess = assignments.some((a) =>
+                  recipientRecords.some((r) => r.assignmentId === a.id),
+                );
+                if (!hasRecipientAccess) {
+                  throw new ForbiddenException('You are not assigned to take this quiz');
+                } else {
+                  throw new BadRequestException('This quiz assignment is currently unavailable or has expired');
+                }
               }
             }
           }
-        }
 
-        const existingAttempt =
-          await manager.findOne(
-            QuizAttempt,
-            {
-              where: {
+          const existingAttempt =
+            await manager.findOne(
+              QuizAttempt,
+              {
+                where: {
+                  userId,
+                  quizVersionId:
+                    version.id,
+                  status:
+                    AttemptStatus.IN_PROGRESS,
+                },
+                lock: { mode: 'pessimistic_write' },
+              },
+            );
+
+          if (existingAttempt) {
+            const isExpired = this.isAttemptDeadlineReached(existingAttempt);
+
+            if (isExpired) {
+              await this.expireAttemptInTransaction(
+                manager,
+                existingAttempt,
+                true,
+              );
+            } else {
+              return this.buildStartAttemptResponse(
+                existingAttempt,
+                quiz,
+                version,
+                totalQuestions,
+                totalMarks,
+                true,
+              );
+            }
+          }
+
+          const startedAt =
+            new Date();
+
+          let expiresAt:
+            | Date
+            | null = null;
+
+          if (
+            version.timeLimitSeconds !==
+            null &&
+            version.timeLimitSeconds !== undefined &&
+            version.timeLimitSeconds > 0
+          ) {
+            expiresAt =
+              new Date(
+                startedAt.getTime() +
+                version.timeLimitSeconds *
+                1000,
+              );
+          }
+
+          const attempt =
+            manager.create(
+              QuizAttempt,
+              {
                 userId,
+                quizId: quiz.id,
                 quizVersionId:
                   version.id,
                 status:
                   AttemptStatus.IN_PROGRESS,
+                startedAt,
+                expiresAt,
               },
-            },
-          );
-
-        if (existingAttempt) {
-          return {
-            id: existingAttempt.id,
-            quizId:
-              existingAttempt.quizId,
-            quizVersionId:
-              existingAttempt.quizVersionId,
-            status:
-              existingAttempt.status,
-            startedAt:
-              existingAttempt.startedAt,
-            expiresAt:
-              existingAttempt.expiresAt,
-          };
-        }
-
-        const startedAt =
-          new Date();
-
-        let expiresAt:
-          | Date
-          | null = null;
-
-        if (
-          version.timeLimitSeconds !==
-          null
-        ) {
-          expiresAt =
-            new Date(
-              startedAt.getTime() +
-              version.timeLimitSeconds *
-              1000,
             );
+
+          const savedAttempt =
+            await manager.save(
+              QuizAttempt,
+              attempt,
+            );
+
+          return this.buildStartAttemptResponse(
+            savedAttempt,
+            quiz,
+            version,
+            totalQuestions,
+            totalMarks,
+            false,
+          );
+        },
+      );
+    } catch (error) {
+      // Graceful recovery from concurrent start race hitting UQ_active_attempt_user_version
+      if (
+        this.isUniqueActiveAttemptViolation(error) &&
+        quizSnapshot &&
+        versionSnapshot &&
+        typeof this.quizAttemptRepository?.findOne === 'function'
+      ) {
+        const concurrentActive = await this.quizAttemptRepository.findOne({
+          where: {
+            userId,
+            quizVersionId: (versionSnapshot as QuizVersion).id,
+            status: AttemptStatus.IN_PROGRESS,
+          },
+        });
+        if (concurrentActive) {
+          return this.buildStartAttemptResponse(
+            concurrentActive,
+            quizSnapshot,
+            versionSnapshot,
+            totalQuestionsSnapshot,
+            totalMarksSnapshot,
+            true,
+          );
         }
-
-        const attempt =
-          manager.create(
-            QuizAttempt,
-            {
-              userId,
-              quizId: quiz.id,
-              quizVersionId:
-                version.id,
-              status:
-                AttemptStatus.IN_PROGRESS,
-              startedAt,
-              expiresAt,
-            },
-          );
-
-        const savedAttempt =
-          await manager.save(
-            QuizAttempt,
-            attempt,
-          );
-
-        return {
-          id: savedAttempt.id,
-          quizId:
-            savedAttempt.quizId,
-          quizVersionId:
-            savedAttempt.quizVersionId,
-          status:
-            savedAttempt.status,
-          startedAt:
-            savedAttempt.startedAt,
-          expiresAt:
-            savedAttempt.expiresAt,
-        };
-      },
-    );
+      }
+      throw error;
+    }
   }
 
   async saveAnswer(
     attemptId: string,
     questionId: string,
     dto: SaveAnswerDto,
-    userId: string,
+    userOrUserId: AuthenticatedUser | string,
   ) {
+    const { userId } = this.resolveUserPrincipal(userOrUserId);
+
     return this.dataSource.transaction(
       async (manager) => {
-        // 1. Find the attempt belonging to the current user
+        // 1. Find the attempt and verify ownership
         const attempt = await manager.findOne(
           QuizAttempt,
           {
             where: {
               id: attemptId,
-              userId,
             },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -1263,7 +1460,23 @@ export class QuizService {
           );
         }
 
+        if (!userId || attempt.userId !== userId) {
+          throw new ForbiddenException(
+            'You do not have permission to modify this quiz attempt',
+          );
+        }
+
         // 2. Only an in-progress attempt can be answered
+        if (
+          attempt.status === AttemptStatus.IN_PROGRESS &&
+          this.isAttemptDeadlineReached(attempt)
+        ) {
+          await this.expireAttemptInTransaction(manager, attempt, true);
+          throw new BadRequestException(
+            'This quiz attempt has expired',
+          );
+        }
+
         await this.ensureAttemptActive(
           manager,
           attempt,
@@ -1289,34 +1502,10 @@ export class QuizService {
 
         // 4. Remove duplicate option IDs
         const uniqueOptionIds = [
-          ...new Set(dto.optionIds),
+          ...new Set(dto.optionIds ?? []),
         ];
 
-        // 5. Load the selected options
-        const options = await manager.find(
-          Option,
-          {
-            where: uniqueOptionIds.map(
-              (optionId) => ({
-                id: optionId,
-                questionId: question.id,
-              }),
-            ),
-          },
-        );
-
-        // 6. Every submitted option must belong
-        //    to this question
-        if (
-          options.length !==
-          uniqueOptionIds.length
-        ) {
-          throw new BadRequestException(
-            'One or more selected options do not belong to this question',
-          );
-        }
-
-        // 7. Validate number of selected options
+        // 5. Validate number of selected options by question type
         if (
           question.questionType ===
           QuestionType.SINGLE_CHOICE &&
@@ -1337,13 +1526,67 @@ export class QuizService {
           );
         }
 
+        // For multiple-choice questions, an empty optionIds array clears any previously saved answer
         if (
           question.questionType ===
           QuestionType.MULTIPLE_CHOICE &&
-          uniqueOptionIds.length < 1
+          uniqueOptionIds.length === 0
+        ) {
+          const existingAnswer = await manager.findOne(
+            Answer,
+            {
+              where: {
+                attemptId: attempt.id,
+                questionId: question.id,
+              },
+            },
+          );
+
+          if (existingAnswer) {
+            await manager.delete(AnswerOption, {
+              answerId: existingAnswer.id,
+            });
+            await manager.delete(Answer, {
+              id: existingAnswer.id,
+            });
+          }
+
+          return {
+            answerId: null,
+            attemptId: attempt.id,
+            questionId: question.id,
+            optionIds: [],
+            answeredAt: null,
+          };
+        }
+
+        if (uniqueOptionIds.length < 1) {
+          throw new BadRequestException(
+            'At least one option must be selected',
+          );
+        }
+
+        // 6. Load the selected options
+        const options = await manager.find(
+          Option,
+          {
+            where: uniqueOptionIds.map(
+              (optionId) => ({
+                id: optionId,
+                questionId: question.id,
+              }),
+            ),
+          },
+        );
+
+        // 7. Every submitted option must belong
+        //    to this question
+        if (
+          options.length !==
+          uniqueOptionIds.length
         ) {
           throw new BadRequestException(
-            'Multiple-choice questions require at least one option',
+            'One or more selected options do not belong to this question',
           );
         }
 
@@ -1411,19 +1654,20 @@ export class QuizService {
 
   async submitAttempt(
     attemptId: string,
-    userId: string,
+    userOrUserId: AuthenticatedUser | string,
   ) {
+    const { userId } = this.resolveUserPrincipal(userOrUserId);
+
     return this.dataSource.transaction(
       async (manager) => {
-        // 1. Find the attempt belonging
-        //    to the current user
+        // 1. Find the attempt and verify ownership
         const attempt = await manager.findOne(
           QuizAttempt,
           {
             where: {
               id: attemptId,
-              userId,
             },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -1433,35 +1677,86 @@ export class QuizService {
           );
         }
 
-        // 2. Attempt must still be in progress
-        if (
-          attempt.status !==
-          AttemptStatus.IN_PROGRESS
-        ) {
-          throw new BadRequestException(
-            'Only an in-progress attempt can be submitted',
+        if (!userId || attempt.userId !== userId) {
+          throw new ForbiddenException(
+            'You do not have permission to submit this quiz attempt',
           );
         }
 
-        /*
-         * We intentionally do not reject an
-         * expired timed attempt here.
-         *
-         * Answers saved before the deadline
-         * are still graded.
-         *
-         * saveAnswer() prevents new answers
-         * after the deadline.
-         */
+        // 2. If already finalized (SUBMITTED or EXPIRED), return idempotently without re-grading
+        if (
+          attempt.status === AttemptStatus.SUBMITTED ||
+          attempt.status === AttemptStatus.EXPIRED
+        ) {
+          const questions = await manager.find(Question, {
+            where: {
+              quizVersionId: attempt.quizVersionId,
+            },
+          });
+          const totalMarks = questions.reduce(
+            (sum, q) => sum + (q.marks || 0),
+            0,
+          );
 
-        // 3. Calculate the final score
+          return {
+            attemptId: attempt.id,
+            status: attempt.status,
+            score: attempt.score,
+            totalMarks,
+            totalScore: totalMarks,
+            correctAnswers: attempt.correctAnswers,
+            wrongAnswers: attempt.wrongAnswers,
+            unanswered: attempt.unanswered,
+            percentage:
+              attempt.percentage !== null && attempt.percentage !== undefined
+                ? Number(attempt.percentage)
+                : null,
+            submittedAt: attempt.submittedAt,
+          };
+        }
+
+        // 3. Enforce deadline boundary: a submission arriving at or after expiresAt transitions to EXPIRED
+        if (this.isAttemptDeadlineReached(attempt)) {
+          const expiredAttempt = await this.expireAttemptInTransaction(
+            manager,
+            attempt,
+            true,
+          );
+          const questions = await manager.find(Question, {
+            where: {
+              quizVersionId: expiredAttempt.quizVersionId,
+            },
+          });
+          const totalMarks = questions.reduce(
+            (sum, q) => sum + (q.marks || 0),
+            0,
+          );
+
+          return {
+            attemptId: expiredAttempt.id,
+            status: expiredAttempt.status,
+            score: expiredAttempt.score,
+            totalMarks,
+            totalScore: totalMarks,
+            correctAnswers: expiredAttempt.correctAnswers,
+            wrongAnswers: expiredAttempt.wrongAnswers,
+            unanswered: expiredAttempt.unanswered,
+            percentage:
+              expiredAttempt.percentage !== null && expiredAttempt.percentage !== undefined
+                ? Number(expiredAttempt.percentage)
+                : null,
+            submittedAt: expiredAttempt.submittedAt,
+          };
+        }
+
+        // 4. Calculate the final score for an on-time submission
         const result =
           await this.calculateAttemptScore(
             manager,
             attempt,
           );
 
-        // 4. Finalize the attempt
+        // 5. Finalize the attempt as SUBMITTED
         attempt.status =
           AttemptStatus.SUBMITTED;
 
@@ -1489,7 +1784,7 @@ export class QuizService {
             attempt,
           );
 
-        // 5. Return final result
+        // 6. Return final result
         return {
           attemptId:
             submittedAttempt.id,
@@ -1524,17 +1819,19 @@ export class QuizService {
 
   async getAttempt(
     attemptId: string,
-    userId: string,
+    userOrUserId: AuthenticatedUser | string,
+    expectedQuizId?: string,
   ): Promise<AttemptResponseDto> {
+    const { userId, role } = this.resolveUserPrincipal(userOrUserId);
+
     return this.dataSource.transaction(
       async (manager): Promise<AttemptResponseDto> => {
-        // 1. Find the attempt belonging to the current user
-        const attempt = await manager.findOne(
+        // 1. Find the attempt by ID
+        let attempt = await manager.findOne(
           QuizAttempt,
           {
             where: {
               id: attemptId,
-              userId,
             },
           },
         );
@@ -1545,7 +1842,43 @@ export class QuizService {
           );
         }
 
-        // 2. Load all questions from the exact
+        if (expectedQuizId && attempt.quizId !== expectedQuizId) {
+          throw new NotFoundException(
+            'Attempt not found for this quiz',
+          );
+        }
+
+        // 2. Enforce strict learner ownership (or ADMIN override)
+        const isOwner = Boolean(userId && attempt.userId === userId);
+        const isAdmin = role === UserRole.ADMIN;
+
+        if (!isOwner && !isAdmin) {
+          throw new ForbiddenException(
+            'You do not have permission to access this quiz attempt',
+          );
+        }
+
+        // 3. Reconcile overdue timed attempts to EXPIRED
+        if (
+          attempt.status === AttemptStatus.IN_PROGRESS &&
+          attempt.expiresAt !== null &&
+          new Date() >= new Date(attempt.expiresAt)
+        ) {
+          attempt = await this.expireAttemptInTransaction(manager, attempt);
+        }
+
+        // 4. Load quiz and exact quiz version metadata
+        const quiz = await manager.findOne(Quiz, {
+          where: { id: attempt.quizId },
+        });
+        const version = await manager.findOne(QuizVersion, {
+          where: {
+            id: attempt.quizVersionId,
+            quizId: attempt.quizId,
+          },
+        });
+
+        // 5. Load all questions strictly from the exact
         //    quiz version used by this attempt
         const questions = await manager.find(
           Question,
@@ -1560,7 +1893,7 @@ export class QuizService {
           },
         );
 
-        // 3. Load all answers belonging
+        // 6. Load all answers belonging
         //    to this attempt
         const answers = await manager.find(
           Answer,
@@ -1571,13 +1904,13 @@ export class QuizService {
           },
         );
 
-        // 4. Get all answer IDs
+        // 7. Get all answer IDs
         const answerIds: string[] =
           answers.map(
             (answer: Answer) => answer.id,
           );
 
-        // 5. Load selected options for
+        // 8. Load selected options for
         //    all answers
         const answerOptions: AnswerOption[] =
           answerIds.length > 0
@@ -1595,7 +1928,7 @@ export class QuizService {
             )
             : [];
 
-        // 6. Map question ID → selected option IDs
+        // 9. Map question ID → selected option IDs
         const selectedOptionsMap =
           new Map<string, string[]>();
 
@@ -1624,7 +1957,7 @@ export class QuizService {
           );
         }
 
-        // 7. Build frontend-safe question response
+        // 10. Build frontend-safe question response
         const result: AttemptQuestionResponseDto[] =
           [];
 
@@ -1633,21 +1966,23 @@ export class QuizService {
         ) {
           // Load options for this question
           const options: Option[] =
-            await manager.find(
-              Option,
-              {
-                where: {
-                  questionId:
-                    question.id,
+            Array.isArray(question.options) && question.options.length > 0
+              ? [...question.options].sort((a, b) => a.order - b.order)
+              : await manager.find(
+                Option,
+                {
+                  where: {
+                    questionId:
+                      question.id,
+                  },
+                  order: {
+                    order: 'ASC',
+                  },
                 },
-                order: {
-                  order: 'ASC',
-                },
-              },
-            );
+              );
 
           // IMPORTANT:
-          // Do NOT expose isCorrect
+          // Never expose isCorrect or grading metadata
           const optionResponse: AttemptOptionResponseDto[] =
             options.map(
               (
@@ -1659,6 +1994,11 @@ export class QuizService {
               }),
             );
 
+          const selectedOptionIds =
+            selectedOptionsMap.get(
+              question.id,
+            ) ?? [];
+
           result.push({
             id: question.id,
             text: question.text,
@@ -1667,25 +2007,43 @@ export class QuizService {
             order: question.order,
             marks: question.marks,
             options: optionResponse,
-            selectedOptionIds:
-              selectedOptionsMap.get(
-                question.id,
-              ) ?? [],
+            selectedOptionIds,
+            isAnswered: selectedOptionIds.length > 0,
           });
         }
 
-        const remainingTimeSeconds =
-          this.getRemainingTimeSeconds(
-            attempt,
-          );
+        const totalQuestions = result.length;
+        const answeredQuestions = result.filter(
+          (q) => q.selectedOptionIds.length > 0,
+        ).length;
+        const unansweredQuestions = Math.max(
+          0,
+          totalQuestions - answeredQuestions,
+        );
+        const totalMarks = result.reduce(
+          (sum, q) => sum + (q.marks || 0),
+          0,
+        );
 
-        // 8. Return the API response
+        const isInProgress =
+          attempt.status === AttemptStatus.IN_PROGRESS;
+
+        const remainingTimeSeconds = isInProgress
+          ? this.getRemainingTimeSeconds(attempt)
+          : attempt.expiresAt !== null
+            ? 0
+            : null;
+
+        // 11. Return the learner-safe API response
         return {
+          id: attempt.id,
           attemptId: attempt.id,
 
           quizId: attempt.quizId,
           quizVersionId:
             attempt.quizVersionId,
+          version: version?.version,
+          quizTitle: quiz?.title,
 
           status: attempt.status,
 
@@ -1700,15 +2058,25 @@ export class QuizService {
 
           remainingTimeSeconds,
 
-          score: attempt.score,
-          correctAnswers:
-            attempt.correctAnswers,
-          wrongAnswers:
-            attempt.wrongAnswers,
-          unanswered:
-            attempt.unanswered,
+          totalQuestions,
+          answeredQuestions,
+          unansweredQuestions,
+          totalMarks,
+
+          score: isInProgress ? null : attempt.score,
+          correctAnswers: isInProgress
+            ? null
+            : attempt.correctAnswers,
+          wrongAnswers: isInProgress
+            ? null
+            : attempt.wrongAnswers,
+          unanswered: isInProgress
+            ? null
+            : attempt.unanswered,
           percentage:
-            attempt.percentage,
+            isInProgress || attempt.percentage === null || attempt.percentage === undefined
+              ? null
+              : Number(attempt.percentage),
 
           questions: result,
         };
@@ -1716,23 +2084,84 @@ export class QuizService {
     );
   }
 
+  /**
+   * Calculates the elapsed time in seconds for a finalized quiz attempt.
+   *
+   * Lifecycle semantics:
+   * - SUBMITTED: uses the actual submission timestamp minus the start timestamp.
+   * - EXPIRED: bounded by the attempt deadline (expiresAt - startedAt) or version time limit,
+   *   preventing lazy finalization delays from inflating elapsed time.
+   * - Untimed attempts: computes duration from startedAt to finalization (submittedAt).
+   * - Defensively handles null, missing, or NaN timestamps, and clamps to >= 0.
+   */
+  public calculateAttemptElapsedTime(
+    attempt: Pick<QuizAttempt, 'status' | 'startedAt' | 'submittedAt' | 'expiresAt'>,
+    version?: Pick<QuizVersion, 'timeLimitSeconds'> | null,
+  ): number | null {
+    if (!attempt.startedAt) {
+      return null;
+    }
+
+    const startMs = new Date(attempt.startedAt).getTime();
+    if (Number.isNaN(startMs)) {
+      return null;
+    }
+
+    if (attempt.status === AttemptStatus.EXPIRED) {
+      if (attempt.expiresAt) {
+        const expireMs = new Date(attempt.expiresAt).getTime();
+        if (!Number.isNaN(expireMs)) {
+          return Math.max(0, Math.round((expireMs - startMs) / 1000));
+        }
+      }
+
+      if (version?.timeLimitSeconds != null && version.timeLimitSeconds > 0) {
+        return Math.max(0, version.timeLimitSeconds);
+      }
+
+      if (attempt.submittedAt) {
+        const submitMs = new Date(attempt.submittedAt).getTime();
+        if (!Number.isNaN(submitMs)) {
+          return Math.max(0, Math.round((submitMs - startMs) / 1000));
+        }
+      }
+
+      return null;
+    }
+
+    if (attempt.status === AttemptStatus.SUBMITTED) {
+      if (!attempt.submittedAt) {
+        return null;
+      }
+
+      const submitMs = new Date(attempt.submittedAt).getTime();
+      if (Number.isNaN(submitMs)) {
+        return null;
+      }
+
+      return Math.max(0, Math.round((submitMs - startMs) / 1000));
+    }
+
+    return null;
+  }
+
   async getAttemptResult(
     attemptId: string,
-    userId: string,
+    userOrUserId: AuthenticatedUser | string,
   ): Promise<AttemptResultResponseDto> {
+    const { userId, role } = this.resolveUserPrincipal(userOrUserId);
+
     return this.dataSource.transaction(
       async (
         manager,
       ): Promise<AttemptResultResponseDto> => {
-        // 1. Find the attempt belonging
-        //    to the current user
-        const attempt =
+        // 1. Find the attempt and verify ownership, creator, or admin role
+        let attempt =
           await manager.findOne(
             QuizAttempt,
             {
               where: {
                 id: attemptId,
-                userId,
               },
             },
           );
@@ -1743,19 +2172,47 @@ export class QuizService {
           );
         }
 
-        // 2. Result is available only
-        //    after submission
+        const quiz = await manager.findOne(Quiz, {
+          where: { id: attempt.quizId },
+        });
+
+        const isOwner = Boolean(userId && attempt.userId === userId);
+        const isAdmin = role === UserRole.ADMIN;
+        const isCreator = Boolean(quiz && userId && quiz.creatorId === userId);
+
+        if (!isOwner && !isAdmin && !isCreator) {
+          throw new ForbiddenException(
+            'You do not have permission to access this quiz attempt result',
+          );
+        }
+
+        // Reconcile overdue timed attempts to EXPIRED
         if (
-          attempt.status !==
-          AttemptStatus.SUBMITTED
+          attempt.status === AttemptStatus.IN_PROGRESS &&
+          attempt.expiresAt !== null &&
+          new Date() >= new Date(attempt.expiresAt)
+        ) {
+          attempt = await this.expireAttemptInTransaction(manager, attempt);
+        }
+
+        // 2. Result is available only after submission or expiration
+        if (
+          attempt.status !== AttemptStatus.SUBMITTED &&
+          attempt.status !== AttemptStatus.EXPIRED
         ) {
           throw new BadRequestException(
             'Result is available only after the attempt is submitted',
           );
         }
 
-        // 3. Load questions from the exact
-        //    quiz version used by this attempt
+        const version = await manager.findOne(QuizVersion, {
+          where: {
+            id: attempt.quizVersionId,
+            quizId: attempt.quizId,
+          },
+        });
+
+        // 3. Load questions strictly from the exact quiz version used by this attempt
         const questions =
           await manager.find(
             Question,
@@ -1763,6 +2220,9 @@ export class QuizService {
               where: {
                 quizVersionId:
                   attempt.quizVersionId,
+              },
+              order: {
+                order: 'ASC',
               },
             },
           );
@@ -1774,19 +2234,119 @@ export class QuizService {
               total: number,
               question: Question,
             ): number =>
-              total + question.marks,
+              total + (question.marks || 0),
             0,
           );
 
-        // 5. Return the final result
+        // 5. Load answers and selected options for post-finalization review
+        const answers = await manager.find(Answer, {
+          where: { attemptId: attempt.id },
+        });
+
+        const answerIds = answers.map((a) => a.id);
+        const answerOptions =
+          answerIds.length > 0
+            ? await manager.find(AnswerOption, {
+                where: answerIds.map((answerId) => ({ answerId })),
+              })
+            : [];
+
+        const questionIds = questions.map((q) => q.id);
+        const allOptions =
+          questionIds.length > 0
+            ? await manager.find(Option, {
+                where: questionIds.map((questionId) => ({ questionId })),
+                order: { order: 'ASC' },
+              })
+            : [];
+
+        // Map answerId -> selected option IDs
+        const selectedOptionsMap = new Map<string, string[]>();
+        for (const ao of answerOptions) {
+          const cur = selectedOptionsMap.get(ao.answerId) ?? [];
+          cur.push(ao.optionId);
+          selectedOptionsMap.set(ao.answerId, cur);
+        }
+
+        // Map questionId -> Answer
+        const questionAnswerMap = new Map<string, Answer>(
+          answers.map((a) => [a.questionId, a]),
+        );
+
+        // Map questionId -> Option[]
+        const optionsByQuestion = new Map<string, Option[]>();
+        for (const opt of allOptions) {
+          const cur = optionsByQuestion.get(opt.questionId) ?? [];
+          cur.push(opt);
+          optionsByQuestion.set(opt.questionId, cur);
+        }
+
+        const questionReviews: AttemptQuestionReviewDto[] = questions.map(
+          (question) => {
+            const qOpts = optionsByQuestion.get(question.id) ?? [];
+            const ans = questionAnswerMap.get(question.id);
+            const selectedOptionIds = ans
+              ? (selectedOptionsMap.get(ans.id) ?? [])
+              : [];
+            const correctOptionIds = qOpts
+              .filter((o) => o.isCorrect)
+              .map((o) => o.id);
+
+            const isUnanswered = selectedOptionIds.length === 0;
+            let isCorrect = false;
+
+            if (!isUnanswered) {
+              const sameLength =
+                selectedOptionIds.length === correctOptionIds.length;
+              const allSelectedAreCorrect = selectedOptionIds.every((id) =>
+                correctOptionIds.includes(id),
+              );
+              isCorrect = sameLength && allSelectedAreCorrect;
+            }
+
+            const marks = question.marks || 0;
+            const marksAwarded = isCorrect ? marks : 0;
+
+            const reviewOptions: AttemptReviewOptionDto[] = qOpts.map((opt) => ({
+              id: opt.id,
+              text: opt.text,
+              order: opt.order,
+              isCorrect: Boolean(opt.isCorrect),
+            }));
+
+            return {
+              id: question.id,
+              text: question.text,
+              questionType: question.questionType,
+              order: question.order,
+              marks,
+              marksAwarded,
+              isCorrect,
+              isUnanswered,
+              selectedOptionIds,
+              correctOptionIds,
+              options: reviewOptions,
+            };
+          },
+        );
+
+        const elapsedSeconds = this.calculateAttemptElapsedTime(
+          attempt,
+          version,
+        );
+
+        // 6. Return the finalized result with authorized question review
         return {
           attemptId: attempt.id,
           quizId: attempt.quizId,
           quizVersionId:
             attempt.quizVersionId,
+          quizTitle: quiz?.title,
+          quizVersion: version?.version,
           status: attempt.status,
           score: attempt.score,
           totalMarks,
+          totalScore: totalMarks,
           correctAnswers:
             attempt.correctAnswers,
           wrongAnswers:
@@ -1794,135 +2354,157 @@ export class QuizService {
           unanswered:
             attempt.unanswered,
           percentage:
-            attempt.percentage,
+            attempt.percentage !== null && attempt.percentage !== undefined
+              ? Number(attempt.percentage)
+              : null,
           startedAt:
             attempt.startedAt,
           submittedAt:
             attempt.submittedAt,
+          timeLimitSeconds: version?.timeLimitSeconds ?? null,
+          elapsedSeconds,
+          questions: questionReviews,
         };
       },
     );
   }
 
   async getAttemptHistory(
-    quizId: string,
-    userId: string,
-    query: AttemptHistoryQueryDto,
+    param1: string,
+    param2?: AttemptHistoryQueryDto | string,
+    param3?: AttemptHistoryQueryDto,
   ): Promise<AttemptHistoryResponseDto> {
-    const page: number = query.page;
-    const limit: number = query.limit;
+    let userId: string;
+    let query: AttemptHistoryQueryDto;
 
-    const skip: number =
-      (page - 1) * limit;
+    if (typeof param2 === 'string') {
+      // Called as (quizId, userId, query)
+      const quizId = param1;
+      userId = param2;
+      query = { ...(param3 ?? new AttemptHistoryQueryDto()), quizId };
+    } else {
+      // Called as (userId, query)
+      userId = param1;
+      query = param2 ?? new AttemptHistoryQueryDto();
+    }
 
-    const [attempts, total] =
-      await this.quizAttemptRepository
-        .createQueryBuilder('attempt')
-        .innerJoin(
-          QuizVersion,
-          'version',
-          'version.id = attempt.quiz_version_id',
-        )
-        .where(
-          'attempt.quiz_id = :quizId',
-          {
-            quizId,
-          },
-        )
-        .andWhere(
-          'attempt.user_id = :userId',
-          {
-            userId,
-          },
-        )
-        .select([
-          'attempt.id',
-          'attempt.quiz_id',
-          'attempt.quiz_version_id',
-          'attempt.status',
-          'attempt.score',
-          'attempt.correct_answers',
-          'attempt.wrong_answers',
-          'attempt.unanswered',
-          'attempt.percentage',
-          'attempt.started_at',
-          'attempt.submitted_at',
-          'version.version',
-        ])
-        .orderBy(
-          'attempt.created_at',
-          'DESC',
-        )
-        .skip(skip)
-        .take(limit)
-        .getRawMany();
+    const page: number = query.page && query.page > 0 ? query.page : 1;
+    const limit: number = query.limit && query.limit > 0 ? query.limit : 10;
+    const skip: number = (page - 1) * limit;
 
-    const items: AttemptHistoryItemDto[] =
-      attempts.map(
-        (
-          attempt: Record<string, unknown>,
-        ): AttemptHistoryItemDto => ({
-          attemptId:
-            attempt.attempt_id as string,
+    const qb = this.quizAttemptRepository
+      .createQueryBuilder('attempt')
+      .leftJoin(Quiz, 'quiz', 'quiz.id = attempt.quiz_id')
+      .leftJoin(
+        QuizVersion,
+        'version',
+        'version.id = attempt.quiz_version_id',
+      )
+      .where('attempt.user_id = :userId', { userId });
 
-          quizId:
-            attempt.attempt_quiz_id as string,
+    if (query.quizId) {
+      qb.andWhere('attempt.quiz_id = :quizId', { quizId: query.quizId });
+    }
 
-          quizVersionId:
-            attempt.attempt_quiz_version_id as string,
+    qb.select([
+      'attempt.id',
+      'attempt.quiz_id',
+      'attempt.quiz_version_id',
+      'attempt.status',
+      'attempt.score',
+      'attempt.correct_answers',
+      'attempt.wrong_answers',
+      'attempt.unanswered',
+      'attempt.percentage',
+      'attempt.started_at',
+      'attempt.submitted_at',
+      'quiz.title',
+      'version.version',
+    ])
+      .orderBy('attempt.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
 
-          version:
-            Number(attempt.version_version),
+    const [attempts, total] = await Promise.all([
+      qb.getRawMany(),
+      qb.getCount(),
+    ]);
 
-          status:
-            attempt.attempt_status as AttemptStatus,
+    // Batch-query total marks for distinct quiz versions in this page to avoid N+1
+    const versionIds = [
+      ...new Set(
+        attempts
+          .map(
+            (a) =>
+              (a.attempt_quiz_version_id as string) ||
+              (a.quiz_version_id as string),
+          )
+          .filter(Boolean),
+      ),
+    ];
 
+    const versionMarksMap = new Map<string, number>();
+    if (versionIds.length > 0) {
+      const questions = await this.questionRepository.find({
+        where: versionIds.map((quizVersionId) => ({ quizVersionId })),
+        select: { quizVersionId: true, marks: true },
+      });
+      for (const q of questions) {
+        const cur = versionMarksMap.get(q.quizVersionId) ?? 0;
+        versionMarksMap.set(q.quizVersionId, cur + (q.marks || 0));
+      }
+    }
+
+    const items: AttemptHistoryItemDto[] = attempts.map(
+      (attempt: Record<string, unknown>): AttemptHistoryItemDto => {
+        const status = (attempt.attempt_status || attempt.status) as AttemptStatus;
+        const isInProgress = status === AttemptStatus.IN_PROGRESS;
+        const versionId = (attempt.attempt_quiz_version_id || attempt.quiz_version_id) as string;
+        const totalMarks = versionMarksMap.get(versionId) ?? 0;
+
+        return {
+          attemptId: (attempt.attempt_id || attempt.id) as string,
+          quizId: (attempt.attempt_quiz_id || attempt.quiz_id) as string,
+          quizVersionId: versionId,
+          quizTitle:
+            (attempt.quiz_title as string) ||
+            (attempt.title as string) ||
+            undefined,
+          version: Number(attempt.version_version || attempt.version || 1),
+          status,
+          // Guard: Do not expose final scores for attempts still in progress
           score:
-            attempt.attempt_score !== null
-              ? Number(attempt.attempt_score)
-              : null,
-
+            isInProgress || attempt.attempt_score === null || attempt.score === null
+              ? null
+              : Number(attempt.attempt_score ?? attempt.score),
+          totalMarks,
+          totalScore: totalMarks,
           correctAnswers:
-            attempt.attempt_correct_answers !==
-              null
-              ? Number(
-                attempt.attempt_correct_answers,
-              )
-              : null,
-
+            isInProgress || attempt.attempt_correct_answers === null || attempt.correct_answers === null
+              ? null
+              : Number(attempt.attempt_correct_answers ?? attempt.correct_answers),
           wrongAnswers:
-            attempt.attempt_wrong_answers !== null
-              ? Number(
-                attempt.attempt_wrong_answers,
-              )
-              : null,
-
+            isInProgress || attempt.attempt_wrong_answers === null || attempt.wrong_answers === null
+              ? null
+              : Number(attempt.attempt_wrong_answers ?? attempt.wrong_answers),
           unanswered:
-            attempt.attempt_unanswered !== null
-              ? Number(
-                attempt.attempt_unanswered,
-              )
-              : null,
-
+            isInProgress || attempt.attempt_unanswered === null || attempt.unanswered === null
+              ? null
+              : Number(attempt.attempt_unanswered ?? attempt.unanswered),
           percentage:
-            attempt.attempt_percentage !== null
-              ? Number(
-                attempt.attempt_percentage,
-              )
-              : null,
-
-          startedAt:
-            attempt.attempt_started_at as Date,
-
+            isInProgress || attempt.attempt_percentage === null || attempt.percentage === null
+              ? null
+              : Number(attempt.attempt_percentage ?? attempt.percentage),
+          startedAt: (attempt.attempt_started_at || attempt.started_at) as Date,
           submittedAt:
-            attempt.attempt_submitted_at as
-            | Date
-            | null,
-        }),
-      );
+            ((attempt.attempt_submitted_at || attempt.submitted_at) as
+              | Date
+              | null) ?? null,
+        };
+      },
+    );
 
-    const totalPages: number =
-      Math.ceil(total / limit);
+    const totalPages: number = Math.ceil(total / limit);
 
     return {
       items,
@@ -2306,14 +2888,23 @@ export class QuizService {
       });
     }
 
+    const totalMarks = questionResponses.reduce(
+      (sum, q) => sum + (q.marks || 0),
+      0,
+    );
+
     return {
       quizId: quiz.id,
       quizVersionId: version.id,
 
       title: quiz.title,
+      quizTitle: quiz.title,
       description: quiz.description,
+      quizDescription: quiz.description,
 
       version: version.version,
+      status: version.status,
+      totalMarks,
 
       timeLimitSeconds:
         version.timeLimitSeconds,
@@ -2332,14 +2923,14 @@ export class QuizService {
       AttemptStatus.IN_PROGRESS
     ) {
       throw new BadRequestException(
-        'This attempt is no longer active',
+        attempt.status === AttemptStatus.EXPIRED
+          ? 'This quiz attempt has expired'
+          : 'This attempt is no longer active',
       );
     }
 
-    if (
-      attempt.expiresAt !== null &&
-      new Date() >= attempt.expiresAt
-    ) {
+    if (this.isAttemptDeadlineReached(attempt)) {
+      await this.expireAttemptInTransaction(manager, attempt, true);
       throw new BadRequestException(
         'This quiz attempt has expired',
       );
@@ -2349,13 +2940,21 @@ export class QuizService {
   private getRemainingTimeSeconds(
     attempt: QuizAttempt,
   ): number | null {
-    if (attempt.expiresAt === null) {
+    if (attempt.expiresAt === null || attempt.expiresAt === undefined) {
       return null;
     }
 
+    if (attempt.status !== AttemptStatus.IN_PROGRESS) {
+      return 0;
+    }
+
     const remainingMilliseconds =
-      attempt.expiresAt.getTime() -
+      new Date(attempt.expiresAt).getTime() -
       Date.now();
+
+    if (remainingMilliseconds <= 0) {
+      return 0;
+    }
 
     return Math.max(
       0,
@@ -2500,7 +3099,7 @@ export class QuizService {
     const totalMarks =
       questions.reduce(
         (total, question) =>
-          total + question.marks,
+          total + (question.marks || 0),
         0,
       );
 
@@ -2510,12 +3109,16 @@ export class QuizService {
     let unanswered = 0;
 
     // 9. Evaluate every question in memory
+    // Established scoring policy:
+    // - Unanswered: no Answer record OR empty selected options set (selectedSet.size === 0).
+    // - Correct: exact set equality between selected options and correct options (all-or-nothing, no partial credit).
+    // - Wrong: non-empty selection that does not match the correct options set exactly.
     for (const question of questions) {
       const answer = answerMap.get(
         question.id,
       );
 
-      // No answer
+      // No answer record
       if (!answer) {
         unanswered++;
         continue;
@@ -2526,13 +3129,18 @@ export class QuizService {
           answer.id,
         ) ?? new Set<string>();
 
+      // Empty selection is treated consistently as unanswered
+      if (selectedSet.size === 0) {
+        unanswered++;
+        continue;
+      }
+
       const correctSet =
         correctOptionsMap.get(
           question.id,
         ) ?? new Set<string>();
 
-      // Both sets must contain exactly
-      // the same option IDs.
+      // Both sets must contain exactly the same option IDs (all-or-nothing policy).
       const sameLength =
         selectedSet.size ===
         correctSet.size;
@@ -2548,12 +3156,14 @@ export class QuizService {
         sameOptions
       ) {
         correctAnswers++;
-        score += question.marks;
+        score += (question.marks || 0);
       } else {
         wrongAnswers++;
       }
     }
 
+    // Percentage calculation: (score / totalMarks) * 100 rounded to 2 decimal places.
+    // When totalMarks === 0 (zero possible marks), percentage safely evaluates to 0.
     const percentage =
       totalMarks > 0
         ? Number(
@@ -2580,6 +3190,7 @@ export class QuizService {
     timeLimitSeconds: number | null | undefined,
     creatorId: string,
   ) {
+    this.validateTimeLimitSeconds(timeLimitSeconds);
     return this.dataSource.transaction(async (manager) => {
       const quiz = await manager.findOne(
         Quiz,

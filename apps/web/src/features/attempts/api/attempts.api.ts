@@ -5,6 +5,7 @@ import type {
   AttemptHistoryResponse,
   AttemptHistoryQuery,
   SaveAnswerRequest,
+  SaveAnswerResponse,
   StartAttemptResponse,
 } from '../types/attempt.types';
 
@@ -18,9 +19,15 @@ export const attemptsApi = {
       attemptId?: string;
       quizId: string;
       quizVersionId: string;
+      version?: number;
+      quizTitle?: string;
       status: StartAttemptResponse['status'];
       startedAt: string;
       expiresAt: string | null;
+      remainingTimeSeconds?: number | null;
+      totalQuestions?: number;
+      totalMarks?: number;
+      resumed?: boolean;
     }>(`/quizzes/${quizId}/versions/${versionId}/attempts`);
 
     const data = response.data;
@@ -36,11 +43,14 @@ export const attemptsApi = {
     attemptId: string,
     questionId: string,
     data: SaveAnswerRequest,
-  ): Promise<void> => {
-    await apiClient.put(
-      `/quizzes/attempts/${attemptId}/answers/${questionId}`,
+    signal?: AbortSignal,
+  ): Promise<SaveAnswerResponse> => {
+    const response = await apiClient.post<SaveAnswerResponse>(
+      `/quizzes/attempts/${attemptId}/questions/${questionId}/answers`,
       data,
+      signal ? { signal } : undefined,
     );
+    return response.data;
   },
 
   submitAttempt: async (attemptId: string): Promise<void> => {
@@ -62,11 +72,12 @@ export const attemptsApi = {
   },
 
   getAttemptHistory: async (
-    quizId: string,
+    quizId?: string,
     query?: AttemptHistoryQuery,
   ): Promise<AttemptHistoryResponse> => {
+    const url = quizId ? `/quizzes/${quizId}/attempts` : `/quizzes/attempts`;
     const response = await apiClient.get<AttemptHistoryResponse>(
-      `/quizzes/${quizId}/attempts`,
+      url,
       { params: query },
     );
     return response.data;
