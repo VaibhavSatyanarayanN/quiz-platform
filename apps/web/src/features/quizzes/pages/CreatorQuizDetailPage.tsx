@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import {
   useCreatorQuizDetails,
   useUpdateQuiz,
@@ -7,6 +7,10 @@ import {
   usePublishVersion,
   useDiscardVersion,
   useCreateNewVersion,
+  useAiGenerations,
+  useGenerateAiQuestions,
+  useGenerateAiQuestionsFromPdf,
+  useCancelAiGeneration,
 } from '../hooks/use-quizzes';
 import { QuestionEditor } from '../components/QuestionEditor';
 import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
@@ -18,6 +22,9 @@ import { Alert } from '@/components/feedback/Alert';
 import {
   QuizVersionStatus,
   QuestionType,
+  DifficultyLevel,
+  GenerationStatus,
+  GenerationReviewStatus,
   type CreateQuestionRequest,
 } from '../types/quiz.types';
 
@@ -28,13 +35,18 @@ const isUuid = (str?: string): boolean => {
 
 export default function CreatorQuizDetailPage() {
   const { quizId, versionId } = useParams<{ quizId: string; versionId?: string }>();
+  const navigate = useNavigate();
   const { data: quiz, isLoading, error } = useCreatorQuizDetails(quizId ?? '');
+  const { data: aiGenerations = [] } = useAiGenerations(quizId ?? '');
 
   const updateQuizMutation = useUpdateQuiz();
   const bulkSaveQuestionsMutation = useBulkSaveQuestions();
   const publishVersionMutation = usePublishVersion();
   const discardVersionMutation = useDiscardVersion();
   const createNewVersionMutation = useCreateNewVersion();
+  const generateAiMutation = useGenerateAiQuestions();
+  const generateAiPdfMutation = useGenerateAiQuestionsFromPdf();
+  const cancelAiMutation = useCancelAiGeneration();
 
   const [selectedVersionIdState, setSelectedVersionId] = useState<string | null>(null);
   const [draftQuestionsState, setDraftQuestionsState] = useState<CreateQuestionRequest[] | null>(null);
@@ -42,6 +54,13 @@ export default function CreatorQuizDetailPage() {
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+
+  const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [aiMode, setAiMode] = useState<'topic' | 'pdf'>('topic');
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiCount, setAiCount] = useState(5);
+  const [aiDifficulty, setAiDifficulty] = useState<DifficultyLevel>(DifficultyLevel.MEDIUM);
+  const [aiPdfFile, setAiPdfFile] = useState<File | null>(null);
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -239,6 +258,74 @@ export default function CreatorQuizDetailPage() {
     );
   };
 
+  const handleStartAiGeneration = () => {
+    if (!quizId || !selectedVersionId) return;
+    setActionError(null);
+
+    if (aiMode === 'pdf') {
+      if (!aiPdfFile) {
+        setActionError('Please select a PDF file to upload for AI question generation.');
+        return;
+      }
+      generateAiPdfMutation.mutate(
+        {
+          quizId,
+          versionId: selectedVersionId,
+          file: aiPdfFile,
+          data: {
+            topic: aiTopic.trim() || undefined,
+            targetQuestionCount: aiCount,
+            difficulty: aiDifficulty,
+            questionTypes: [QuestionType.SINGLE_CHOICE, QuestionType.TRUE_FALSE],
+          },
+        },
+        {
+          onSuccess: (res) => {
+            setShowAiGenerator(false);
+            setAiPdfFile(null);
+            navigate(`/quizzes/${quizId}/ai-generations/${res.generationId}/review`);
+          },
+          onError: (err) => {
+            setActionError(
+              err instanceof Error ? err.message : 'Failed to start PDF AI generation.',
+            );
+          },
+        },
+      );
+      return;
+    }
+
+    if (!aiTopic.trim()) {
+      setActionError('Please enter a topic or prompt for AI question generation.');
+      return;
+    }
+
+    generateAiMutation.mutate(
+      {
+        quizId,
+        versionId: selectedVersionId,
+        data: {
+          topic: aiTopic.trim(),
+          targetQuestionCount: aiCount,
+          difficulty: aiDifficulty,
+          questionTypes: [QuestionType.SINGLE_CHOICE, QuestionType.TRUE_FALSE],
+        },
+      },
+      {
+        onSuccess: (res) => {
+          setShowAiGenerator(false);
+          setAiTopic('');
+          navigate(`/quizzes/${quizId}/ai-generations/${res.generationId}/review`);
+        },
+        onError: (err) => {
+          setActionError(
+            err instanceof Error ? err.message : 'Failed to start AI question generation.',
+          );
+        },
+      },
+    );
+  };
+
   if (isLoading) {
     return <LoadingSpinner message="Loading quiz details..." />;
   }
@@ -382,12 +469,307 @@ export default function CreatorQuizDetailPage() {
             </div>
 
             {isDraft ? (
-              <QuestionEditor
-                questions={draftQuestions}
-                onChange={setDraftQuestions}
-                onSave={handleSaveQuestions}
-                isSaving={bulkSaveQuestionsMutation.isPending}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* AI Question Generation & Review Panel */}
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '10px',
+                    background: 'var(--color-bg-subtle, #f8fafc)',
+                    border: '1px solid var(--color-border, #e2e8f0)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
+                        ✨ AI Question Generation & Review
+                      </h3>
+                      <p
+                        style={{
+                          fontSize: '0.825rem',
+                          color: 'var(--color-text-secondary, #6b7280)',
+                          margin: '2px 0 0 0',
+                        }}
+                      >
+                        Generate questions asynchronously, review and edit them, then explicitly
+                        apply approved questions to this draft version.
+                      </p>
+                    </div>
+                    <Button
+                      variant={showAiGenerator ? 'outline' : 'secondary'}
+                      size="sm"
+                      onClick={() => setShowAiGenerator((prev) => !prev)}
+                    >
+                      {showAiGenerator ? 'Close Generator' : '✨ Generate with AI'}
+                    </Button>
+                  </div>
+
+                  {showAiGenerator && (
+                    <div
+                      style={{
+                        padding: '14px',
+                        borderRadius: '8px',
+                        background: 'var(--color-surface, #ffffff)',
+                        border: '1px solid var(--color-border, #cbd5e1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button
+                          variant={aiMode === 'topic' ? 'primary' : 'outline'}
+                          size="sm"
+                          onClick={() => setAiMode('topic')}
+                        >
+                          From Topic / Prompt
+                        </Button>
+                        <Button
+                          variant={aiMode === 'pdf' ? 'primary' : 'outline'}
+                          size="sm"
+                          onClick={() => setAiMode('pdf')}
+                        >
+                          From PDF Document
+                        </Button>
+                      </div>
+
+                      {aiMode === 'pdf' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            Source PDF File (max 10 MB)
+                          </label>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => setAiPdfFile(e.target.files?.[0] ?? null)}
+                          />
+                        </div>
+                      )}
+
+                      <Input
+                        label={
+                          aiMode === 'pdf'
+                            ? 'Focus Topic (Optional)'
+                            : 'Topic or Learning Objective'
+                        }
+                        value={aiTopic}
+                        onChange={(e) => setAiTopic(e.target.value)}
+                        placeholder="e.g., Distributed Systems Consensus & Raft"
+                      />
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            Question Count (1–20)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={aiCount}
+                            onChange={(e) =>
+                              setAiCount(
+                                Math.min(20, Math.max(1, Number(e.target.value) || 5)),
+                              )
+                            }
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border, #cbd5e1)',
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            Difficulty
+                          </label>
+                          <select
+                            value={aiDifficulty}
+                            onChange={(e) =>
+                              setAiDifficulty(e.target.value as DifficultyLevel)
+                            }
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border, #cbd5e1)',
+                            }}
+                          >
+                            <option value={DifficultyLevel.EASY}>Easy</option>
+                            <option value={DifficultyLevel.MEDIUM}>Medium</option>
+                            <option value={DifficultyLevel.HARD}>Hard</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowAiGenerator(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleStartAiGeneration}
+                          isLoading={
+                            generateAiMutation.isPending || generateAiPdfMutation.isPending
+                          }
+                        >
+                          Start AI Generation
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Generations for this Version */}
+                  {aiGenerations.filter((g) => g.targetVersionId === selectedVersion.id)
+                    .length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          color: 'var(--color-text-muted, #6b7280)',
+                        }}
+                      >
+                        AI Generation Runs for Version {selectedVersion.version}
+                      </div>
+                      {aiGenerations
+                        .filter((g) => g.targetVersionId === selectedVersion.id)
+                        .map((gen) => (
+                          <div
+                            key={gen.generationId}
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              background: 'var(--color-surface, #ffffff)',
+                              border: '1px solid var(--color-border, #e2e8f0)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  flexWrap: 'wrap',
+                                }}
+                              >
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                                  {String(gen.promptParams?.topic || 'AI Question Set')}
+                                </span>
+                                <Badge
+                                  size="sm"
+                                  variant={
+                                    gen.status === GenerationStatus.COMPLETED
+                                      ? 'success'
+                                      : gen.status === GenerationStatus.FAILED ||
+                                          gen.status === GenerationStatus.CANCELLED
+                                        ? 'danger'
+                                        : 'brand'
+                                  }
+                                >
+                                  {gen.status.toUpperCase()}
+                                </Badge>
+                                {gen.reviewStatus && (
+                                  <Badge
+                                    size="sm"
+                                    variant={
+                                      gen.reviewStatus === GenerationReviewStatus.APPLIED
+                                        ? 'success'
+                                        : gen.reviewStatus === GenerationReviewStatus.REVIEWED
+                                          ? 'brand'
+                                          : 'warning'
+                                    }
+                                  >
+                                    {gen.reviewStatus.replace('_', ' ').toUpperCase()}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '0.78rem',
+                                  color: 'var(--color-text-secondary, #6b7280)',
+                                }}
+                              >
+                                {gen.stageDescription}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {gen.canCancel && (
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  isLoading={cancelAiMutation.isPending}
+                                  onClick={() =>
+                                    cancelAiMutation.mutate({
+                                      quizId: quiz.id,
+                                      generationId: gen.generationId,
+                                    })
+                                  }
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                              <Link
+                                to={`/quizzes/${quiz.id}/ai-generations/${gen.generationId}/review`}
+                              >
+                                <Button
+                                  variant={
+                                    gen.status === GenerationStatus.COMPLETED && !gen.isApplied
+                                      ? 'primary'
+                                      : 'outline'
+                                  }
+                                  size="sm"
+                                >
+                                  {gen.isApplied
+                                    ? 'View Applied Set'
+                                    : gen.status === GenerationStatus.COMPLETED
+                                      ? 'Review & Apply Questions →'
+                                      : 'View Status'}
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                <QuestionEditor
+                  questions={draftQuestions}
+                  onChange={setDraftQuestions}
+                  onSave={handleSaveQuestions}
+                  isSaving={bulkSaveQuestionsMutation.isPending}
+                />
+              </div>
             ) : (
               <div>
                 {isUuid(quizId) && isUuid(selectedVersion.id) && (

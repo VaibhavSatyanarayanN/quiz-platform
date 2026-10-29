@@ -17,3 +17,10 @@ export enum GenerationLifecycleStage {
   CANCELLED = 'cancelled',
 }
 
+export enum GenerationReviewStatus {
+  PENDING_REVIEW = 'pending_review',
+  REVIEWED = 'reviewed',
+  APPLIED = 'applied',
+}
+
+

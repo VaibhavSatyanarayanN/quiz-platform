@@ -21,6 +21,10 @@ import { CreateQuizDto } from './dto/create-quiz.dto.js';
 import { BulkSaveQuestionsDto } from './dto/bulk-save-questions.dto.js';
 import { GenerateQuestionsDto } from './dto/generate-questions.dto.js';
 import { GenerateQuestionsFromPdfDto } from './dto/generate-questions-from-pdf.dto.js';
+import {
+  ApplyGeneratedQuestionsDto,
+  UpdateGenerationReviewDto,
+} from './dto/generation-review.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
@@ -352,6 +356,84 @@ export class QuizController {
   ) {
     return this.quizGenerationService.listGenerations(
       quizId,
+      user,
+    );
+  }
+
+  @Get(':quizId/ai-generations/:generationId/review')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  getGenerationForReview(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.getGenerationForReview(
+      quizId,
+      generationId,
+      user,
+    );
+  }
+
+  @Put(':quizId/ai-generations/:generationId/review')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  saveReviewDraft(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @Body() dto: UpdateGenerationReviewDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.saveReviewDraft(
+      quizId,
+      generationId,
+      dto,
+      user,
+    );
+  }
+
+  @Patch(':quizId/ai-generations/:generationId/review')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  saveReviewDraftViaPatch(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @Body() dto: UpdateGenerationReviewDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.saveReviewDraft(
+      quizId,
+      generationId,
+      dto,
+      user,
+    );
+  }
+
+  @Post(':quizId/ai-generations/:generationId/reset-review')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  resetReviewDraft(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.resetReviewDraftToOriginal(
+      quizId,
+      generationId,
+      user,
+    );
+  }
+
+  @Post(':quizId/ai-generations/:generationId/apply')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  applyGeneratedQuestions(
+    @Param('quizId') quizId: string,
+    @Param('generationId') generationId: string,
+    @Body() dto: ApplyGeneratedQuestionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizGenerationService.applyGeneratedQuestions(
+      quizId,
+      generationId,
+      dto,
       user,
     );
   }

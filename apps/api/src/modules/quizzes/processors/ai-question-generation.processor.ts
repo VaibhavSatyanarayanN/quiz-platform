@@ -463,6 +463,30 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
     const res = aiResult as {
       status?: string;
       question_set?: { questions?: unknown[] };
+      validation_report?: {
+        approved?: boolean;
+        summary?: string;
+        results?: Array<{
+          question_id?: string;
+          is_correct?: boolean;
+          is_unambiguous?: boolean;
+          is_grounded?: boolean;
+          issues?: string[];
+          suggested_revision?: string | null;
+        }>;
+      };
+      pedagogy_report?: {
+        approved?: boolean;
+        summary?: string;
+        assessments?: Array<{
+          question_id?: string;
+          difficulty_appropriate?: boolean;
+          cognitive_level_appropriate?: boolean;
+          educational_value?: number;
+          feedback?: string;
+          suggested_revision?: string | null;
+        }>;
+      };
     };
 
     const rawQuestions = res.question_set?.questions;
@@ -480,6 +504,10 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
         question_text?: string;
         options?: Array<{ option_id?: string; text?: string }>;
         correct_answer?: string;
+        explanation?: string;
+        difficulty?: string;
+        cognitive_level?: string;
+        learning_objective_id?: string;
       };
 
       if (!q.question_text || typeof q.question_text !== 'string' || q.question_text.trim().length < 3) {
@@ -488,7 +516,52 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
         );
       }
 
+      const questionId = q.question_id || `gen_q_${index + 1}`;
+      const validationMatch = res.validation_report?.results?.find(
+        (r) => r.question_id === q.question_id,
+      );
+      const pedagogyMatch = res.pedagogy_report?.assessments?.find(
+        (a) => a.question_id === q.question_id,
+      );
+
+      const validationFeedback = validationMatch
+        ? {
+            isCorrect: validationMatch.is_correct,
+            isUnambiguous: validationMatch.is_unambiguous,
+            isGrounded: validationMatch.is_grounded,
+            issues: validationMatch.issues ?? [],
+            suggestedRevision: validationMatch.suggested_revision ?? null,
+          }
+        : null;
+
+      const pedagogyFeedback = pedagogyMatch
+        ? {
+            difficultyAppropriate: pedagogyMatch.difficulty_appropriate,
+            cognitiveLevelAppropriate: pedagogyMatch.cognitive_level_appropriate,
+            educationalValue: pedagogyMatch.educational_value,
+            feedback: pedagogyMatch.feedback ?? null,
+            suggestedRevision: pedagogyMatch.suggested_revision ?? null,
+          }
+        : null;
+
       const qType = q.question_type?.toLowerCase();
+
+      if (qType === 'open_ended') {
+        throw new UnrecoverableError(
+          `Question at index ${index} has unsupported question_type "${q.question_type}". Quiz versions only support choice (mcq/single_choice/multiple_choice) and true_false questions.`,
+        );
+      }
+
+      if (
+        qType !== 'true_false' &&
+        qType !== 'mcq' &&
+        qType !== 'single_choice' &&
+        qType !== 'multiple_choice'
+      ) {
+        throw new UnrecoverableError(
+          `Question at index ${index} has unsupported question_type "${q.question_type}".`,
+        );
+      }
 
       if (qType === 'true_false') {
         const rawAns = (q.correct_answer || '').toLowerCase();
@@ -499,12 +572,21 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
         }
 
         formatted.push({
+          id: questionId,
           text: q.question_text.trim(),
           questionType: QuestionType.TRUE_FALSE,
           marks: 1,
+          order: index + 1,
+          explanation: q.explanation?.trim() || null,
+          difficulty: q.difficulty || null,
+          cognitiveLevel: q.cognitive_level || null,
+          learningObjectiveId: q.learning_objective_id || null,
+          correctAnswer: rawAns,
+          validationFeedback,
+          pedagogyFeedback,
           options: [
-            { text: 'True', isCorrect: rawAns === 'true', order: 1 },
-            { text: 'False', isCorrect: rawAns === 'false', order: 2 },
+            { id: 'True', text: 'True', isCorrect: rawAns === 'true', order: 1 },
+            { id: 'False', text: 'False', isCorrect: rawAns === 'false', order: 2 },
           ],
         });
       } else {
@@ -531,10 +613,20 @@ export class AiQuestionGenerationProcessor extends WorkerHost {
         }
 
         formatted.push({
+          id: questionId,
           text: q.question_text.trim(),
           questionType: QuestionType.SINGLE_CHOICE,
           marks: 1,
+          order: index + 1,
+          explanation: q.explanation?.trim() || null,
+          difficulty: q.difficulty || null,
+          cognitiveLevel: q.cognitive_level || null,
+          learningObjectiveId: q.learning_objective_id || null,
+          correctAnswer: correctAnswerId,
+          validationFeedback,
+          pedagogyFeedback,
           options: q.options.map((opt, optIdx) => ({
+            id: opt.option_id || String.fromCharCode(65 + optIdx),
             text: opt.text || `Option ${optIdx + 1}`,
             isCorrect: opt.option_id === correctAnswerId,
             order: optIdx + 1,

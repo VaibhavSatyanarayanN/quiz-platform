@@ -297,6 +297,35 @@ describe('AiQuestionGenerationProcessor', () => {
       );
     });
 
+    it('should throw UnrecoverableError and reject open_ended questions for QuizVersion jobs without creating dummy options', async () => {
+      mockAiService.generateQuiz = vi.fn().mockResolvedValue({
+        status: 'completed',
+        question_set: {
+          questions: [
+            {
+              question_id: 'q-open',
+              question_type: 'open_ended',
+              question_text: 'Explain eventual consistency in distributed databases.',
+              options: null,
+              correct_answer: 'Replicas converge to the same state over time.',
+            },
+          ],
+        },
+      });
+      const job = createMockJob();
+
+      await expect(processor.process(job)).rejects.toThrow(UnrecoverableError);
+      expect(
+        mockQuizGenerationService.persistGeneratedQuestionsTransactionally,
+      ).not.toHaveBeenCalled();
+      expect(mockGenerationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: GenerationStatus.FAILED,
+          errorMessage: expect.stringContaining('unsupported question_type "open_ended"'),
+        }),
+      );
+    });
+
     it('should allow BullMQ retry on transient error when attempts remain', async () => {
       mockAiService.generateQuiz = vi.fn().mockRejectedValue(new Error('Gateway timeout'));
       const job = createMockJob(0, 3); // Attempt 1 of 3

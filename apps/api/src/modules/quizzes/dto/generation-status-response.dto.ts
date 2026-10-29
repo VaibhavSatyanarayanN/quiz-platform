@@ -1,5 +1,6 @@
 import {
   GenerationLifecycleStage,
+  GenerationReviewStatus,
   GenerationStatus,
 } from '../enums/generation-status.enum.js';
 
@@ -13,6 +14,10 @@ export class GenerationStatusResponseDto {
   stageDescription: string;
   isTerminal: boolean;
   canCancel: boolean;
+  reviewStatus?: GenerationReviewStatus;
+  isApplied?: boolean;
+  appliedAt?: string | null;
+  appliedQuestionsCount?: number | null;
   promptParams: Record<string, any>;
   generatedQuestions: Record<string, any>[] | null;
   errorMessage: string | null;
@@ -21,4 +26,5 @@ export class GenerationStatusResponseDto {
   updatedAt: Date;
   completedAt: Date | null;
 }
+
 

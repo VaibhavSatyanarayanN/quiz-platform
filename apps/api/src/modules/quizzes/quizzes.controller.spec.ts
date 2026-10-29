@@ -31,6 +31,10 @@ describe('QuizController', () => {
       getGenerationStatus: vi.fn().mockResolvedValue({ status: 'PENDING' } as any),
       cancelGeneration: vi.fn().mockResolvedValue({ status: 'CANCELLED' } as any),
       listGenerations: vi.fn().mockResolvedValue([]),
+      getGenerationForReview: vi.fn().mockResolvedValue({ generationId: 'gen-1', questions: [] } as any),
+      saveReviewDraft: vi.fn().mockResolvedValue({ generationId: 'gen-1', reviewStatus: 'reviewed' } as any),
+      resetReviewDraftToOriginal: vi.fn().mockResolvedValue({ generationId: 'gen-1', reviewStatus: 'pending_review' } as any),
+      applyGeneratedQuestions: vi.fn().mockResolvedValue({ generationId: 'gen-1', appliedQuestionsCount: 2 } as any),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -133,6 +137,86 @@ describe('QuizController', () => {
       expect(mockQuizGenerationService.cancelGeneration).toHaveBeenCalledWith(
         'quiz-1',
         'gen-1',
+        mockUser,
+      );
+    });
+
+    it('getGenerationForReview should delegate to quizGenerationService.getGenerationForReview', async () => {
+      const result = await controller.getGenerationForReview('quiz-1', 'gen-1', mockUser);
+      expect(result).toEqual({ generationId: 'gen-1', questions: [] });
+      expect(mockQuizGenerationService.getGenerationForReview).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        mockUser,
+      );
+    });
+
+    it('saveReviewDraft should delegate to quizGenerationService.saveReviewDraft', async () => {
+      const dto = {
+        questions: [
+          {
+            text: 'Updated Question',
+            questionType: QuestionType.SINGLE_CHOICE,
+            marks: 1,
+            options: [
+              { id: 'A', text: 'Option 1', isCorrect: true },
+              { id: 'B', text: 'Option 2', isCorrect: false },
+            ],
+          },
+        ],
+      };
+      const result = await controller.saveReviewDraft('quiz-1', 'gen-1', dto, mockUser);
+      expect(result).toEqual({ generationId: 'gen-1', reviewStatus: 'reviewed' });
+      expect(mockQuizGenerationService.saveReviewDraft).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        dto,
+        mockUser,
+      );
+    });
+
+    it('saveReviewDraftViaPatch should delegate to quizGenerationService.saveReviewDraft', async () => {
+      const dto = {
+        questions: [
+          {
+            text: 'Patched Question',
+            questionType: QuestionType.TRUE_FALSE,
+            marks: 1,
+            options: [
+              { id: 'A', text: 'True', isCorrect: true },
+              { id: 'B', text: 'False', isCorrect: false },
+            ],
+          },
+        ],
+      };
+      const result = await controller.saveReviewDraftViaPatch('quiz-1', 'gen-1', dto, mockUser);
+      expect(result).toEqual({ generationId: 'gen-1', reviewStatus: 'reviewed' });
+      expect(mockQuizGenerationService.saveReviewDraft).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        dto,
+        mockUser,
+      );
+    });
+
+    it('resetReviewDraft should delegate to quizGenerationService.resetReviewDraftToOriginal', async () => {
+      const result = await controller.resetReviewDraft('quiz-1', 'gen-1', mockUser);
+      expect(result).toEqual({ generationId: 'gen-1', reviewStatus: 'pending_review' });
+      expect(mockQuizGenerationService.resetReviewDraftToOriginal).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        mockUser,
+      );
+    });
+
+    it('applyGeneratedQuestions should delegate to quizGenerationService.applyGeneratedQuestions', async () => {
+      const dto = { targetVersionId: 'ver-1' };
+      const result = await controller.applyGeneratedQuestions('quiz-1', 'gen-1', dto, mockUser);
+      expect(result).toEqual({ generationId: 'gen-1', appliedQuestionsCount: 2 });
+      expect(mockQuizGenerationService.applyGeneratedQuestions).toHaveBeenCalledWith(
+        'quiz-1',
+        'gen-1',
+        dto,
         mockUser,
       );
     });

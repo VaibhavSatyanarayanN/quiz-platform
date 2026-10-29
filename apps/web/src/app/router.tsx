@@ -8,6 +8,7 @@ const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const DashboardPage = lazy(() => import('@/features/quizzes/pages/DashboardPage'));
 const CreatorQuizListPage = lazy(() => import('@/features/quizzes/pages/CreatorQuizListPage'));
 const CreatorQuizDetailPage = lazy(() => import('@/features/quizzes/pages/CreatorQuizDetailPage'));
+const AiGenerationReviewPage = lazy(() => import('@/features/quizzes/pages/AiGenerationReviewPage'));
 const CreateQuizPage = lazy(() => import('@/features/quizzes/pages/CreateQuizPage'));
 const QuizEditPage = lazy(() => import('@/features/quizzes/pages/QuizEditPage'));
 const QuizVersionPage = lazy(() => import('@/features/quizzes/pages/QuizVersionPage'));
@@ -55,6 +56,10 @@ export function AppRouter() {
             <Route path="/quizzes" element={<CreatorQuizListPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />
             <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
+            <Route
+              path="/quizzes/:quizId/ai-generations/:generationId/review"
+              element={<AiGenerationReviewPage />}
+            />
             <Route path="/quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
             <Route path="/creator/quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
             <Route path="/quizzes/:quizId/edit" element={<QuizEditPage />} />

@@ -9,6 +9,7 @@ const DashboardPage = lazy(() => import('@/features/quizzes/pages/DashboardPage'
 const CreatorQuizListPage = lazy(() => import('@/features/quizzes/pages/CreatorQuizListPage'));
 const CreateQuizPage = lazy(() => import('@/features/quizzes/pages/CreateQuizPage'));
 const CreatorQuizDetailPage = lazy(() => import('@/features/quizzes/pages/CreatorQuizDetailPage'));
+const AiGenerationReviewPage = lazy(() => import('@/features/quizzes/pages/AiGenerationReviewPage'));
 const QuizPreviewPage = lazy(() => import('@/features/quizzes/pages/QuizPreviewPage'));
 const QuizAttemptPage = lazy(() => import('@/features/attempts/pages/QuizAttemptPage'));
 const QuizResultPage = lazy(() => import('@/features/attempts/pages/QuizResultPage'));
@@ -31,6 +32,10 @@ export function AppRouter() {
             <Route path="/quizzes" element={<CreatorQuizListPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />
             <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
+            <Route
+              path="/quizzes/:quizId/ai-generations/:generationId/review"
+              element={<AiGenerationReviewPage />}
+            />
 
             {/* Quiz Taker & Attempt routes */}
             <Route

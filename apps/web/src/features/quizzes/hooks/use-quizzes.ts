@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { quizzesApi } from '../api/quizzes.api';
+import { GenerationStatus } from '../types/quiz.types';
 import type {
   CreateQuizRequest,
   UpdateQuizRequest,
   BulkSaveQuestionsRequest,
+  GenerateAiQuestionsRequest,
+  GenerateAiQuestionsFromPdfRequest,
+  UpdateGenerationReviewRequest,
+  ApplyGeneratedQuestionsRequest,
 } from '../types/quiz.types';
 
 export const quizKeys = {
@@ -12,6 +17,9 @@ export const quizKeys = {
   detail: (id: string) => [...quizKeys.all, 'detail', id] as const,
   takerVersion: (quizId: string, versionId: string) =>
     [...quizKeys.all, 'taker', quizId, versionId] as const,
+  aiGenerations: (quizId: string) => [...quizKeys.all, 'ai-generations', quizId] as const,
+  aiGenerationReview: (quizId: string, generationId: string) =>
+    [...quizKeys.all, 'ai-generation-review', quizId, generationId] as const,
 };
 
 export function useCreatorQuizzes() {
@@ -112,6 +120,158 @@ export function useCreateNewVersion() {
     mutationFn: (quizId: string) => quizzesApi.createNewVersion(quizId),
     onSuccess: (_, quizId) => {
       queryClient.invalidateQueries({ queryKey: quizKeys.detail(quizId) });
+    },
+  });
+}
+
+export function useAiGenerations(quizId: string) {
+  return useQuery({
+    queryKey: quizKeys.aiGenerations(quizId),
+    queryFn: () => quizzesApi.listAiGenerations(quizId),
+    enabled: !!quizId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (
+        Array.isArray(data) &&
+        data.some(
+          (g) =>
+            g.status === GenerationStatus.PENDING ||
+            g.status === GenerationStatus.PROCESSING,
+        )
+      ) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+}
+
+export function useAiGenerationReview(quizId: string, generationId: string) {
+  return useQuery({
+    queryKey: quizKeys.aiGenerationReview(quizId, generationId),
+    queryFn: () => quizzesApi.getAiGenerationReview(quizId, generationId),
+    enabled: !!quizId && !!generationId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (
+        data &&
+        (data.status === GenerationStatus.PENDING ||
+          data.status === GenerationStatus.PROCESSING)
+      ) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+}
+
+export function useGenerateAiQuestions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      quizId,
+      versionId,
+      data,
+    }: {
+      quizId: string;
+      versionId: string;
+      data: GenerateAiQuestionsRequest;
+    }) => quizzesApi.generateAiQuestions(quizId, versionId, data),
+    onSuccess: (_, { quizId }) => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+    },
+  });
+}
+
+export function useGenerateAiQuestionsFromPdf() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      quizId,
+      versionId,
+      file,
+      data,
+    }: {
+      quizId: string;
+      versionId: string;
+      file: File;
+      data: GenerateAiQuestionsFromPdfRequest;
+    }) => quizzesApi.generateAiQuestionsFromPdf(quizId, versionId, file, data),
+    onSuccess: (_, { quizId }) => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+    },
+  });
+}
+
+export function useCancelAiGeneration() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ quizId, generationId }: { quizId: string; generationId: string }) =>
+      quizzesApi.cancelAiGeneration(quizId, generationId),
+    onSuccess: (_, { quizId, generationId }) => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+      queryClient.invalidateQueries({
+        queryKey: quizKeys.aiGenerationReview(quizId, generationId),
+      });
+    },
+  });
+}
+
+export function useSaveAiGenerationReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      quizId,
+      generationId,
+      data,
+    }: {
+      quizId: string;
+      generationId: string;
+      data: UpdateGenerationReviewRequest;
+    }) => quizzesApi.saveAiGenerationReview(quizId, generationId, data),
+    onSuccess: (updated, { quizId, generationId }) => {
+      queryClient.setQueryData(quizKeys.aiGenerationReview(quizId, generationId), updated);
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+    },
+  });
+}
+
+export function useResetAiGenerationReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ quizId, generationId }: { quizId: string; generationId: string }) =>
+      quizzesApi.resetAiGenerationReview(quizId, generationId),
+    onSuccess: (updated, { quizId, generationId }) => {
+      queryClient.setQueryData(quizKeys.aiGenerationReview(quizId, generationId), updated);
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+    },
+  });
+}
+
+export function useApplyAiGenerationQuestions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      quizId,
+      generationId,
+      data,
+    }: {
+      quizId: string;
+      generationId: string;
+      data?: ApplyGeneratedQuestionsRequest;
+    }) => quizzesApi.applyAiGenerationQuestions(quizId, generationId, data),
+    onSuccess: (_, { quizId, generationId }) => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.detail(quizId) });
+      queryClient.invalidateQueries({ queryKey: quizKeys.aiGenerations(quizId) });
+      queryClient.invalidateQueries({
+        queryKey: quizKeys.aiGenerationReview(quizId, generationId),
+      });
     },
   });
 }
