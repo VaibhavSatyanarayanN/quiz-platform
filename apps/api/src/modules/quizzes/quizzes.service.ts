@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { OrganizationService } from '../organizations/organization.service.js';
 
 import { Quiz } from './entities/quiz.entity.js';
@@ -20,6 +20,9 @@ import { Answer } from './entities/answer.entity.js';
 import { AnswerOption } from './entities/answer-option.entity.js';
 import { QuizAssignment } from '../quiz-assignments/entities/quiz-assignment.entity.js';
 import { QuizAssignmentRecipient } from '../quiz-assignments/entities/quiz-assignment-recipient.entity.js';
+import { QuizQuestionGeneration } from './entities/quiz-question-generation.entity.js';
+import { GenerationStatus } from './enums/generation-status.enum.js';
+import { UpdateQuizVersionDto } from './dto/update-quiz-version.dto.js';
 
 import {
   AttemptOptionResponseDto,
@@ -38,6 +41,7 @@ import {
 } from './dto/attempt-history.dto.js';
 
 import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
+import { CreatorQuizQueryDto } from './dto/creator-quiz-query.dto.js';
 import { CreatorQuizListItemDto, CreatorQuizListResponseDto } from './dto/creator-quiz-list.dto.js';
 import { CreatorOptionResponseDto, CreatorQuestionResponseDto, CreatorQuizDetailsResponseDto, CreatorQuizVersionResponseDto } from './dto/creator-quiz-details.dto.js';
 import { UpdateQuizDto } from './dto/update-quiz.dto.js';
@@ -147,21 +151,27 @@ export class QuizService {
     quizId: string,
     quizVersionId: string,
     dto: BulkSaveQuestionsDto,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
   ) {
-    const organizationId = await this.getCreatorOrganizationId(creatorId);
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
+    const organizationId = isAdmin ? null : await this.getCreatorOrganizationId(userId);
 
     return this.dataSource.transaction(
       async (manager) => {
-        // 1. Verify quiz ownership
+        // 1. Verify quiz ownership and acquire lock on Quiz first
         const quiz = await manager.findOne(
           Quiz,
           {
-            where: {
-              id: quizId,
-              creatorId,
-              organizationId: organizationId === null ? IsNull() : organizationId,
-            },
+            where: isAdmin
+              ? { id: quizId }
+              : {
+                  id: quizId,
+                  creatorId: userId,
+                  organizationId: organizationId === null ? IsNull() : organizationId,
+                },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -171,16 +181,16 @@ export class QuizService {
           );
         }
 
-        // 2. Verify version belongs
-        //    to this quiz
+        // 2. Lock QuizVersion second (deadlock-free ordering)
         const version =
           await manager.findOne(
             QuizVersion,
             {
               where: {
                 id: quizVersionId,
-                quizId,
+                quizId: quiz.id,
               },
+              lock: { mode: 'pessimistic_write' },
             },
           );
 
@@ -608,88 +618,216 @@ export class QuizService {
     );
   }
 
+  async updateQuizVersion(
+    quizId: string,
+    quizVersionId: string,
+    userOrTimeLimit: AuthenticatedUser | string | number | null,
+    dtoOrCreatorId?: UpdateQuizVersionDto | string,
+  ): Promise<QuizVersionResponseDto> {
+    let resolvedUser: AuthenticatedUser | string;
+    let dto: UpdateQuizVersionDto;
+
+    if (
+      typeof userOrTimeLimit === 'number' ||
+      userOrTimeLimit === null ||
+      (typeof userOrTimeLimit === 'undefined' && typeof dtoOrCreatorId === 'string')
+    ) {
+      // Legacy signature: (quizId, quizVersionId, timeLimitSeconds, creatorId)
+      this.validateTimeLimitSeconds(userOrTimeLimit as number | null | undefined);
+      dto = { timeLimitSeconds: userOrTimeLimit as number | null };
+      resolvedUser = (dtoOrCreatorId as string) || '';
+    } else if (
+      dtoOrCreatorId &&
+      typeof dtoOrCreatorId === 'object' &&
+      'timeLimitSeconds' in dtoOrCreatorId
+    ) {
+      // New signature: (quizId, quizVersionId, user, dto)
+      resolvedUser = userOrTimeLimit as AuthenticatedUser | string;
+      dto = dtoOrCreatorId;
+    } else {
+      resolvedUser = userOrTimeLimit as AuthenticatedUser | string;
+      dto = (dtoOrCreatorId as UpdateQuizVersionDto) || {};
+    }
+
+    if (dto.timeLimitSeconds !== undefined) {
+      this.validateTimeLimitSeconds(dto.timeLimitSeconds);
+    }
+
+    const principal = this.resolveUserPrincipal(resolvedUser);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
+    const organizationId = isAdmin ? null : await this.getCreatorOrganizationId(userId);
+
+    return this.dataSource.transaction(async (manager) => {
+      // 1. Lock Quiz first (deadlock-free hierarchy)
+      const quiz = await manager.findOne(Quiz, {
+        where: isAdmin
+          ? { id: quizId }
+          : {
+              id: quizId,
+              creatorId: userId,
+              organizationId: organizationId === null ? IsNull() : organizationId,
+            },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!quiz) {
+        throw new NotFoundException('Quiz not found');
+      }
+
+      // 2. Lock QuizVersion second
+      const version = await manager.findOne(QuizVersion, {
+        where: {
+          id: quizVersionId,
+          quizId: quiz.id,
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!version) {
+        throw new NotFoundException('Quiz version not found');
+      }
+
+      // 3. Only draft versions can be modified
+      if (version.status !== QuizVersionStatus.DRAFT) {
+        throw new BadRequestException('Settings can only be modified in a draft version');
+      }
+
+      // 4. Validate and apply timeLimitSeconds
+      if (dto.timeLimitSeconds !== undefined) {
+        version.timeLimitSeconds = dto.timeLimitSeconds;
+      }
+
+      const savedVersion = await manager.save(QuizVersion, version);
+
+      return {
+        id: savedVersion.id,
+        quizId: savedVersion.quizId,
+        version: savedVersion.version,
+        status: savedVersion.status,
+        timeLimitSeconds: savedVersion.timeLimitSeconds,
+        publishedAt: savedVersion.publishedAt,
+        createdAt: savedVersion.createdAt,
+        updatedAt: savedVersion.updatedAt,
+      };
+    });
+  }
+
   private validateBulkQuestions(
     dto: BulkSaveQuestionsDto,
   ): void {
     const questionIds = new Set<string>();
     const optionIds = new Set<string>();
 
-    for (
-      const question of dto.questions
-    ) {
+    for (let i = 0; i < dto.questions.length; i++) {
+      const question = dto.questions[i];
+      const qIndex = i + 1;
+
+      // Validate question text
+      if (!question.text || !question.text.trim()) {
+        throw new BadRequestException(`Question ${qIndex} text cannot be empty`);
+      }
+
+      // Validate marks
+      if (!question.marks || question.marks < 1) {
+        throw new BadRequestException(`Question ${qIndex} marks must be at least 1`);
+      }
+
+      // Validate supported question types
+      const supportedTypes = [
+        QuestionType.SINGLE_CHOICE,
+        QuestionType.MULTIPLE_CHOICE,
+        QuestionType.TRUE_FALSE,
+      ];
+      if (!supportedTypes.includes(question.questionType)) {
+        throw new BadRequestException(
+          `Question ${qIndex} has unsupported question type "${question.questionType}". Quiz versions only support choice (single_choice, multiple_choice) and true_false questions.`,
+        );
+      }
+
       // Validate question IDs
       if (question.id) {
-        if (
-          questionIds.has(question.id)
-        ) {
+        if (questionIds.has(question.id)) {
           throw new BadRequestException(
             `Duplicate question ID: ${question.id}`,
           );
         }
-
         questionIds.add(question.id);
       }
 
-      // Validate options
-      for (
-        const option of question.options
+      // Validate options count
+      if (
+        question.questionType === QuestionType.SINGLE_CHOICE ||
+        question.questionType === QuestionType.MULTIPLE_CHOICE
       ) {
+        if (!question.options || question.options.length < 2) {
+          throw new BadRequestException(
+            `Question ${qIndex} (${question.questionType}) must have at least 2 options`,
+          );
+        }
+      } else if (question.questionType === QuestionType.TRUE_FALSE) {
+        if (!question.options || question.options.length !== 2) {
+          throw new BadRequestException(
+            `Question ${qIndex} (true_false) must have exactly 2 options`,
+          );
+        }
+      }
+
+      // Validate options text & uniqueness within question
+      const optionTexts = new Set<string>();
+      for (let optIdx = 0; optIdx < question.options.length; optIdx++) {
+        const option = question.options[optIdx];
+
+        if (!option.text || !option.text.trim()) {
+          throw new BadRequestException(
+            `Option ${optIdx + 1} in question ${qIndex} cannot be empty`,
+          );
+        }
+
+        const normalizedText = option.text.trim().toLowerCase();
+        if (optionTexts.has(normalizedText)) {
+          throw new BadRequestException(
+            `Duplicate option text "${option.text.trim()}" in question ${qIndex}`,
+          );
+        }
+        optionTexts.add(normalizedText);
+
         if (option.id) {
-          if (
-            optionIds.has(option.id)
-          ) {
+          if (optionIds.has(option.id)) {
             throw new BadRequestException(
               `Duplicate option ID: ${option.id}`,
             );
           }
-
           optionIds.add(option.id);
         }
       }
 
       // Validate correct-answer rules
-      const correctOptions =
-        question.options.filter(
-          (option) => option.isCorrect,
-        );
+      const correctOptions = question.options.filter(
+        (option) => option.isCorrect,
+      );
 
-      switch (
-      question.questionType
-      ) {
+      switch (question.questionType) {
         case QuestionType.SINGLE_CHOICE:
-          if (
-            correctOptions.length !== 1
-          ) {
+          if (correctOptions.length !== 1) {
             throw new BadRequestException(
-              'Single-choice questions must have exactly one correct option',
+              `Single-choice question ${qIndex} must have exactly one correct option`,
             );
           }
           break;
 
         case QuestionType.MULTIPLE_CHOICE:
-          if (
-            correctOptions.length < 1
-          ) {
+          if (correctOptions.length < 1) {
             throw new BadRequestException(
-              'Multiple-choice questions must have at least one correct option',
+              `Multiple-choice question ${qIndex} must have at least one correct option`,
             );
           }
           break;
 
         case QuestionType.TRUE_FALSE:
-          if (
-            question.options.length !== 2
-          ) {
+          if (correctOptions.length !== 1) {
             throw new BadRequestException(
-              'True/false questions must have exactly two options',
-            );
-          }
-
-          if (
-            correctOptions.length !== 1
-          ) {
-            throw new BadRequestException(
-              'True/false questions must have exactly one correct option',
+              `True/false question ${qIndex} must have exactly one correct option`,
             );
           }
           break;
@@ -700,18 +838,27 @@ export class QuizService {
   async publishVersion(
     quizId: string,
     quizVersionId: string,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
   ) {
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
+    const organizationId = isAdmin ? null : await this.getCreatorOrganizationId(userId);
+
     return this.dataSource.transaction(
       async (manager) => {
-        // 1. Verify quiz ownership
+        // 1. Verify quiz ownership and acquire lock on Quiz first
         const quiz = await manager.findOne(
           Quiz,
           {
-            where: {
-              id: quizId,
-              creatorId,
-            },
+            where: isAdmin
+              ? { id: quizId }
+              : {
+                  id: quizId,
+                  creatorId: userId,
+                  organizationId: organizationId === null ? IsNull() : organizationId,
+                },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -721,7 +868,7 @@ export class QuizService {
           );
         }
 
-        // 2. Find the version
+        // 2. Lock QuizVersion second (deadlock-free ordering)
         const version =
           await manager.findOne(
             QuizVersion,
@@ -730,6 +877,7 @@ export class QuizService {
                 id: quizVersionId,
                 quizId: quiz.id,
               },
+              lock: { mode: 'pessimistic_write' },
             },
           );
 
@@ -749,7 +897,29 @@ export class QuizService {
           );
         }
 
-        // 4. Load all questions
+        // 4. In-flight AI generation check
+        const inFlightGeneration = await manager.findOne(QuizQuestionGeneration, {
+          where: {
+            quizId: quiz.id,
+            targetVersionId: version.id,
+            status: In([GenerationStatus.PENDING, GenerationStatus.PROCESSING]),
+          },
+        });
+        if (inFlightGeneration) {
+          throw new BadRequestException(
+            'Cannot publish version while AI question generation is in progress',
+          );
+        }
+
+        // 5. Validate quiz title
+        if (!quiz.title || !quiz.title.trim()) {
+          throw new BadRequestException('Quiz title cannot be empty');
+        }
+
+        // 6. Validate version timeLimitSeconds
+        this.validateTimeLimitSeconds(version.timeLimitSeconds);
+
+        // 7. Load all questions
         const questions =
           await manager.find(
             Question,
@@ -770,7 +940,7 @@ export class QuizService {
           );
         }
 
-        // 5. Validate question ordering
+        // 8. Validate question ordering and fields
         for (
           let index = 0;
           index < questions.length;
@@ -791,13 +961,30 @@ export class QuizService {
             );
           }
 
+          if (!question.text || !question.text.trim()) {
+            throw new BadRequestException(
+              `Question ${question.order} text cannot be empty`,
+            );
+          }
+
           if (question.marks < 1) {
             throw new BadRequestException(
               `Question ${question.order} must have at least 1 mark`,
             );
           }
 
-          // 6. Load options
+          const supportedTypes = [
+            QuestionType.SINGLE_CHOICE,
+            QuestionType.MULTIPLE_CHOICE,
+            QuestionType.TRUE_FALSE,
+          ];
+          if (!supportedTypes.includes(question.questionType)) {
+            throw new BadRequestException(
+              `Question ${question.order} has unsupported question type "${question.questionType}". Quiz versions only support choice (single_choice, multiple_choice) and true_false questions.`,
+            );
+          }
+
+          // Load options
           const options =
             await manager.find(
               Option,
@@ -818,7 +1005,27 @@ export class QuizService {
             );
           }
 
-          // 7. Validate option ordering
+          if (
+            (question.questionType === QuestionType.SINGLE_CHOICE ||
+              question.questionType === QuestionType.MULTIPLE_CHOICE) &&
+            options.length < 2
+          ) {
+            throw new BadRequestException(
+              `Question ${question.order} (${question.questionType}) must have at least 2 options`,
+            );
+          }
+
+          if (
+            question.questionType === QuestionType.TRUE_FALSE &&
+            options.length !== 2
+          ) {
+            throw new BadRequestException(
+              `Question ${question.order} must have exactly two options`,
+            );
+          }
+
+          // Validate option ordering and non-empty text
+          const optionTexts = new Set<string>();
           for (
             let optionIndex = 0;
             optionIndex < options.length;
@@ -838,9 +1045,23 @@ export class QuizService {
                 `Option ordering is invalid in question ${question.order}`,
               );
             }
+
+            if (!option.text || !option.text.trim()) {
+              throw new BadRequestException(
+                `Option ${option.order} in question ${question.order} cannot be empty`,
+              );
+            }
+
+            const normalizedText = option.text.trim().toLowerCase();
+            if (optionTexts.has(normalizedText)) {
+              throw new BadRequestException(
+                `Duplicate option text "${option.text.trim()}" in question ${question.order}`,
+              );
+            }
+            optionTexts.add(normalizedText);
           }
 
-          // 8. Validate correct-answer rules
+          // Validate correct-answer rules
           const correctOptions =
             options.filter(
               (option) =>
@@ -848,7 +1069,7 @@ export class QuizService {
             );
 
           switch (
-          question.questionType
+            question.questionType
           ) {
             case QuestionType.SINGLE_CHOICE:
               if (
@@ -873,14 +1094,6 @@ export class QuizService {
               break;
 
             case QuestionType.TRUE_FALSE:
-              if (
-                options.length !== 2
-              ) {
-                throw new BadRequestException(
-                  `Question ${question.order} must have exactly two options`,
-                );
-              }
-
               if (
                 correctOptions.length !==
                 1
@@ -932,16 +1145,26 @@ export class QuizService {
 
   async createNewVersion(
     quizId: string,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
   ) {
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
+    const organizationId = isAdmin ? null : await this.getCreatorOrganizationId(userId);
+
     return this.dataSource.transaction(async (manager) => {
+      // 1. Lock Quiz first (deadlock-free hierarchy)
       const quiz = await manager.findOne(
         Quiz,
         {
-          where: {
-            id: quizId,
-            creatorId,
-          },
+          where: isAdmin
+            ? { id: quizId }
+            : {
+                id: quizId,
+                creatorId: userId,
+                organizationId: organizationId === null ? IsNull() : organizationId,
+              },
+          lock: { mode: 'pessimistic_write' },
         },
       );
 
@@ -951,14 +1174,16 @@ export class QuizService {
         );
       }
 
+      // 2. Lock check for existing draft
       const existingDraft =
         await manager.findOne(
           QuizVersion,
           {
             where: {
-              quizId,
+              quizId: quiz.id,
               status: QuizVersionStatus.DRAFT,
             },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -968,17 +1193,19 @@ export class QuizService {
         );
       }
 
+      // 3. Lock latest published version
       const latestVersion =
         await manager.findOne(
           QuizVersion,
           {
             where: {
-              quizId,
+              quizId: quiz.id,
               status: QuizVersionStatus.PUBLISHED,
             },
             order: {
               version: 'DESC',
             },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -2516,52 +2743,118 @@ export class QuizService {
   }
 
   async getCreatorQuizzes(
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
+    queryDto?: CreatorQuizQueryDto,
   ): Promise<CreatorQuizListResponseDto> {
-    const organizationId = await this.getCreatorOrganizationId(creatorId);
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
 
-    const quizzes = await this.quizRepository.find({
-      where: {
-        creatorId,
-        organizationId: organizationId === null ? IsNull() : organizationId,
-      },
-      order: {
-        updatedAt: 'DESC',
-      },
+    const page: number = Math.max(1, queryDto?.page ? Number(queryDto.page) : 1);
+    const limit: number = Math.min(50, Math.max(1, queryDto?.limit ? Number(queryDto.limit) : 10));
+    const skip: number = (page - 1) * limit;
+
+    const qb = this.quizRepository.createQueryBuilder('quiz');
+
+    // Ownership & Admin Policy Enforcement:
+    // If not admin, the creator can only view their own quizzes (derived from JWT userId)
+    if (!isAdmin) {
+      qb.where('quiz.creatorId = :creatorId', { creatorId: userId });
+    } else if (queryDto?.creatorId) {
+      qb.where('quiz.creatorId = :creatorId', { creatorId: queryDto.creatorId });
+    }
+
+    // Status filter
+    if (queryDto?.status) {
+      qb.andWhere('quiz.status = :status', { status: queryDto.status });
+    }
+
+    // Search filter: title and description
+    if (queryDto?.search && queryDto.search.trim()) {
+      qb.andWhere(
+        '(LOWER(quiz.title) LIKE LOWER(:search) OR LOWER(quiz.description) LIKE LOWER(:search))',
+        { search: `%${queryDto.search.trim()}%` },
+      );
+    }
+
+    qb.orderBy('quiz.updatedAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [quizzes, total] = await qb.getManyAndCount();
+
+    // Batch query quiz versions for this page to avoid N+1
+    const quizIds = quizzes.map((q) => q.id);
+    const versionsByQuizId = new Map<string, QuizVersion[]>();
+
+    if (quizIds.length > 0) {
+      const versions = await this.quizVersionRepository.find({
+        where: { quizId: In(quizIds) },
+        order: { version: 'DESC' },
+      });
+
+      for (const v of versions) {
+        const existing = versionsByQuizId.get(v.quizId) ?? [];
+        existing.push(v);
+        versionsByQuizId.set(v.quizId, existing);
+      }
+    }
+
+    const items: CreatorQuizListItemDto[] = quizzes.map((quiz: Quiz): CreatorQuizListItemDto => {
+      const versions = versionsByQuizId.get(quiz.id) ?? [];
+      const publishedVersionsCount = versions.filter((v) => v.status === QuizVersionStatus.PUBLISHED).length;
+      const draftVersion = versions.find((v) => v.status === QuizVersionStatus.DRAFT);
+      const latestVersion = versions[0];
+
+      return {
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description,
+        status: quiz.status,
+        publishedVersionsCount,
+        hasDraft: Boolean(draftVersion),
+        latestVersion: latestVersion ? latestVersion.version : 1,
+        latestVersionId: latestVersion ? latestVersion.id : null,
+        latestVersionStatus: latestVersion ? latestVersion.status : null,
+        createdAt: quiz.createdAt,
+        updatedAt: quiz.updatedAt,
+      };
     });
 
-    const items: CreatorQuizListItemDto[] =
-      quizzes.map(
-        (
-          quiz: Quiz,
-        ): CreatorQuizListItemDto => ({
-          id: quiz.id,
-          title: quiz.title,
-          description: quiz.description,
-          status: quiz.status,
-          createdAt: quiz.createdAt,
-          updatedAt: quiz.updatedAt,
-        }),
-      );
+    const totalPages: number = Math.ceil(total / limit) || 1;
 
     return {
       items,
+      page,
+      limit,
+      total,
+      totalPages,
     };
   }
 
   async getCreatorQuizDetails(
     quizId: string,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
   ): Promise<CreatorQuizDetailsResponseDto> {
-    const organizationId = await this.getCreatorOrganizationId(creatorId);
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
 
-    const quiz = await this.quizRepository.findOne({
-      where: {
-        id: quizId,
-        creatorId,
-        organizationId: organizationId === null ? IsNull() : organizationId,
-      },
-    });
+    let quiz: Quiz | null;
+    if (isAdmin) {
+      quiz = await this.quizRepository.findOne({
+        where: { id: quizId },
+      });
+    } else {
+      const organizationId = await this.getCreatorOrganizationId(userId);
+      quiz = await this.quizRepository.findOne({
+        where: {
+          id: quizId,
+          creatorId: userId,
+          organizationId: organizationId === null ? IsNull() : organizationId,
+        },
+      });
+    }
 
     if (!quiz) {
       throw new NotFoundException(
@@ -2634,6 +2927,7 @@ export class QuizService {
         id: version.id,
         version: version.version,
         status: version.status,
+        timeLimitSeconds: version.timeLimitSeconds,
         publishedAt: version.publishedAt,
         createdAt: version.createdAt,
         updatedAt: version.updatedAt,
@@ -2655,18 +2949,28 @@ export class QuizService {
 
   async updateQuiz(
     quizId: string,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
     dto: UpdateQuizDto,
   ): Promise<QuizResponseDto> {
-    const organizationId = await this.getCreatorOrganizationId(creatorId);
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
 
-    const quiz = await this.quizRepository.findOne({
-      where: {
-        id: quizId,
-        creatorId,
-        organizationId: organizationId === null ? IsNull() : organizationId,
-      },
-    });
+    let quiz: Quiz | null;
+    if (isAdmin) {
+      quiz = await this.quizRepository.findOne({
+        where: { id: quizId },
+      });
+    } else {
+      const organizationId = await this.getCreatorOrganizationId(userId);
+      quiz = await this.quizRepository.findOne({
+        where: {
+          id: quizId,
+          creatorId: userId,
+          organizationId: organizationId === null ? IsNull() : organizationId,
+        },
+      });
+    }
 
     if (!quiz) {
       throw new NotFoundException(
@@ -2704,21 +3008,27 @@ export class QuizService {
   async discardVersion(
     quizId: string,
     quizVersionId: string,
-    creatorId: string,
+    userOrCreatorId: AuthenticatedUser | string,
   ): Promise<QuizVersionResponseDto> {
-    const organizationId = await this.getCreatorOrganizationId(creatorId);
+    const principal = this.resolveUserPrincipal(userOrCreatorId);
+    const userId = principal.userId;
+    const isAdmin = principal.role === UserRole.ADMIN;
+    const organizationId = isAdmin ? null : await this.getCreatorOrganizationId(userId);
 
     return this.dataSource.transaction(
       async (manager) => {
-        // 1. Verify quiz ownership
+        // 1. Verify quiz ownership and lock Quiz first
         const quiz = await manager.findOne(
           Quiz,
           {
-            where: {
-              id: quizId,
-              creatorId,
-              organizationId: organizationId === null ? IsNull() : organizationId,
-            },
+            where: isAdmin
+              ? { id: quizId }
+              : {
+                  id: quizId,
+                  creatorId: userId,
+                  organizationId: organizationId === null ? IsNull() : organizationId,
+                },
+            lock: { mode: 'pessimistic_write' },
           },
         );
 
@@ -2728,8 +3038,7 @@ export class QuizService {
           );
         }
 
-        // 2. Find the version belonging
-        //    to this quiz
+        // 2. Lock the version belonging to this quiz
         const version =
           await manager.findOne(
             QuizVersion,
@@ -2738,6 +3047,7 @@ export class QuizService {
                 id: quizVersionId,
                 quizId: quiz.id,
               },
+              lock: { mode: 'pessimistic_write' },
             },
           );
 
@@ -3182,85 +3492,6 @@ export class QuizService {
       unanswered,
       percentage,
     };
-  }
-
-  async updateQuizVersion(
-    quizId: string,
-    quizVersionId: string,
-    timeLimitSeconds: number | null | undefined,
-    creatorId: string,
-  ) {
-    this.validateTimeLimitSeconds(timeLimitSeconds);
-    return this.dataSource.transaction(async (manager) => {
-      const quiz = await manager.findOne(
-        Quiz,
-        {
-          where: {
-            id: quizId,
-            creatorId,
-          },
-        },
-      );
-
-      if (!quiz) {
-        throw new NotFoundException(
-          'Quiz not found',
-        );
-      }
-
-      const version =
-        await manager.findOne(
-          QuizVersion,
-          {
-            where: {
-              id: quizVersionId,
-              quizId,
-            },
-          },
-        );
-
-      if (!version) {
-        throw new NotFoundException(
-          'Quiz version not found',
-        );
-      }
-
-      if (
-        version.status !==
-        QuizVersionStatus.DRAFT
-      ) {
-        throw new BadRequestException(
-          'Only draft versions can be updated',
-        );
-      }
-
-      if (
-        timeLimitSeconds !== undefined
-      ) {
-        version.timeLimitSeconds =
-          timeLimitSeconds;
-      }
-
-      const savedVersion =
-        await manager.save(
-          QuizVersion,
-          version,
-        );
-
-      return {
-        quizId: savedVersion.quizId,
-        quizVersionId:
-          savedVersion.id,
-        version:
-          savedVersion.version,
-        status:
-          savedVersion.status,
-        timeLimitSeconds:
-          savedVersion.timeLimitSeconds,
-        updatedAt:
-          savedVersion.updatedAt,
-      };
-    });
   }
 
   async getQuizAnalytics(

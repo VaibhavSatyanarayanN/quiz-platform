@@ -22,6 +22,7 @@ export class CreatorQuizVersionResponseDto {
     id: string;
     version: number;
     status: QuizVersionStatus;
+    timeLimitSeconds: number | null;
     publishedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;

@@ -8,6 +8,8 @@ import { QuestionType } from './enums/question-type.enum.js';
 import { DifficultyLevel } from './enums/difficulty-level.enum.js';
 import { AttemptStatus } from './enums/attempt-status.enum.js';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto.js';
+import { CreatorQuizQueryDto } from './dto/creator-quiz-query.dto.js';
+import { ROLES_KEY } from '../auth/decorators/roles.decorator.js';
 
 describe('QuizController', () => {
   let controller: QuizController;
@@ -353,6 +355,149 @@ describe('QuizController', () => {
         dto,
         mockUser,
       );
+    });
+  });
+
+  describe('Phase 7.1 — Creator Dashboard Endpoints', () => {
+    it('getCreatorQuizzes should delegate to quizService.getCreatorQuizzes with user and query', async () => {
+      const query: CreatorQuizQueryDto = {
+        page: 1,
+        limit: 10,
+        search: 'TypeScript',
+      };
+      const expectedResponse = {
+        items: [
+          {
+            id: 'quiz-1',
+            title: 'TypeScript Masterclass',
+            description: 'Advanced types',
+            status: 'draft' as any,
+            publishedVersionsCount: 1,
+            hasDraft: true,
+            latestVersion: 2,
+            latestVersionId: 'ver-2',
+            latestVersionStatus: 'draft' as any,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      };
+      (mockQuizService.getCreatorQuizzes as any).mockResolvedValue(expectedResponse);
+
+      const result = await controller.getCreatorQuizzes(query, mockUser);
+      expect(result).toEqual(expectedResponse);
+      expect(mockQuizService.getCreatorQuizzes).toHaveBeenCalledWith(mockUser, query);
+    });
+
+    it('getCreatorQuizzes should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata', () => {
+      const roles = Reflect.getMetadata(ROLES_KEY, controller.getCreatorQuizzes);
+      expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+    });
+
+    it('getCreatorQuizDetails should delegate to quizService.getCreatorQuizDetails', async () => {
+      const expectedQuiz = {
+        id: 'quiz-1',
+        title: 'Quiz 1',
+        description: null,
+        status: 'published' as any,
+        creatorId: mockUser.userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        versions: [],
+      };
+      (mockQuizService.getCreatorQuizDetails as any).mockResolvedValue(expectedQuiz);
+
+      const result = await controller.getCreatorQuizDetails('quiz-1', mockUser);
+      expect(result).toEqual(expectedQuiz);
+      expect(mockQuizService.getCreatorQuizDetails).toHaveBeenCalledWith('quiz-1', mockUser);
+    });
+
+    it('getCreatorQuizDetails should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata', () => {
+      const roles = Reflect.getMetadata(ROLES_KEY, controller.getCreatorQuizDetails);
+      expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+    });
+
+    it('updateQuiz should delegate to quizService.updateQuiz with user principal', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const expectedResult = {
+        id: 'quiz-1',
+        title: 'Updated Title',
+        description: null,
+        status: 'draft' as any,
+        creatorId: mockUser.userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (mockQuizService.updateQuiz as any) = vi.fn().mockResolvedValue(expectedResult);
+
+      const result = await controller.updateQuiz('quiz-1', updateDto, mockUser);
+      expect(result).toEqual(expectedResult);
+      expect(mockQuizService.updateQuiz).toHaveBeenCalledWith('quiz-1', mockUser, updateDto);
+    });
+
+    describe('Phase 7.2 — Version integrity & metadata editing controller endpoints', () => {
+      it('updateQuizVersion should delegate to quizService.updateQuizVersion and enforce roles', async () => {
+        const updateVersionDto = { timeLimitSeconds: 1800 };
+        const expectedVersion = {
+          id: 'ver-1',
+          quizId: 'quiz-1',
+          version: 1,
+          status: 'draft' as any,
+          timeLimitSeconds: 1800,
+          publishedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        (mockQuizService.updateQuizVersion as any) = vi.fn().mockResolvedValue(expectedVersion);
+
+        const result = await controller.updateQuizVersion('quiz-1', 'ver-1', updateVersionDto, mockUser);
+        expect(result).toEqual(expectedVersion);
+        expect(mockQuizService.updateQuizVersion).toHaveBeenCalledWith('quiz-1', 'ver-1', mockUser, updateVersionDto);
+
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.updateQuizVersion);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+      });
+
+      it('createQuestionsBulk should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata and pass user', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.createQuestionsBulk);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+
+        (mockQuizService.saveQuestionsBulk as any) = vi.fn().mockResolvedValue({ quizId: 'quiz-1', questions: [] });
+        const bulkDto = { questions: [] };
+        await controller.createQuestionsBulk('quiz-1', 'ver-1', bulkDto, mockUser);
+        expect(mockQuizService.saveQuestionsBulk).toHaveBeenCalledWith('quiz-1', 'ver-1', bulkDto, mockUser);
+      });
+
+      it('publishVersion should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata and pass user', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.publishVersion);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+
+        (mockQuizService.publishVersion as any) = vi.fn().mockResolvedValue({ quizId: 'quiz-1', quizVersionId: 'ver-1' });
+        await controller.publishVersion('quiz-1', 'ver-1', mockUser);
+        expect(mockQuizService.publishVersion).toHaveBeenCalledWith('quiz-1', 'ver-1', mockUser);
+      });
+
+      it('createNewVersion should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata and pass user', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.createNewVersion);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+
+        (mockQuizService.createNewVersion as any) = vi.fn().mockResolvedValue({ quizId: 'quiz-1', quizVersionId: 'ver-2', version: 2 });
+        await controller.createNewVersion('quiz-1', mockUser);
+        expect(mockQuizService.createNewVersion).toHaveBeenCalledWith('quiz-1', mockUser);
+      });
+
+      it('discardVersion should have @Roles(UserRole.CREATOR, UserRole.ADMIN) metadata and pass user', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.discardVersion);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+
+        (mockQuizService.discardVersion as any) = vi.fn().mockResolvedValue({ id: 'ver-2', status: 'archived' });
+        await controller.discardVersion('quiz-1', 'ver-2', mockUser);
+        expect(mockQuizService.discardVersion).toHaveBeenCalledWith('quiz-1', 'ver-2', mockUser);
+      });
     });
   });
 });

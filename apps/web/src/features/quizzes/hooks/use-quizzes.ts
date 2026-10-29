@@ -9,11 +9,12 @@ import type {
   GenerateAiQuestionsFromPdfRequest,
   UpdateGenerationReviewRequest,
   ApplyGeneratedQuestionsRequest,
+  CreatorQuizQueryParams,
 } from '../types/quiz.types';
 
 export const quizKeys = {
   all: ['quizzes'] as const,
-  lists: () => [...quizKeys.all, 'list'] as const,
+  lists: (params?: CreatorQuizQueryParams) => [...quizKeys.all, 'list', params] as const,
   detail: (id: string) => [...quizKeys.all, 'detail', id] as const,
   takerVersion: (quizId: string, versionId: string) =>
     [...quizKeys.all, 'taker', quizId, versionId] as const,
@@ -22,10 +23,10 @@ export const quizKeys = {
     [...quizKeys.all, 'ai-generation-review', quizId, generationId] as const,
 };
 
-export function useCreatorQuizzes() {
+export function useCreatorQuizzes(params?: CreatorQuizQueryParams) {
   return useQuery({
-    queryKey: quizKeys.lists(),
-    queryFn: quizzesApi.getCreatorQuizzes,
+    queryKey: quizKeys.lists(params),
+    queryFn: () => quizzesApi.getCreatorQuizzes(params),
   });
 }
 
@@ -107,6 +108,25 @@ export function useDiscardVersion() {
   return useMutation({
     mutationFn: ({ quizId, versionId }: { quizId: string; versionId: string }) =>
       quizzesApi.discardVersion(quizId, versionId),
+    onSuccess: (_, { quizId }) => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.detail(quizId) });
+    },
+  });
+}
+
+export function useUpdateQuizVersion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      quizId,
+      versionId,
+      data,
+    }: {
+      quizId: string;
+      versionId: string;
+      data: { timeLimitSeconds: number | null };
+    }) => quizzesApi.updateQuizVersion(quizId, versionId, data),
     onSuccess: (_, { quizId }) => {
       queryClient.invalidateQueries({ queryKey: quizKeys.detail(quizId) });
     },

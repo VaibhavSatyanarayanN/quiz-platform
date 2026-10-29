@@ -29,7 +29,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
 import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
+import { CreatorQuizQueryDto } from './dto/creator-quiz-query.dto.js';
 import { UpdateQuizDto } from './dto/update-quiz.dto.js';
+import { UpdateQuizVersionDto } from './dto/update-quiz-version.dto.js';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto.js';
 import { UserRole } from '../users/enums/user-role.enum.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -56,6 +58,7 @@ export class QuizController {
   }
 
   @Put(':quizId/versions/:quizVersionId/questions/bulk')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   createQuestionsBulk(
     @Param('quizId') quizId: string,
     @Param('quizVersionId') quizVersionId: string,
@@ -66,11 +69,28 @@ export class QuizController {
       quizId,
       quizVersionId,
       dto,
-      user.userId,
+      user,
+    );
+  }
+
+  @Patch(':quizId/versions/:quizVersionId')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
+  updateQuizVersion(
+    @Param('quizId') quizId: string,
+    @Param('quizVersionId') quizVersionId: string,
+    @Body() dto: UpdateQuizVersionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizService.updateQuizVersion(
+      quizId,
+      quizVersionId,
+      user,
+      dto,
     );
   }
 
   @Patch(':quizId/versions/:quizVersionId/publish')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   publishVersion(
     @Param('quizId') quizId: string,
     @Param('quizVersionId') quizVersionId: string,
@@ -79,18 +99,19 @@ export class QuizController {
     return this.quizService.publishVersion(
       quizId,
       quizVersionId,
-      user.userId,
+      user,
     );
   }
 
   @Post(':quizId/versions')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   createNewVersion(
     @Param('quizId') quizId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizService.createNewVersion(
       quizId,
-      user.userId,
+      user,
     );
   }
 
@@ -212,26 +233,31 @@ export class QuizController {
   }
 
   @Get()
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   getCreatorQuizzes(
+    @Query() query: CreatorQuizQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizService.getCreatorQuizzes(
-      user.userId,
+      user,
+      query,
     );
   }
 
   @Get(':quizId')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   getCreatorQuizDetails(
     @Param('quizId') quizId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.quizService.getCreatorQuizDetails(
       quizId,
-      user.userId,
+      user,
     );
   }
 
   @Patch(':quizId')
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   updateQuiz(
     @Param('quizId') quizId: string,
     @Body() dto: UpdateQuizDto,
@@ -239,7 +265,7 @@ export class QuizController {
   ) {
     return this.quizService.updateQuiz(
       quizId,
-      user.userId,
+      user,
       dto,
     );
   }
@@ -247,6 +273,7 @@ export class QuizController {
   @Patch(
     ':quizId/versions/:quizVersionId/discard',
   )
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   discardVersion(
     @Param('quizId') quizId: string,
     @Param('quizVersionId') quizVersionId: string,
@@ -255,7 +282,7 @@ export class QuizController {
     return this.quizService.discardVersion(
       quizId,
       quizVersionId,
-      user.userId,
+      user,
     );
   }
 

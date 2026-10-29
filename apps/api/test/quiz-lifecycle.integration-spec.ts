@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { DataSource } from 'typeorm';
+import { BadRequestException } from '@nestjs/common';
 import net from 'node:net';
 import { config } from 'dotenv';
 import { resolve } from 'path';
@@ -259,10 +260,10 @@ describe('Phase 6.6 — Live PostgreSQL Integration Test Suite', () => {
         await qr.query(`DELETE FROM "answer_options" WHERE "answer_id" IN (SELECT "id" FROM "answers" WHERE "attempt_id" IN (SELECT "id" FROM "quiz_attempts" WHERE "user_id" = $1))`, [testUser.id]);
         await qr.query(`DELETE FROM "answers" WHERE "attempt_id" IN (SELECT "id" FROM "quiz_attempts" WHERE "user_id" = $1)`, [testUser.id]);
         await qr.query(`DELETE FROM "quiz_attempts" WHERE "user_id" = $1`, [testUser.id]);
-        await qr.query(`DELETE FROM "options" WHERE "question_id" IN (SELECT "id" FROM "questions" WHERE "quiz_version_id" IN ($1, $2))`, [version1.id, version2.id]);
-        await qr.query(`DELETE FROM "questions" WHERE "quiz_version_id" IN ($1, $2)`, [version1.id, version2.id]);
-        await qr.query(`DELETE FROM "quiz_versions" WHERE "quiz_id" = $1`, [testQuiz.id]);
-        await qr.query(`DELETE FROM "quizzes" WHERE "id" = $1`, [testQuiz.id]);
+        await qr.query(`DELETE FROM "options" WHERE "question_id" IN (SELECT "id" FROM "questions" WHERE "quiz_version_id" IN (SELECT "id" FROM "quiz_versions" WHERE "quiz_id" IN (SELECT "id" FROM "quizzes" WHERE "creator_id" = $1 OR "id" = $2)))`, [testUser.id, testQuiz.id]);
+        await qr.query(`DELETE FROM "questions" WHERE "quiz_version_id" IN (SELECT "id" FROM "quiz_versions" WHERE "quiz_id" IN (SELECT "id" FROM "quizzes" WHERE "creator_id" = $1 OR "id" = $2))`, [testUser.id, testQuiz.id]);
+        await qr.query(`DELETE FROM "quiz_versions" WHERE "quiz_id" IN (SELECT "id" FROM "quizzes" WHERE "creator_id" = $1 OR "id" = $2)`, [testUser.id, testQuiz.id]);
+        await qr.query(`DELETE FROM "quizzes" WHERE "creator_id" = $1 OR "id" = $2`, [testUser.id, testQuiz.id]);
         await qr.query(`DELETE FROM "organizations" WHERE "id" = $1`, [testOrg.id]);
         await qr.query(`DELETE FROM "users" WHERE "id" = $1`, [testUser.id]);
         await qr.release();
@@ -474,5 +475,267 @@ describe('Phase 6.6 — Live PostgreSQL Integration Test Suite', () => {
     expect(retrieved?.data.generationId).toBe('test-gen-id');
 
     await queue.close();
+  });
+
+  it('9. Creator dashboard quiz listing, ownership isolation, and version metrics', async () => {
+    if (!isDbAvailable) return;
+
+    // 1. Create a second creator user to test cross-creator isolation
+    const creator2 = dataSource.getRepository(User).create({
+      email: `creator2-${Date.now()}@example.com`,
+      username: `creator2_${Date.now()}`,
+      passwordHash: 'hash',
+      role: UserRole.CREATOR,
+      firstName: 'Other',
+      lastName: 'Creator',
+    });
+    await dataSource.getRepository(User).save(creator2);
+
+    // 2. Create Quiz for Creator 2
+    const otherQuiz = dataSource.getRepository(Quiz).create({
+      title: 'Creator 2 Private Quiz',
+      description: 'Private draft',
+      status: QuizStatus.DRAFT,
+      creatorId: creator2.id,
+    });
+    await dataSource.getRepository(Quiz).save(otherQuiz);
+
+    // 3. Creator 1 queries creator quizzes
+    const creator1User = {
+      userId: testUser.id,
+      email: testUser.email,
+      role: UserRole.CREATOR,
+    };
+
+    const creator1Quizzes = await quizService.getCreatorQuizzes(creator1User, {
+      page: 1,
+      limit: 10,
+    });
+
+    // 4. Verify Creator 1 does NOT see Creator 2's quiz (strict ownership enforcement)
+    const creator2QuizFound = creator1Quizzes.items.some((q) => q.id === otherQuiz.id);
+    expect(creator2QuizFound).toBe(false);
+
+    // 5. Verify Creator 1 sees their own quiz with accurate publishedVersionsCount and version metrics
+    const creator1Quiz = creator1Quizzes.items.find((q) => q.id === testQuiz.id);
+    expect(creator1Quiz).toBeDefined();
+    expect(creator1Quiz?.title).toBe(testQuiz.title);
+    expect(creator1Quiz?.publishedVersionsCount).toBeGreaterThanOrEqual(1);
+
+    // 6. Test search filter
+    const searchResult = await quizService.getCreatorQuizzes(creator1User, {
+      search: 'Integration Quiz',
+    });
+    expect(searchResult.items.length).toBeGreaterThanOrEqual(1);
+    expect(searchResult.items[0].id).toBe(testQuiz.id);
+
+    // 7. Test status filter
+    const draftOnlyResult = await quizService.getCreatorQuizzes(creator1User, {
+      status: QuizStatus.DRAFT,
+    });
+    expect(draftOnlyResult.items.every((q) => q.status === QuizStatus.DRAFT)).toBe(true);
+
+    // 8. Test admin can view quizzes across creators
+    const adminUser = {
+      userId: 'platform-admin',
+      email: 'admin@platform.com',
+      role: UserRole.ADMIN,
+    };
+    const adminQuizzes = await quizService.getCreatorQuizzes(adminUser, {
+      page: 1,
+      limit: 50,
+    });
+    expect(adminQuizzes.items.some((q) => q.id === otherQuiz.id)).toBe(true);
+    expect(adminQuizzes.items.some((q) => q.id === testQuiz.id)).toBe(true);
+  });
+
+  it('10. Quiz editing, version immutability, branching, and historical attempt isolation', async () => {
+    // 1. Creator creates a new quiz with initial draft v1 (time limit 1200s)
+    const creatorUser = {
+      userId: testUser.id,
+      email: testUser.email,
+      role: UserRole.CREATOR,
+    };
+
+    const learnerUser = {
+      userId: testUser.id,
+      email: testUser.email,
+      role: UserRole.TAKER,
+    };
+
+    const createdQuiz = await quizService.createQuiz(
+      'Phase 7.2 Integration Quiz ' + Date.now(),
+      'Testing safe quiz editing and version integrity',
+      1200,
+      creatorUser.userId,
+    );
+    expect(createdQuiz.quizId).toBeDefined();
+    expect(createdQuiz.version).toBe(1);
+    expect(createdQuiz.status).toBe(QuizVersionStatus.DRAFT);
+    expect(createdQuiz.timeLimitSeconds).toBe(1200);
+
+    const v1Id = createdQuiz.quizVersionId;
+
+    // 2. Creator updates draft v1 settings (time limit to 1800s)
+    const updatedV1 = await quizService.updateQuizVersion(
+      createdQuiz.quizId,
+      v1Id,
+      creatorUser,
+      { timeLimitSeconds: 1800 },
+    );
+    expect(updatedV1.timeLimitSeconds).toBe(1800);
+
+    // 3. Creator saves Q1 to draft v1
+    await quizService.saveQuestionsBulk(
+      createdQuiz.quizId,
+      v1Id,
+      {
+        questions: [
+          {
+            text: 'What does ACID stand for?',
+            questionType: QuestionType.SINGLE_CHOICE,
+            marks: 2,
+            options: [
+              { text: 'Atomicity, Consistency, Isolation, Durability', isCorrect: true },
+              { text: 'Asynchronous, Concurrent, Isolated, Distributed', isCorrect: false },
+            ],
+          },
+        ],
+      },
+      creatorUser,
+    );
+
+    // 4. Creator publishes v1
+    const pubV1 = await quizService.publishVersion(createdQuiz.quizId, v1Id, creatorUser);
+    expect(pubV1.status).toBe(QuizVersionStatus.PUBLISHED);
+
+    // 5. Immutability checks on published v1
+    await expect(
+      quizService.saveQuestionsBulk(
+        createdQuiz.quizId,
+        v1Id,
+        {
+          questions: [
+            {
+              text: 'Mutated Question?',
+              questionType: QuestionType.SINGLE_CHOICE,
+              marks: 5,
+              options: [
+                { text: 'Yes', isCorrect: true },
+                { text: 'No', isCorrect: false },
+              ],
+            },
+          ],
+        },
+        creatorUser,
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    await expect(
+      quizService.updateQuizVersion(
+        createdQuiz.quizId,
+        v1Id,
+        creatorUser,
+        { timeLimitSeconds: 600 },
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    // 6. Learner starts attempt on v1, answers Q1 correctly, and submits
+    const v1Attempt = await quizService.startAttempt(createdQuiz.quizId, v1Id, learnerUser);
+    const v1Details = await quizService.getAttempt(v1Attempt.attemptId, learnerUser);
+    expect(v1Details.questions).toHaveLength(1);
+    const q1Id = v1Details.questions[0].id;
+    const optAId = v1Details.questions[0].options[0].id;
+
+    await quizService.saveAnswer(
+      v1Attempt.attemptId,
+      q1Id,
+      { optionIds: [optAId] },
+      learnerUser,
+    );
+
+    const v1Submit = await quizService.submitAttempt(v1Attempt.attemptId, learnerUser);
+    expect(v1Submit.status).toBe(AttemptStatus.SUBMITTED);
+    expect(v1Submit.score).toBe(2);
+    expect(v1Submit.percentage).toBe(100);
+
+    // 7. Creator branches new version v2 from published v1
+    const v2Draft = await quizService.createNewVersion(createdQuiz.quizId, creatorUser);
+    expect(v2Draft.version).toBe(2);
+    expect(v2Draft.status).toBe(QuizVersionStatus.DRAFT);
+    expect(v2Draft.timeLimitSeconds).toBe(1800);
+
+    const v2Id = v2Draft.id || v2Draft.quizVersionId;
+
+    // 8. Single-draft rule: attempting to create another version while v2 draft exists is rejected
+    await expect(
+      quizService.createNewVersion(createdQuiz.quizId, creatorUser),
+    ).rejects.toThrow(BadRequestException);
+
+    // 9. Creator updates v2 settings (changes time limit to 2400s)
+    const updatedV2 = await quizService.updateQuizVersion(
+      createdQuiz.quizId,
+      v2Id,
+      creatorUser,
+      { timeLimitSeconds: 2400 },
+    );
+    expect(updatedV2.timeLimitSeconds).toBe(2400);
+
+    // 10. Creator modifies questions on v2 (keeps Q1, adds Q2)
+    const v2Questions = await dataSource.getRepository(Question).find({
+      where: { quizVersionId: v2Id },
+      relations: { options: true },
+      order: { order: 'ASC' },
+    });
+    expect(v2Questions).toHaveLength(1);
+
+    await quizService.saveQuestionsBulk(
+      createdQuiz.quizId,
+      v2Id,
+      {
+        questions: [
+          {
+            id: v2Questions[0].id,
+            text: v2Questions[0].text,
+            questionType: QuestionType.SINGLE_CHOICE,
+            marks: 2,
+            options: v2Questions[0].options.map((opt) => ({
+              id: opt.id,
+              text: opt.text,
+              isCorrect: opt.isCorrect,
+            })),
+          },
+          {
+            text: 'Which patterns are architectural patterns?',
+            questionType: QuestionType.MULTIPLE_CHOICE,
+            marks: 3,
+            options: [
+              { text: 'Event-driven Architecture', isCorrect: true },
+              { text: 'CQRS', isCorrect: true },
+              { text: 'Bubble Sort', isCorrect: false },
+            ],
+          },
+        ],
+      },
+      creatorUser,
+    );
+
+    // 11. Publish v2
+    const pubV2 = await quizService.publishVersion(createdQuiz.quizId, v2Id, creatorUser);
+    expect(pubV2.status).toBe(QuizVersionStatus.PUBLISHED);
+
+    // 12. Version Isolation verification: historical v1 attempt remains completely unaffected
+    const historicalResult = await quizService.getAttemptResult(v1Attempt.attemptId, learnerUser);
+    expect(historicalResult.totalMarks).toBe(2);
+    expect(historicalResult.score).toBe(2);
+    expect(historicalResult.percentage).toBe(100);
+    expect(historicalResult.questions).toHaveLength(1);
+    expect(historicalResult.questions[0].text).toBe('What does ACID stand for?');
+
+    // 13. New attempt on v2 gets both questions and 5 total marks
+    const v2Attempt = await quizService.startAttempt(createdQuiz.quizId, v2Id, learnerUser);
+    const v2Details = await quizService.getAttempt(v2Attempt.attemptId, learnerUser);
+    expect(v2Details.questions).toHaveLength(2);
+    expect(v2Details.questions.reduce((sum, q) => sum + q.marks, 0)).toBe(5);
   });
 });

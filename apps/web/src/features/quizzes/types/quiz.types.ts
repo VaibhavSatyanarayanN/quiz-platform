@@ -117,6 +117,13 @@ export interface QuizVersionResponse {
   updatedAt: string;
 }
 
+export interface CreatorQuizQueryParams {
+  search?: string;
+  status?: QuizStatus;
+  page?: number;
+  limit?: number;
+}
+
 export interface CreatorQuizListItem {
   id: string;
   title: string;
@@ -124,12 +131,19 @@ export interface CreatorQuizListItem {
   status: QuizStatus;
   publishedVersionsCount: number;
   hasDraft: boolean;
+  latestVersion?: number;
+  latestVersionId?: string | null;
+  latestVersionStatus?: QuizVersionStatus | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreatorQuizListResponse {
   items: CreatorQuizListItem[];
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
 }
 
 export interface CreatorOptionResponse {
@@ -152,6 +166,7 @@ export interface CreatorQuizVersionResponse {
   id: string;
   version: number;
   status: QuizVersionStatus;
+  timeLimitSeconds: number | null;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;

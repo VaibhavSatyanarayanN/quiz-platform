@@ -14,7 +14,7 @@ export interface AvatarProps {
   style?: React.CSSProperties;
 }
 
-export function getUserInitials(name?: string, email?: string, username?: string): string {
+function getUserInitials(name?: string, email?: string, username?: string): string {
   let source = name?.trim() || username?.trim();
   if (!source && email) {
     source = email.split('@')[0];

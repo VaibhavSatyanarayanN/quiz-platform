@@ -5,6 +5,7 @@ import type {
   BulkSaveQuestionsRequest,
   QuizResponse,
   CreatorQuizListResponse,
+  CreatorQuizQueryParams,
   CreatorQuizDetailsResponse,
   TakerQuizVersionResponse,
   CreateQuizResponse,
@@ -20,8 +21,12 @@ import type {
 } from '../types/quiz.types';
 
 export const quizzesApi = {
-  getCreatorQuizzes: async (): Promise<CreatorQuizListResponse> => {
-    const response = await apiClient.get<CreatorQuizListResponse>('/quizzes');
+  getCreatorQuizzes: async (
+    params?: CreatorQuizQueryParams,
+  ): Promise<CreatorQuizListResponse> => {
+    const response = await apiClient.get<CreatorQuizListResponse>('/quizzes', {
+      params,
+    });
     return response.data;
   },
 
@@ -67,6 +72,18 @@ export const quizzesApi = {
 
   discardVersion: async (quizId: string, versionId: string): Promise<void> => {
     await apiClient.patch(`/quizzes/${quizId}/versions/${versionId}/discard`);
+  },
+
+  updateQuizVersion: async (
+    quizId: string,
+    versionId: string,
+    data: { timeLimitSeconds: number | null },
+  ): Promise<CreateNewVersionResponse> => {
+    const response = await apiClient.patch<CreateNewVersionResponse>(
+      `/quizzes/${quizId}/versions/${versionId}`,
+      data,
+    );
+    return response.data;
   },
 
   createNewVersion: async (quizId: string): Promise<CreateNewVersionResponse> => {

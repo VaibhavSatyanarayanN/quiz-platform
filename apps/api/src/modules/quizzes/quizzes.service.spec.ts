@@ -20,6 +20,8 @@ import { OrganizationService } from '../organizations/organization.service.js';
 import { QuizStatus } from './enums/quiz-status.enum.js';
 import { QuizVersionStatus } from './enums/quiz-version-status.enum.js';
 import { AttemptStatus } from './enums/attempt-status.enum.js';
+import { GenerationStatus } from './enums/generation-status.enum.js';
+import { QuizQuestionGeneration } from './entities/quiz-question-generation.entity.js';
 import { QuestionType } from './enums/question-type.enum.js';
 import { UserRole } from '../users/enums/user-role.enum.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
@@ -3054,6 +3056,534 @@ describe('QuizService — Phase 6.1 Quiz Attempt Lifecycle & Secure Learner APIs
         expect(history.items[0].totalMarks).toBe(10);
         expect(history.items[0].totalScore).toBe(10);
       });
+    });
+  });
+
+  describe('Phase 7.1 — Quiz Creator Dashboard & Scoped Quiz Listing', () => {
+    const creatorA: AuthenticatedUser = {
+      userId: 'creator-user-a',
+      email: 'creator.a@example.com',
+      role: UserRole.CREATOR,
+    };
+
+    const creatorB: AuthenticatedUser = {
+      userId: 'creator-user-b',
+      email: 'creator.b@example.com',
+      role: UserRole.CREATOR,
+    };
+
+    const adminUser: AuthenticatedUser = {
+      userId: 'admin-user-id',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+    };
+
+    function setupQuizQueryBuilderMock(quizzes: any[], totalCount: number) {
+      const qb = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([quizzes, totalCount]),
+      };
+      mockQuizRepo.createQueryBuilder = vi.fn(() => qb);
+      return qb;
+    }
+
+    it('7.1-1. Authenticated creator lists their own quizzes with version metadata', async () => {
+      const mockQuizzes = [
+        {
+          id: 'quiz-a1',
+          title: 'Creator A TypeScript Quiz',
+          description: 'TS advanced concepts',
+          status: QuizStatus.PUBLISHED,
+          creatorId: creatorA.userId,
+          createdAt: new Date('2026-10-01T10:00:00Z'),
+          updatedAt: new Date('2026-10-02T10:00:00Z'),
+        },
+      ];
+
+      const qb = setupQuizQueryBuilderMock(mockQuizzes, 1);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([
+        {
+          id: 'ver-1',
+          quizId: 'quiz-a1',
+          version: 1,
+          status: QuizVersionStatus.PUBLISHED,
+        },
+        {
+          id: 'ver-2',
+          quizId: 'quiz-a1',
+          version: 2,
+          status: QuizVersionStatus.DRAFT,
+        },
+      ]);
+
+      const result = await service.getCreatorQuizzes(creatorA);
+
+      expect(qb.where).toHaveBeenCalledWith('quiz.creatorId = :creatorId', {
+        creatorId: creatorA.userId,
+      });
+      expect(result.items).toHaveLength(1);
+      const item = result.items[0];
+      expect(item.id).toBe('quiz-a1');
+      expect(item.title).toBe('Creator A TypeScript Quiz');
+      expect(item.status).toBe(QuizStatus.PUBLISHED);
+      expect(item.publishedVersionsCount).toBe(1);
+      expect(item.hasDraft).toBe(true);
+      expect(item.latestVersion).toBe(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.totalPages).toBe(1);
+    });
+
+    it('7.1-2. One creator cannot retrieve another creator private drafts', async () => {
+      const qb = setupQuizQueryBuilderMock([], 0);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([]);
+
+      // Creator A attempts to supply Creator B's ID in query
+      await service.getCreatorQuizzes(creatorA, {
+        creatorId: creatorB.userId,
+      });
+
+      // Server strictly overrides and enforces creatorA.userId from JWT
+      expect(qb.where).toHaveBeenCalledWith('quiz.creatorId = :creatorId', {
+        creatorId: creatorA.userId,
+      });
+      expect(qb.where).not.toHaveBeenCalledWith('quiz.creatorId = :creatorId', {
+        creatorId: creatorB.userId,
+      });
+    });
+
+    it('7.1-3. Administrator policy is preserved (can query all or specific creator)', async () => {
+      const qb = setupQuizQueryBuilderMock([], 0);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([]);
+
+      // Admin querying a specific creator
+      await service.getCreatorQuizzes(adminUser, {
+        creatorId: creatorB.userId,
+      });
+      expect(qb.where).toHaveBeenCalledWith('quiz.creatorId = :creatorId', {
+        creatorId: creatorB.userId,
+      });
+
+      // Admin querying without creatorId filter: no restriction to admin's own ID
+      const qbAll = setupQuizQueryBuilderMock([], 0);
+      await service.getCreatorQuizzes(adminUser, {});
+      expect(qbAll.where).not.toHaveBeenCalledWith(
+        'quiz.creatorId = :creatorId',
+        expect.anything(),
+      );
+    });
+
+    it('7.1-4. Status filtering and search query behave correctly', async () => {
+      const qb = setupQuizQueryBuilderMock([], 0);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([]);
+
+      await service.getCreatorQuizzes(creatorA, {
+        status: QuizStatus.DRAFT,
+        search: 'Architecture',
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith('quiz.status = :status', {
+        status: QuizStatus.DRAFT,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        '(LOWER(quiz.title) LIKE LOWER(:search) OR LOWER(quiz.description) LIKE LOWER(:search))',
+        { search: '%Architecture%' },
+      );
+    });
+
+    it('7.1-5. Pagination bounds are enforced (min page 1, max limit 50, correct skip/take and totalPages)', async () => {
+      const qb = setupQuizQueryBuilderMock([], 105);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([]);
+
+      const result = await service.getCreatorQuizzes(creatorA, {
+        page: 3,
+        limit: 20,
+      });
+
+      expect(qb.skip).toHaveBeenCalledWith(40); // (3 - 1) * 20
+      expect(qb.take).toHaveBeenCalledWith(20);
+      expect(result.page).toBe(3);
+      expect(result.limit).toBe(20);
+      expect(result.total).toBe(105);
+      expect(result.totalPages).toBe(6); // Math.ceil(105 / 20) = 6
+
+      // Edge case: limit > 50 clamped to 50, page < 1 clamped to 1
+      const qbClamped = setupQuizQueryBuilderMock([], 10);
+      const clampedResult = await service.getCreatorQuizzes(creatorA, {
+        page: -5,
+        limit: 100,
+      });
+      expect(qbClamped.skip).toHaveBeenCalledWith(0);
+      expect(qbClamped.take).toHaveBeenCalledWith(50);
+      expect(clampedResult.page).toBe(1);
+      expect(clampedResult.limit).toBe(50);
+    });
+
+    it('7.1-6. Version batch loading avoids N+1 database queries', async () => {
+      const mockQuizzes = [
+        {
+          id: 'q-1',
+          title: 'Quiz 1',
+          description: null,
+          status: QuizStatus.DRAFT,
+          creatorId: creatorA.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'q-2',
+          title: 'Quiz 2',
+          description: null,
+          status: QuizStatus.PUBLISHED,
+          creatorId: creatorA.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      setupQuizQueryBuilderMock(mockQuizzes, 2);
+      mockQuizVersionRepo.find = vi.fn().mockResolvedValue([
+        { id: 'v-1', quizId: 'q-1', version: 1, status: QuizVersionStatus.DRAFT },
+        { id: 'v-2', quizId: 'q-2', version: 1, status: QuizVersionStatus.PUBLISHED },
+      ]);
+
+      const result = await service.getCreatorQuizzes(creatorA);
+
+      // Exactly 1 batch query for all quiz IDs on this page
+      expect(mockQuizVersionRepo.find).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].hasDraft).toBe(true);
+      expect(result.items[1].publishedVersionsCount).toBe(1);
+    });
+  });
+
+  describe('Phase 7.2 — Quiz Editing, Immutability & Version Integrity', () => {
+    const creatorUser: AuthenticatedUser = {
+      userId: 'creator-user-1',
+      email: 'creator1@example.com',
+      role: UserRole.CREATOR,
+    };
+
+    const strangerUser: AuthenticatedUser = {
+      userId: 'stranger-user-9',
+      email: 'stranger@example.com',
+      role: UserRole.CREATOR,
+    };
+
+    const draftQuiz: Quiz = {
+      id: 'quiz-p72',
+      title: 'Architectural Patterns',
+      description: 'System design questions',
+      status: QuizStatus.DRAFT,
+      creatorId: creatorUser.userId,
+      organizationId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      versions: [],
+      assignments: [],
+    };
+
+    const draftVersion: QuizVersion = {
+      id: 'ver-draft-1',
+      quizId: draftQuiz.id,
+      version: 1,
+      status: QuizVersionStatus.DRAFT,
+      timeLimitSeconds: 1200,
+      publishedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quiz: draftQuiz,
+      questions: [],
+    };
+
+    const publishedQuiz: Quiz = {
+      ...draftQuiz,
+      id: 'quiz-pub-1',
+      status: QuizStatus.PUBLISHED,
+    };
+
+    const publishedVersion: QuizVersion = {
+      ...draftVersion,
+      id: 'ver-pub-1',
+      quizId: publishedQuiz.id,
+      status: QuizVersionStatus.PUBLISHED,
+      publishedAt: new Date(),
+    };
+
+    it('7.2-1. Immutability: saveQuestionsBulk on PUBLISHED version throws BadRequestException', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(publishedQuiz);
+          if (entity === QuizVersion) return Promise.resolve(publishedVersion);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.saveQuestionsBulk(publishedQuiz.id, publishedVersion.id, { questions: [] }, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Questions can only be modified in a draft version'));
+    });
+
+    it('7.2-2. Immutability: updateQuizVersion on PUBLISHED version throws BadRequestException', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(publishedQuiz);
+          if (entity === QuizVersion) return Promise.resolve(publishedVersion);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.updateQuizVersion(publishedQuiz.id, publishedVersion.id, creatorUser, { timeLimitSeconds: 900 }),
+      ).rejects.toThrow(new BadRequestException('Settings can only be modified in a draft version'));
+    });
+
+    it('7.2-3. Version settings: updates timeLimitSeconds on DRAFT version and supports untimed (null)', async () => {
+      const draftToUpdate = { ...draftVersion };
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(draftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(draftToUpdate);
+          return Promise.resolve(null);
+        }),
+        save: vi.fn().mockImplementation((_entity, ver) => Promise.resolve(ver)),
+      };
+      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => unknown) => cb(txManager));
+
+      // 1. Update to 1800s
+      const updated1 = await service.updateQuizVersion(draftQuiz.id, draftVersion.id, creatorUser, {
+        timeLimitSeconds: 1800,
+      });
+      expect(updated1.timeLimitSeconds).toBe(1800);
+      expect(draftToUpdate.timeLimitSeconds).toBe(1800);
+
+      // 2. Remove time limit (null)
+      const updated2 = await service.updateQuizVersion(draftQuiz.id, draftVersion.id, creatorUser, {
+        timeLimitSeconds: null,
+      });
+      expect(updated2.timeLimitSeconds).toBeNull();
+      expect(draftToUpdate.timeLimitSeconds).toBeNull();
+    });
+
+    it('7.2-4. Version settings: rejects negative or zero timeLimitSeconds', async () => {
+      await expect(
+        service.updateQuizVersion(draftQuiz.id, draftVersion.id, creatorUser, { timeLimitSeconds: 0 }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.updateQuizVersion(draftQuiz.id, draftVersion.id, creatorUser, { timeLimitSeconds: -100 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('7.2-5. Publishing readiness: rejects publishing version with empty quiz title', async () => {
+      const emptyTitleQuiz = { ...draftQuiz, title: '   ' };
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(emptyTitleQuiz);
+          if (entity === QuizVersion) return Promise.resolve(draftVersion);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(emptyTitleQuiz.id, draftVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Quiz title cannot be empty'));
+    });
+
+    it('7.2-6. Publishing readiness: rejects publishing version without questions', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(draftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(draftVersion);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockResolvedValue([]),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(draftQuiz.id, draftVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Cannot publish a quiz without questions'));
+    });
+
+    it('7.2-7. Publishing readiness: rejects publishing while AI generation is PENDING or PROCESSING', async () => {
+      const inFlightGen = { id: 'gen-active-1', status: GenerationStatus.PROCESSING };
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(draftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(draftVersion);
+          if (entity === QuizQuestionGeneration) return Promise.resolve(inFlightGen);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(draftQuiz.id, draftVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Cannot publish version while AI question generation is in progress'));
+    });
+
+    it('7.2-8. Publishing readiness: rejects questions with empty text or duplicate option text', async () => {
+      const mockQuestions = [
+        { id: 'q-1', text: 'Valid question text', marks: 1, order: 1, questionType: QuestionType.SINGLE_CHOICE },
+      ];
+      const mockOptions = [
+        { id: 'opt-1', text: 'Same text', order: 1, isCorrect: true },
+        { id: 'opt-2', text: 'Same Text', order: 2, isCorrect: false },
+      ];
+
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(draftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(draftVersion);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve(mockQuestions);
+          if (entity === Option) return Promise.resolve(mockOptions);
+          return Promise.resolve([]);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(draftQuiz.id, draftVersion.id, creatorUser),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('7.2-9. Publishing readiness: successfully publishes valid draft and sets Quiz status to PUBLISHED', async () => {
+      const mockQuestions = [
+        { id: 'q-1', text: 'What is CQRS?', marks: 2, order: 1, questionType: QuestionType.SINGLE_CHOICE },
+      ];
+      const mockOptions = [
+        { id: 'opt-1', text: 'Command Query Responsibility Segregation', order: 1, isCorrect: true },
+        { id: 'opt-2', text: 'Central Query Routing System', order: 2, isCorrect: false },
+      ];
+
+      const currentQuiz = { ...draftQuiz };
+      const currentVersion = { ...draftVersion };
+
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(currentQuiz);
+          if (entity === QuizVersion) return Promise.resolve(currentVersion);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve(mockQuestions);
+          if (entity === Option) return Promise.resolve(mockOptions);
+          return Promise.resolve([]);
+        }),
+        save: vi.fn().mockImplementation((_entity, record) => Promise.resolve(record)),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      const published = await service.publishVersion(currentQuiz.id, currentVersion.id, creatorUser);
+      expect(published.status).toBe(QuizVersionStatus.PUBLISHED);
+      expect(currentQuiz.status).toBe(QuizStatus.PUBLISHED);
+      expect(currentVersion.status).toBe(QuizVersionStatus.PUBLISHED);
+      expect(currentVersion.publishedAt).toBeInstanceOf(Date);
+    });
+
+    it('7.2-10. Version branching: createNewVersion creates DRAFT v+1 with cloned questions and enforces single-draft rule', async () => {
+      const existingPublishedV1 = { ...publishedVersion, version: 1 };
+      const v1Questions = [
+        { id: 'q-v1-1', text: 'Q1 prompt', marks: 1, order: 1, questionType: QuestionType.SINGLE_CHOICE },
+      ];
+      const v1Options = [
+        { id: 'opt-v1-1', text: 'Opt A', order: 1, isCorrect: true },
+        { id: 'opt-v1-2', text: 'Opt B', order: 2, isCorrect: false },
+      ];
+
+      // 1. First invocation: creates draft v2
+      const txManagerSuccess = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) return Promise.resolve(publishedQuiz);
+          if (entity === QuizVersion && opts?.where?.status === QuizVersionStatus.DRAFT) {
+            return Promise.resolve(null);
+          }
+          if (entity === QuizVersion && opts?.where?.status === QuizVersionStatus.PUBLISHED) {
+            return Promise.resolve(existingPublishedV1);
+          }
+          return Promise.resolve(null);
+        }),
+        create: vi.fn().mockImplementation((entity, payload) => ({ id: `new-${entity.name}`, ...payload })),
+        save: vi.fn().mockImplementation((_entity, record) => Promise.resolve(record)),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve(v1Questions);
+          if (entity === Option) return Promise.resolve(v1Options);
+          return Promise.resolve([]);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManagerSuccess));
+
+      const newVer = await service.createNewVersion(publishedQuiz.id, creatorUser);
+      expect(newVer.version).toBe(2);
+      expect(newVer.status).toBe(QuizVersionStatus.DRAFT);
+
+      // 2. Second invocation: active draft exists -> rejects
+      const existingDraftV2 = { id: 'ver-draft-2', version: 2, status: QuizVersionStatus.DRAFT };
+      const txManagerDuplicate = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) return Promise.resolve(publishedQuiz);
+          if (entity === QuizVersion && opts?.where?.status === QuizVersionStatus.DRAFT) {
+            return Promise.resolve(existingDraftV2);
+          }
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManagerDuplicate));
+
+      await expect(
+        service.createNewVersion(publishedQuiz.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('A draft version already exists for this quiz'));
+    });
+
+    it('7.2-11. Discard draft: rejects discarding initial draft before published version exists', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) return Promise.resolve(draftQuiz);
+          if (entity === QuizVersion && opts?.where?.id === draftVersion.id) return Promise.resolve(draftVersion);
+          if (entity === QuizVersion && opts?.where?.status === QuizVersionStatus.PUBLISHED) return Promise.resolve(null);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.discardVersion(draftQuiz.id, draftVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('The initial draft version cannot be discarded before the quiz is published'));
+    });
+
+    it('7.2-12. Creator isolation: Stranger creator cannot edit or publish another creator draft', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) {
+            if (opts?.where?.creatorId === strangerUser.userId) return Promise.resolve(null);
+          }
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.saveQuestionsBulk(draftQuiz.id, draftVersion.id, { questions: [] }, strangerUser),
+      ).rejects.toThrow(new NotFoundException('Quiz not found'));
+
+      await expect(
+        service.updateQuizVersion(draftQuiz.id, draftVersion.id, strangerUser, { timeLimitSeconds: 600 }),
+      ).rejects.toThrow(new NotFoundException('Quiz not found'));
+
+      await expect(
+        service.publishVersion(draftQuiz.id, draftVersion.id, strangerUser),
+      ).rejects.toThrow(new NotFoundException('Quiz not found'));
     });
   });
 });

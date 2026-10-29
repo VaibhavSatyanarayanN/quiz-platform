@@ -189,7 +189,7 @@ export default function DashboardPage() {
                           </Badge>
                         </Td>
                         <Td style={{ fontSize: '0.875rem' }}>
-                          {quiz.publishedVersionsCount} version{quiz.publishedVersionsCount !== 1 ? 's' : ''}
+                          {quiz.publishedVersionsCount ?? 0} version{(quiz.publishedVersionsCount ?? 0) !== 1 ? 's' : ''}
                         </Td>
                         <Td style={{ textAlign: 'right' }}>
                           <Link to={`/quizzes/${quiz.id}`}>

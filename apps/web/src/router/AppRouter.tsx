@@ -29,15 +29,6 @@ export function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<DashboardPage />} />
 
-            {/* Creator Studio routes */}
-            <Route path="/quizzes" element={<CreatorQuizListPage />} />
-            <Route path="/quizzes/new" element={<CreateQuizPage />} />
-            <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
-            <Route
-              path="/quizzes/:quizId/ai-generations/:generationId/review"
-              element={<AiGenerationReviewPage />}
-            />
-
             {/* Quiz Taker & Attempt routes */}
             <Route
               path="/quizzes/:quizId/versions/:quizVersionId"
@@ -47,6 +38,17 @@ export function AppRouter() {
             <Route path="/quizzes/:quizId/attempts" element={<AttemptHistoryPage />} />
             <Route path="/attempts/:attemptId" element={<QuizAttemptPage />} />
             <Route path="/attempts/:attemptId/result" element={<QuizResultPage />} />
+          </Route>
+
+          {/* Creator Studio routes */}
+          <Route element={<ProtectedRoute allowedRoles={['creator', 'admin']} />}>
+            <Route path="/quizzes" element={<CreatorQuizListPage />} />
+            <Route path="/quizzes/new" element={<CreateQuizPage />} />
+            <Route path="/quizzes/:quizId" element={<CreatorQuizDetailPage />} />
+            <Route
+              path="/quizzes/:quizId/ai-generations/:generationId/review"
+              element={<AiGenerationReviewPage />}
+            />
           </Route>
 
           {/* Catch-all 404 route */}

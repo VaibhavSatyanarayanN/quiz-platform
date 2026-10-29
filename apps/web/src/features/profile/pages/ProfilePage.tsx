@@ -44,10 +44,14 @@ export default function ProfilePage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
+        (err as { message?: string })?.message ||
+        'Failed to update password.';
       setFeedback({
         type: 'danger',
-        msg: err.response?.data?.message || err.message || 'Failed to update password.',
+        msg: errorMsg,
       });
     } finally {
       setIsSubmitting(false);

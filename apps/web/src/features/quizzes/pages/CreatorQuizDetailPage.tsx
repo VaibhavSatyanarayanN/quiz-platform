@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
 import {
   useCreatorQuizDetails,
   useUpdateQuiz,
+  useUpdateQuizVersion,
   useBulkSaveQuestions,
   usePublishVersion,
   useDiscardVersion,
@@ -40,6 +41,7 @@ export default function CreatorQuizDetailPage() {
   const { data: aiGenerations = [] } = useAiGenerations(quizId ?? '');
 
   const updateQuizMutation = useUpdateQuiz();
+  const updateQuizVersionMutation = useUpdateQuizVersion();
   const bulkSaveQuestionsMutation = useBulkSaveQuestions();
   const publishVersionMutation = usePublishVersion();
   const discardVersionMutation = useDiscardVersion();
@@ -55,7 +57,13 @@ export default function CreatorQuizDetailPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
-  const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [isEditingVersionSettings, setIsEditingVersionSettings] = useState(false);
+  const [versionTimeLimitMinutes, setVersionTimeLimitMinutes] = useState('');
+
+  const [searchParams] = useSearchParams();
+  const [showAiGenerator, setShowAiGenerator] = useState(
+    () => searchParams.get('ai') === 'open' || searchParams.get('ai') === 'true',
+  );
   const [aiMode, setAiMode] = useState<'topic' | 'pdf'>('topic');
   const [aiTopic, setAiTopic] = useState('');
   const [aiCount, setAiCount] = useState(5);
@@ -77,6 +85,19 @@ export default function CreatorQuizDetailPage() {
     return quiz.versions.find((v) => v.id === selectedVersionId);
   }, [quiz, selectedVersionId]);
 
+  const existingDraftVersion = useMemo(() => {
+    return quiz?.versions?.find((v) => v.status === QuizVersionStatus.DRAFT);
+  }, [quiz]);
+
+  const inFlightAiCount = useMemo(() => {
+    if (!selectedVersionId) return 0;
+    return aiGenerations.filter(
+      (g) =>
+        g.targetVersionId === selectedVersionId &&
+        (g.status === GenerationStatus.PENDING || g.status === GenerationStatus.PROCESSING),
+    ).length;
+  }, [aiGenerations, selectedVersionId]);
+
   const draftQuestions = useMemo(() => {
     if (draftQuestionsState !== null) return draftQuestionsState;
     if (!selectedVersion?.questions) return [];
@@ -93,9 +114,80 @@ export default function CreatorQuizDetailPage() {
     }));
   }, [draftQuestionsState, selectedVersion]);
 
+  const publishingChecklist = useMemo(() => {
+    const issues: string[] = [];
+
+    if (!quiz?.title?.trim()) {
+      issues.push('Quiz title cannot be empty.');
+    }
+
+    if (draftQuestions.length === 0) {
+      issues.push('At least 1 question is required before publishing.');
+    }
+
+    draftQuestions.forEach((q, idx) => {
+      const num = idx + 1;
+      if (!q.text.trim()) {
+        issues.push(`Question ${num} prompt is empty.`);
+      }
+      if (q.marks < 1) {
+        issues.push(`Question ${num} marks must be at least 1.`);
+      }
+      if (q.questionType === QuestionType.TRUE_FALSE) {
+        if (q.options.length !== 2) {
+          issues.push(`Question ${num} (True/False) must have exactly 2 options.`);
+        }
+      } else {
+        if (q.options.length < 2) {
+          issues.push(`Question ${num} (${q.questionType}) must have at least 2 options.`);
+        }
+      }
+
+      const optTexts = new Set<string>();
+      q.options.forEach((opt, oIdx) => {
+        const oLabel = String.fromCharCode(65 + oIdx);
+        if (!opt.text.trim()) {
+          issues.push(`Question ${num}, Option ${oLabel} cannot be empty.`);
+        }
+        const norm = opt.text.trim().toLowerCase();
+        if (optTexts.has(norm)) {
+          issues.push(`Question ${num} has duplicate option text "${opt.text.trim()}".`);
+        }
+        optTexts.add(norm);
+      });
+
+      const correctCount = q.options.filter((o) => o.isCorrect).length;
+      if (q.questionType === QuestionType.SINGLE_CHOICE || q.questionType === QuestionType.TRUE_FALSE) {
+        if (correctCount !== 1) {
+          issues.push(`Question ${num} (${q.questionType}) must have exactly 1 correct answer (currently has ${correctCount}).`);
+        }
+      } else if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
+        if (correctCount < 1) {
+          issues.push(`Question ${num} (Multiple Choice) must have at least 1 correct answer.`);
+        }
+      }
+    });
+
+    if (inFlightAiCount > 0) {
+      issues.push(`${inFlightAiCount} AI generation run(s) are currently in progress.`);
+    }
+
+    return {
+      isReady: issues.length === 0,
+      issues,
+    };
+  }, [quiz?.title, draftQuestions, inFlightAiCount]);
+
   const handleSelectVersion = (vId: string) => {
+    if (draftQuestionsState !== null) {
+      const confirmSwitch = window.confirm(
+        'You have unsaved changes in this draft version. Switching versions will discard unsaved edits. Are you sure you want to proceed?',
+      );
+      if (!confirmSwitch) return;
+    }
     setSelectedVersionId(vId);
     setDraftQuestionsState(null);
+    setIsEditingVersionSettings(false);
   };
 
   const setDraftQuestions = (questions: CreateQuestionRequest[]) => {
@@ -107,6 +199,48 @@ export default function CreatorQuizDetailPage() {
     setEditTitle(quiz.title);
     setEditDescription(quiz.description || '');
     setIsEditingMeta(true);
+  };
+
+  const handleStartVersionSettingsEdit = () => {
+    setVersionTimeLimitMinutes(
+      selectedVersion?.timeLimitSeconds
+        ? String(Math.round(selectedVersion.timeLimitSeconds / 60))
+        : '',
+    );
+    setIsEditingVersionSettings(true);
+  };
+
+  const handleSaveVersionSettings = () => {
+    if (!quizId || !selectedVersionId) return;
+    setActionError(null);
+    const trimmed = versionTimeLimitMinutes.trim();
+    let timeLimitSeconds: number | null = null;
+    if (trimmed) {
+      const mins = Number(trimmed);
+      if (isNaN(mins) || mins < 1) {
+        setActionError('Time limit must be a positive integer in minutes (or leave empty for untimed).');
+        return;
+      }
+      timeLimitSeconds = Math.round(mins * 60);
+    }
+
+    updateQuizVersionMutation.mutate(
+      {
+        quizId,
+        versionId: selectedVersionId,
+        data: { timeLimitSeconds },
+      },
+      {
+        onSuccess: () => {
+          setIsEditingVersionSettings(false);
+          setSuccessBanner('Version time limit updated successfully.');
+          setTimeout(() => setSuccessBanner(null), 3500);
+        },
+        onError: (err) => {
+          setActionError(err instanceof Error ? err.message : 'Failed to update version settings.');
+        },
+      },
+    );
   };
 
   const handleSaveMeta = () => {
@@ -205,12 +339,18 @@ export default function CreatorQuizDetailPage() {
 
   const handlePublish = () => {
     if (!quizId || !selectedVersionId) return;
+    if (!publishingChecklist.isReady) {
+      setActionError(
+        `Cannot publish: please resolve all blockers first:\n• ${publishingChecklist.issues.join('\n• ')}`,
+      );
+      return;
+    }
     setActionError(null);
     publishVersionMutation.mutate(
       { quizId, versionId: selectedVersionId },
       {
         onSuccess: () => {
-          setSuccessBanner('Quiz version published live!');
+          setSuccessBanner('Quiz version published live! It is now immutable.');
           setTimeout(() => setSuccessBanner(null), 3500);
         },
         onError: (err) => {
@@ -454,7 +594,7 @@ export default function CreatorQuizDetailPage() {
       {selectedVersion && (
         <Card variant="elevated">
           <CardBody>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
                   Version {selectedVersion.version} ({selectedVersion.status})
@@ -467,6 +607,136 @@ export default function CreatorQuizDetailPage() {
                 {selectedVersion.status}
               </Badge>
             </div>
+
+            {/* Version Timing & Settings Bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                background: 'var(--color-bg-subtle, #f8fafc)',
+                border: '1px solid var(--color-border, #e2e8f0)',
+                marginBottom: '16px',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.1rem' }}>⏱️</span>
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #6b7280)', textTransform: 'uppercase' }}>
+                    Attempt Time Limit
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
+                    {selectedVersion.timeLimitSeconds
+                      ? `${Math.round(selectedVersion.timeLimitSeconds / 60)} minutes (${selectedVersion.timeLimitSeconds}s)`
+                      : 'Untimed (No time limit)'}
+                  </div>
+                </div>
+              </div>
+
+              {isDraft && !isEditingVersionSettings && (
+                <Button variant="outline" size="sm" onClick={handleStartVersionSettingsEdit}>
+                  ⚙️ Edit Time Limit
+                </Button>
+              )}
+            </div>
+
+            {/* Time Limit Edit Form */}
+            {isDraft && isEditingVersionSettings && (
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '8px',
+                  background: 'var(--color-surface, #ffffff)',
+                  border: '1px solid var(--color-border, #cbd5e1)',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                  Update Version {selectedVersion.version} Time Limit
+                </div>
+                <Input
+                  label="Time Limit in Minutes (leave empty for untimed quiz)"
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 15, or leave empty"
+                  value={versionTimeLimitMinutes}
+                  onChange={(e) => setVersionTimeLimitMinutes(e.target.value)}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditingVersionSettings(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleSaveVersionSettings}
+                    isLoading={updateQuizVersionMutation.isPending}
+                  >
+                    Save Time Limit
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Publishing Readiness Banner for Draft */}
+            {isDraft && (
+              <div style={{ marginBottom: '16px' }}>
+                {publishingChecklist.isReady ? (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      background: 'var(--color-success-bg, #f0fdf4)',
+                      border: '1px solid var(--color-success-border, #bbf7d0)',
+                      color: 'var(--color-success-text, #166534)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.9rem' }}>
+                      <strong>✓ Ready to Publish:</strong> All question and timing criteria are satisfied for version {selectedVersion.version}.
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handlePublish}
+                      isLoading={publishVersionMutation.isPending}
+                    >
+                      Publish Version Live
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      background: 'var(--color-warning-bg, #fffbeb)',
+                      border: '1px solid var(--color-warning-border, #fef3c7)',
+                      color: 'var(--color-warning-text, #92400e)',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '0.9rem' }}>
+                      ⚠️ Publishing Readiness Blockers ({publishingChecklist.issues.length})
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem' }}>
+                      {publishingChecklist.issues.map((iss) => (
+                        <li key={iss}>{iss}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {isDraft ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -772,18 +1042,65 @@ export default function CreatorQuizDetailPage() {
               </div>
             ) : (
               <div>
-                {isUuid(quizId) && isUuid(selectedVersion.id) && (
-                  <div style={{ padding: '12px 16px', borderRadius: '8px', background: 'var(--color-bg-subtle, #f8fafc)', border: '1px solid var(--color-border, #e2e8f0)', marginBottom: '16px' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Shareable Quiz Taker Link
+                {/* Published Version Immutability Notice & Actions */}
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'var(--color-bg-subtle, #f8fafc)',
+                    border: '1px solid var(--color-border, #e2e8f0)',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary, #111827)' }}>
+                        🔒 Published Version (v{selectedVersion.version}) — Read-Only & Immutable
+                      </div>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.825rem', color: 'var(--color-text-secondary, #6b7280)' }}>
+                        This version is permanently locked to preserve grading integrity for historical attempts. To edit questions or adjust timing, create a new draft version.
+                      </p>
                     </div>
-                    <code style={{ fontSize: '0.875rem', color: 'var(--brand-700, #1d4ed8)', fontWeight: 600 }}>
-                      {window.location.origin}/quizzes/{quizId}/versions/{selectedVersion.id}
-                    </code>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {existingDraftVersion ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleSelectVersion(existingDraftVersion.id)}
+                        >
+                          ✏️ Switch to Active Draft (v{existingDraftVersion.version})
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleCreateNewVersion}
+                          isLoading={createNewVersionMutation.isPending}
+                        >
+                          ➕ Create New Draft Version
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                )}
+
+                  {isUuid(quizId) && isUuid(selectedVersion.id) && (
+                    <div style={{ paddingTop: '8px', borderTop: '1px solid var(--color-border, #e2e8f0)' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+                        Shareable Quiz Taker Link
+                      </div>
+                      <code style={{ fontSize: '0.875rem', color: 'var(--brand-700, #1d4ed8)', fontWeight: 600 }}>
+                        {window.location.origin}/quizzes/{quizId}/versions/{selectedVersion.id}
+                      </code>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {selectedVersion.questions.map((q, idx) => (
+                  {(selectedVersion.questions || []).map((q, idx) => (
                     <div key={q.id} style={{ padding: '16px', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '8px', background: 'var(--color-surface, #ffffff)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                         <div style={{ fontWeight: 600, fontSize: '1rem' }}>
