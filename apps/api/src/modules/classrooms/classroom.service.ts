@@ -99,6 +99,8 @@ export class ClassroomService {
       throw new NotFoundException('Classroom not found');
     }
 
+    await this.assertCanViewClassroom(classroom, user);
+
     const teachers = await this.classroomTeacherRepository.find({
       where: { classroomId },
       relations: { teacher: true },
@@ -131,6 +133,8 @@ export class ClassroomService {
     const classroom = await this.classroomRepository.findOne({ where: { id: classroomId } });
     if (!classroom) throw new NotFoundException('Classroom not found');
 
+    await this.assertCanManageClassroom(classroom, user);
+
     const existing = await this.classroomTeacherRepository.findOne({
       where: { classroomId, teacherId },
     });
@@ -141,6 +145,11 @@ export class ClassroomService {
   }
 
   async removeTeacher(classroomId: string, teacherId: string, user: AuthenticatedUser) {
+    const classroom = await this.classroomRepository.findOne({ where: { id: classroomId } });
+    if (!classroom) throw new NotFoundException('Classroom not found');
+
+    await this.assertCanManageClassroom(classroom, user);
+
     const record = await this.classroomTeacherRepository.findOne({
       where: { classroomId, teacherId },
     });
@@ -152,6 +161,8 @@ export class ClassroomService {
   async addStudent(classroomId: string, studentId: string, user: AuthenticatedUser) {
     const classroom = await this.classroomRepository.findOne({ where: { id: classroomId } });
     if (!classroom) throw new NotFoundException('Classroom not found');
+
+    await this.assertCanManageClassroom(classroom, user);
 
     const existing = await this.classroomStudentRepository.findOne({
       where: { classroomId, studentId },
@@ -170,6 +181,11 @@ export class ClassroomService {
   }
 
   async removeStudent(classroomId: string, studentId: string, user: AuthenticatedUser) {
+    const classroom = await this.classroomRepository.findOne({ where: { id: classroomId } });
+    if (!classroom) throw new NotFoundException('Classroom not found');
+
+    await this.assertCanManageClassroom(classroom, user);
+
     const record = await this.classroomStudentRepository.findOne({
       where: { classroomId, studentId },
     });
@@ -177,5 +193,64 @@ export class ClassroomService {
     record.isActive = false;
     await this.classroomStudentRepository.save(record);
     return { message: 'Student removed from classroom' };
+  }
+
+  private async assertCanManageClassroom(classroom: Classroom, user: AuthenticatedUser): Promise<void> {
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (isPlatformAdmin || classroom.createdBy === user.userId) {
+      return;
+    }
+
+    const isTeacher = await this.classroomTeacherRepository.findOne({
+      where: { classroomId: classroom.id, teacherId: user.userId },
+    });
+    if (isTeacher) {
+      return;
+    }
+
+    const memberships = await this.organizationService.getUserMemberships(user.userId);
+    const isOrgAdmin = memberships.some(
+      (m) =>
+        m.organizationId === classroom.organizationId &&
+        (m.role === OrganizationRole.ADMIN || (m.role as string) === 'admin'),
+    );
+    if (isOrgAdmin) {
+      return;
+    }
+
+    throw new ForbiddenException('You do not have permission to manage this classroom');
+  }
+
+  private async assertCanViewClassroom(classroom: Classroom, user: AuthenticatedUser): Promise<void> {
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    if (isPlatformAdmin || classroom.createdBy === user.userId) {
+      return;
+    }
+
+    const isTeacher = await this.classroomTeacherRepository.findOne({
+      where: { classroomId: classroom.id, teacherId: user.userId },
+    });
+    if (isTeacher) {
+      return;
+    }
+
+    const isStudent = await this.classroomStudentRepository.findOne({
+      where: { classroomId: classroom.id, studentId: user.userId, isActive: true },
+    });
+    if (isStudent) {
+      return;
+    }
+
+    const memberships = await this.organizationService.getUserMemberships(user.userId);
+    const isOrgAdmin = memberships.some(
+      (m) =>
+        m.organizationId === classroom.organizationId &&
+        (m.role === OrganizationRole.ADMIN || (m.role as string) === 'admin'),
+    );
+    if (isOrgAdmin) {
+      return;
+    }
+
+    throw new ForbiddenException('You do not have permission to access this classroom');
   }
 }

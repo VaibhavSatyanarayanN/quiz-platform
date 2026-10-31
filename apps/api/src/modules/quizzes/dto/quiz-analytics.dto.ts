@@ -4,20 +4,44 @@ export class AnalyticsVersionItemDto {
   status: string;
 }
 
+export class VersionAnalyticsSummaryDto {
+  versionId: string;
+  versionNumber: number;
+  status: string;
+  totalQuestions: number;
+  totalMarks: number;
+  timeLimitSeconds: number | null;
+  totalAttempts: number;
+  submittedAttempts: number;
+  expiredAttempts: number;
+  inProgressAttempts: number;
+  avgScore: number;
+  avgPercentage: number;
+  highestPercentage: number;
+  lowestPercentage: number;
+}
+
 export class QuizAnalyticsSummaryDto {
   totalAttempts: number;
+  submittedAttempts: number;
+  expiredAttempts: number;
+  inProgressAttempts: number;
   completedAttempts: number;
-  completionRate: number; // percentage 0-100
+  completionRate: number; // submittedAttempts / totalAttempts * 100
+  finalizedRate: number; // (submittedAttempts + expiredAttempts) / totalAttempts * 100
   avgScore: number;
   avgPercentage: number;
   highestScore: number;
   lowestScore: number;
+  highestPercentage: number;
+  lowestPercentage: number;
   avgDurationSeconds: number;
   totalQuestions: number;
   totalMarks: number;
   totalCorrectAnswers: number;
   totalWrongAnswers: number;
   totalUnanswered: number;
+  publishedVersionsCount: number;
 }
 
 export class ScoreBucketDto {
@@ -53,6 +77,14 @@ export class OptionDistributionDto {
   selectionPercentage: number;
 }
 
+export class QuestionTypePerformanceDto {
+  questionType: string;
+  questionCount: number;
+  totalResponses: number;
+  correctResponses: number;
+  accuracyPercentage: number;
+}
+
 export class QuestionAnalyticsDto {
   questionId: string;
   questionText: string;
@@ -66,6 +98,8 @@ export class QuestionAnalyticsDto {
   wrongPercentage: number;
   unansweredCount: number;
   unansweredPercentage: number;
+  difficultyEstimate: 'EASY' | 'MEDIUM' | 'HARD';
+  observedAccuracy: number;
   options: OptionDistributionDto[];
 }
 
@@ -74,8 +108,11 @@ export class QuizAnalyticsResponseDto {
   quizTitle: string;
   versionId: string;
   versionNumber: number;
+  publishedVersionsCount: number;
   availableVersions: AnalyticsVersionItemDto[];
+  versionSummaries: VersionAnalyticsSummaryDto[];
   summary: QuizAnalyticsSummaryDto;
+  questionTypeBreakdown: Record<string, QuestionTypePerformanceDto>;
   scoreDistribution: ScoreDistributionDto;
   topScorers: TopScorerDto[];
   questionAnalytics: QuestionAnalyticsDto[];

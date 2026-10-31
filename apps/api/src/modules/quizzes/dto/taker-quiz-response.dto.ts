@@ -19,6 +19,7 @@ export class TakerQuestionResponseDto {
 export class TakerQuizVersionResponseDto {
   quizId: string;
   quizVersionId: string;
+  organizationId?: string | null;
 
   title: string;
   quizTitle: string;

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { randomBytes } from 'node:crypto';
+// removed unused randomBytes
 import { OrganizationService } from '../organizations/organization.service.js';
 import { UserService } from '../users/user.service.js';
 import { UserRole } from '../users/enums/user-role.enum.js';

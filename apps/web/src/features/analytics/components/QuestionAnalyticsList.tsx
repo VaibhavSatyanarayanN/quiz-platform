@@ -36,6 +36,19 @@ export const QuestionAnalyticsList: React.FC<Props> = ({ questions }) => {
                   <div className={styles.questionMeta}>
                     <Badge variant="neutral">{q.questionType.replace('_', ' ')}</Badge>
                     <Badge variant="brand">{q.marks} mark{q.marks > 1 ? 's' : ''}</Badge>
+                    {q.difficultyEstimate && (
+                      <Badge
+                        variant={
+                          q.difficultyEstimate === 'EASY'
+                            ? 'success'
+                            : q.difficultyEstimate === 'HARD'
+                              ? 'danger'
+                              : 'warning'
+                        }
+                      >
+                        {q.difficultyEstimate} ({q.observedAccuracy ?? q.correctPercentage}% accuracy)
+                      </Badge>
+                    )}
                     {isMultiple && (
                       <span className={styles.multipleNote}>
                         (Multiple selections allowed per attempt)

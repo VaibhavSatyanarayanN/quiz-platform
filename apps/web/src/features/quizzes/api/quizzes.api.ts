@@ -18,6 +18,8 @@ import type {
   UpdateGenerationReviewRequest,
   ApplyGeneratedQuestionsRequest,
   ApplyGeneratedQuestionsResponse,
+  PublishedQuizQueryParams,
+  PublishedQuizListResponse,
 } from '../types/quiz.types';
 
 export const quizzesApi = {
@@ -110,6 +112,24 @@ export const quizzesApi = {
   ): Promise<TakerQuizVersionResponse> => {
     const response = await apiClient.get<TakerQuizVersionResponse>(
       `/quizzes/${quizId}/versions/${versionId}`,
+    );
+    return response.data;
+  },
+
+  getPublishedQuizzes: async (
+    params?: PublishedQuizQueryParams,
+  ): Promise<PublishedQuizListResponse> => {
+    const response = await apiClient.get<PublishedQuizListResponse>('/quizzes/published', {
+      params,
+    });
+    return response.data;
+  },
+
+  getLatestPublishedQuizVersion: async (
+    quizId: string,
+  ): Promise<TakerQuizVersionResponse> => {
+    const response = await apiClient.get<TakerQuizVersionResponse>(
+      `/quizzes/${quizId}/published`,
     );
     return response.data;
   },

@@ -34,6 +34,14 @@ export function AppRouter() {
               path="/quizzes/:quizId/versions/:quizVersionId"
               element={<QuizPreviewPage />}
             />
+            <Route
+              path="/quizzes/:quizId/take"
+              element={<QuizPreviewPage />}
+            />
+            <Route
+              path="/quizzes/:quizId/published"
+              element={<QuizPreviewPage />}
+            />
             <Route path="/attempts" element={<AttemptHistoryPage />} />
             <Route path="/quizzes/:quizId/attempts" element={<AttemptHistoryPage />} />
             <Route path="/attempts/:attemptId" element={<QuizAttemptPage />} />

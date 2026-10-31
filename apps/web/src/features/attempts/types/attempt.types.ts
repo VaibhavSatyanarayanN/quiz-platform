@@ -128,6 +128,7 @@ export interface AttemptResultResponse {
   unansweredCount?: number;
   percentage: number | null;
   startedAt: string;
+  expiresAt?: string | null;
   submittedAt: string | null;
   timeLimitSeconds?: number | null;
   elapsedSeconds?: number | null;
@@ -149,6 +150,7 @@ export interface AttemptHistoryItem {
   unanswered: number | null;
   percentage: number | null;
   startedAt: string;
+  expiresAt?: string | null;
   submittedAt: string | null;
 }
 

@@ -30,6 +30,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js
 import { SaveAnswerDto } from './entities/save-answer.dto.js';
 import { AttemptHistoryQueryDto } from './dto/attempt-history-query.dto.js';
 import { CreatorQuizQueryDto } from './dto/creator-quiz-query.dto.js';
+import { PublishedQuizQueryDto } from './dto/published-quiz-list.dto.js';
 import { UpdateQuizDto } from './dto/update-quiz.dto.js';
 import { UpdateQuizVersionDto } from './dto/update-quiz-version.dto.js';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto.js';
@@ -115,16 +116,30 @@ export class QuizController {
     );
   }
 
-  @Post(':quizId/versions/:quizVersionId/attempts')
+  @Post([
+    ':quizId/versions/:quizVersionId/attempts',
+    ':quizId/attempts',
+  ])
   startAttempt(
     @Param('quizId') quizId: string,
-    @Param('quizVersionId') quizVersionId: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @Param('quizVersionId') quizVersionIdOrUser?: string | AuthenticatedUser,
+    @CurrentUser() userOrQuizVersionId?: AuthenticatedUser | string,
   ) {
+    let actualVersionId: string | undefined;
+    let actualUser: AuthenticatedUser;
+
+    if (typeof quizVersionIdOrUser === 'string') {
+      actualVersionId = quizVersionIdOrUser;
+      actualUser = userOrQuizVersionId as AuthenticatedUser;
+    } else {
+      actualVersionId = typeof userOrQuizVersionId === 'string' ? userOrQuizVersionId : undefined;
+      actualUser = quizVersionIdOrUser as AuthenticatedUser;
+    }
+
     return this.quizService.startAttempt(
       quizId,
-      quizVersionId,
-      user,
+      actualVersionId,
+      actualUser,
     );
   }
 
@@ -244,6 +259,14 @@ export class QuizController {
     );
   }
 
+  @Get('published')
+  getPublishedQuizzes(
+    @Query() query: PublishedQuizQueryDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.quizService.getPublishedQuizzes(query, user);
+  }
+
   @Get(':quizId')
   @Roles(UserRole.CREATOR, UserRole.ADMIN)
   getCreatorQuizDetails(
@@ -286,25 +309,41 @@ export class QuizController {
     );
   }
 
+  @Get(':quizId/published')
+  getLatestPublishedQuizVersion(
+    @Param('quizId') quizId: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.quizService.getLatestPublishedQuizVersion(quizId, user);
+  }
+
   @Get(
     ':quizId/versions/:quizVersionId',
   )
   getPublishedQuizVersion(
     @Param('quizId') quizId: string,
     @Param('quizVersionId') quizVersionId: string,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.quizService.getPublishedQuizVersion(
       quizId,
       quizVersionId,
+      user,
     );
   }
 
-  @Get(':quizId/analytics')
+  @Get([
+    ':quizId/analytics',
+    ':quizId/versions/:quizVersionId/analytics',
+  ])
+  @Roles(UserRole.CREATOR, UserRole.ADMIN)
   getQuizAnalytics(
     @Param('quizId') quizId: string,
-    @Query('versionId') versionId: string | undefined,
+    @Param('quizVersionId') pathVersionId: string | undefined,
+    @Query('versionId') queryVersionId: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const versionId = pathVersionId || queryVersionId;
     return this.quizService.getQuizAnalytics(
       quizId,
       versionId,

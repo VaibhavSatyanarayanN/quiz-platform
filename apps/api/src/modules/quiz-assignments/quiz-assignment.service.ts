@@ -11,6 +11,10 @@ import { QuizAssignmentRecipient } from './entities/quiz-assignment-recipient.en
 import { QuizVersion } from '../quizzes/entities/quiz-version.entity.js';
 import { QuizVersionStatus } from '../quizzes/enums/quiz-version-status.enum.js';
 import { ClassroomStudent } from '../classrooms/entities/classroom-student.entity.js';
+import { ClassroomTeacher } from '../classrooms/entities/classroom-teacher.entity.js';
+import { OrganizationMember } from '../organizations/entities/organization-member.entity.js';
+import { OrganizationRole } from '../organizations/enums/organization-role.enum.js';
+import { UserRole } from '../users/enums/user-role.enum.js';
 import { CreateQuizAssignmentDto } from './dto/create-assignment.dto.js';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 
@@ -32,6 +36,7 @@ export class QuizAssignmentService {
   async createAssignment(dto: CreateQuizAssignmentDto, user: AuthenticatedUser) {
     const version = await this.quizVersionRepository.findOne({
       where: { id: dto.quizVersionId, quizId: dto.quizId },
+      relations: { quiz: true },
     });
 
     if (!version) {
@@ -40,6 +45,34 @@ export class QuizAssignmentService {
 
     if (version.status !== QuizVersionStatus.PUBLISHED) {
       throw new BadRequestException('Assignments must reference a published quiz version');
+    }
+
+    const isPlatformAdmin = user.platformRole === 'platform_admin' || user.role === UserRole.ADMIN;
+    const isQuizCreator = version.quiz?.creatorId === user.userId;
+
+    if (!isPlatformAdmin && !isQuizCreator) {
+      let isAuthorized = false;
+      if (dto.classroomId) {
+        const teacherRec = await this.dataSource.getRepository(ClassroomTeacher).findOne({
+          where: { classroomId: dto.classroomId, teacherId: user.userId },
+        });
+        if (teacherRec) {
+          isAuthorized = true;
+        }
+      }
+
+      if (!isAuthorized && dto.organizationId) {
+        const member = await this.dataSource.getRepository(OrganizationMember).findOne({
+          where: { organizationId: dto.organizationId, userId: user.userId },
+        });
+        if (member && (member.role === OrganizationRole.ADMIN || (member.role as string) === 'admin')) {
+          isAuthorized = true;
+        }
+      }
+
+      if (!isAuthorized) {
+        throw new ForbiddenException('You do not have permission to assign this quiz');
+      }
     }
 
     const assignment = this.assignmentRepository.create({

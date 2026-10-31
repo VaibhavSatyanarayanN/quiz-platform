@@ -10,23 +10,54 @@ import type {
   UpdateGenerationReviewRequest,
   ApplyGeneratedQuestionsRequest,
   CreatorQuizQueryParams,
+  PublishedQuizQueryParams,
 } from '../types/quiz.types';
 
 export const quizKeys = {
   all: ['quizzes'] as const,
   lists: (params?: CreatorQuizQueryParams) => [...quizKeys.all, 'list', params] as const,
+  publishedList: (params?: PublishedQuizQueryParams) =>
+    [...quizKeys.all, 'published', params] as const,
   detail: (id: string) => [...quizKeys.all, 'detail', id] as const,
   takerVersion: (quizId: string, versionId: string) =>
     [...quizKeys.all, 'taker', quizId, versionId] as const,
+  latestPublished: (quizId: string) =>
+    [...quizKeys.all, 'latest-published', quizId] as const,
   aiGenerations: (quizId: string) => [...quizKeys.all, 'ai-generations', quizId] as const,
   aiGenerationReview: (quizId: string, generationId: string) =>
     [...quizKeys.all, 'ai-generation-review', quizId, generationId] as const,
 };
 
-export function useCreatorQuizzes(params?: CreatorQuizQueryParams) {
+export function useCreatorQuizzes(
+  params?: CreatorQuizQueryParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: quizKeys.lists(params),
     queryFn: () => quizzesApi.getCreatorQuizzes(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function usePublishedQuizzes(
+  params?: PublishedQuizQueryParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: quizKeys.publishedList(params),
+    queryFn: () => quizzesApi.getPublishedQuizzes(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useLatestPublishedQuizVersion(
+  quizId: string,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: quizKeys.latestPublished(quizId),
+    queryFn: () => quizzesApi.getLatestPublishedQuizVersion(quizId),
+    enabled: (options?.enabled ?? true) && !!quizId,
   });
 }
 

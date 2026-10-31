@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Organization } from './entities/organization.entity.js';
 import { OrganizationMember } from './entities/organization-member.entity.js';
 import { OrganizationRole } from './enums/organization-role.enum.js';
@@ -169,7 +169,7 @@ export class OrganizationService {
       const quizIds = quizzes.map((q) => q.id);
 
       const attempts = await this.dataSource.getRepository(QuizAttempt).find({
-        where: quizIds.map((id) => ({ quizId: id })),
+        where: { quizId: In(quizIds) },
       });
 
       totalAttempts = attempts.length;

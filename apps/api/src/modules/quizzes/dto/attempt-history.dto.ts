@@ -18,6 +18,7 @@ export class AttemptHistoryItemDto {
     percentage: number | null;
 
     startedAt: Date;
+    expiresAt?: Date | null;
     submittedAt: Date | null;
 }
 

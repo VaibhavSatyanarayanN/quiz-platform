@@ -202,6 +202,7 @@ export interface TakerQuestionResponse {
 export interface TakerQuizVersionResponse {
   quizId: string;
   quizVersionId: string;
+  organizationId?: string | null;
   title: string;
   quizTitle?: string;
   description: string | null;
@@ -347,4 +348,34 @@ export interface ApplyGeneratedQuestionsResponse {
   appliedQuestionIds: string[];
   applyStrategy: 'append';
   questions: ReviewQuestionItem[];
+}
+
+export interface PublishedQuizQueryParams {
+  search?: string;
+  timing?: 'all' | 'timed' | 'untimed';
+  page?: number;
+  limit?: number;
+}
+
+export interface PublishedQuizListItem {
+  id: string;
+  title: string;
+  description: string | null;
+  organizationId?: string | null;
+  latestPublishedVersionId: string;
+  latestPublishedVersionNumber: number;
+  timeLimitSeconds: number | null;
+  totalQuestions: number;
+  totalMarks: number;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
+export interface PublishedQuizListResponse {
+  items: PublishedQuizListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

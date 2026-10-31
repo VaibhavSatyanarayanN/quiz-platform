@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 import {
   QuizVersionStatus,
   QuestionType,
-  GenerationStatus,
   type CreateQuestionRequest,
 } from '../src/features/quizzes/types/quiz.types.ts';
 

@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { AuthThrottlerGuard } from './guards/auth-throttler.guard.js';
 
 import { OrganizationModule } from '../organizations/organization.module.js';
 
@@ -35,6 +36,6 @@ import { OrganizationModule } from '../organizations/organization.module.js';
 
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy]
+  providers: [AuthService, JwtStrategy, AuthThrottlerGuard]
 })
 export class AuthModule { }

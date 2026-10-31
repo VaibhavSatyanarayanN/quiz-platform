@@ -3586,4 +3586,879 @@ describe('QuizService — Phase 6.1 Quiz Attempt Lifecycle & Secure Learner APIs
       ).rejects.toThrow(new NotFoundException('Quiz not found'));
     });
   });
+
+  describe('Phase 7.3: Publishing Workflow Hardening, Lifecycle Invariants & Learner Discovery', () => {
+    const testDraftQuiz: Quiz = {
+      id: 'quiz-draft-p73',
+      title: 'Phase 7.3 Draft Quiz',
+      description: 'Test description',
+      status: QuizStatus.DRAFT,
+      creatorId: creatorUser.userId,
+      organizationId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as Quiz;
+
+    const testDraftVersion: QuizVersion = {
+      id: 'ver-draft-p73',
+      quizId: testDraftQuiz.id,
+      version: 1,
+      status: QuizVersionStatus.DRAFT,
+      publishedAt: null,
+      timeLimitSeconds: 600,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as QuizVersion;
+
+    it('7.3-1. Repeated publication returns predictable idempotent published result without re-validating or mutating', async () => {
+      const alreadyPublishedVersion = {
+        ...testDraftVersion,
+        id: 'ver-published-1',
+        version: 1,
+        status: QuizVersionStatus.PUBLISHED,
+        publishedAt: new Date('2026-10-29T10:00:00Z'),
+      };
+      const publishedQuizRecord = {
+        ...testDraftQuiz,
+        id: 'quiz-published-1',
+        status: QuizStatus.PUBLISHED,
+      };
+
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(publishedQuizRecord);
+          if (entity === QuizVersion) return Promise.resolve(alreadyPublishedVersion);
+          return Promise.resolve(null);
+        }),
+        save: vi.fn(),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      const result = await service.publishVersion(publishedQuizRecord.id, alreadyPublishedVersion.id, creatorUser);
+      expect(result.status).toBe(QuizVersionStatus.PUBLISHED);
+      expect(result.quizVersionId).toBe(alreadyPublishedVersion.id);
+      expect(result.version).toBe(1);
+      expect(result.publishedAt).toEqual(alreadyPublishedVersion.publishedAt);
+      expect(txManager.save).not.toHaveBeenCalled();
+    });
+
+    it('7.3-2. Rejects publishing an ARCHIVED version', async () => {
+      const archivedVersion = {
+        ...testDraftVersion,
+        id: 'ver-archived-1',
+        status: QuizVersionStatus.ARCHIVED,
+      };
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(testDraftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(archivedVersion);
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(testDraftQuiz.id, archivedVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Cannot publish an archived version'));
+    });
+
+    it('7.3-3. In-flight AI generation check targets only the version being published (does not block on other quizzes or completed/failed generations)', async () => {
+      const mockQuestions = [
+        { id: 'q-1', text: 'Prompt text', marks: 1, order: 1, questionType: QuestionType.SINGLE_CHOICE },
+      ];
+      const mockOptions = [
+        { id: 'opt-1', text: 'Option A', order: 1, isCorrect: true },
+        { id: 'opt-2', text: 'Option B', order: 2, isCorrect: false },
+      ];
+
+      // Query for In([PENDING, PROCESSING]) returns null (no in-flight generation for this targetVersionId)
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) return Promise.resolve({ ...testDraftQuiz });
+          if (entity === QuizVersion) return Promise.resolve({ ...testDraftVersion });
+          if (entity === QuizQuestionGeneration) {
+            // Only returns in-flight if matches target version
+            if (opts?.where?.targetVersionId === testDraftVersion.id) return Promise.resolve(null);
+          }
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve(mockQuestions);
+          if (entity === Option) return Promise.resolve(mockOptions);
+          return Promise.resolve([]);
+        }),
+        save: vi.fn().mockImplementation((_entity, record) => Promise.resolve(record)),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      const published = await service.publishVersion(testDraftQuiz.id, testDraftVersion.id, creatorUser);
+      expect(published.status).toBe(QuizVersionStatus.PUBLISHED);
+    });
+
+    it('7.3-4. Transaction safety: validation failure causes transaction to throw BadRequestException and rolls back cleanly', async () => {
+      const invalidQuestions = [
+        { id: 'q-1', text: '', marks: 1, order: 1, questionType: QuestionType.SINGLE_CHOICE }, // empty text
+      ];
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(testDraftQuiz);
+          if (entity === QuizVersion) return Promise.resolve(testDraftVersion);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve(invalidQuestions);
+          return Promise.resolve([]);
+        }),
+        save: vi.fn(),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.publishVersion(testDraftQuiz.id, testDraftVersion.id, creatorUser),
+      ).rejects.toThrow(new BadRequestException('Question 1 text cannot be empty'));
+      expect(txManager.save).not.toHaveBeenCalled();
+    });
+
+    it('7.3-5. Deterministic latest published version: getLatestPublishedQuizVersion resolves highest version number with status=PUBLISHED', async () => {
+      const pubQuiz = { id: 'quiz-pub-1', title: 'Pub Quiz', status: QuizStatus.PUBLISHED };
+      const latestVer = { id: 'ver-v2', quizId: 'quiz-pub-1', version: 2, status: QuizVersionStatus.PUBLISHED, timeLimitSeconds: 600 };
+
+      mockQuizRepo.findOne.mockResolvedValueOnce(pubQuiz);
+      mockQuizVersionRepo.findOne.mockResolvedValueOnce(latestVer);
+
+      // getPublishedQuizVersion inner calls:
+      mockQuizRepo.findOne.mockResolvedValueOnce(pubQuiz);
+      mockQuizVersionRepo.findOne.mockResolvedValueOnce(latestVer);
+      mockQuestionRepo.find.mockResolvedValueOnce([
+        { id: 'q-1', text: 'Sample Q', marks: 2, order: 1, questionType: QuestionType.SINGLE_CHOICE },
+      ]);
+      mockOptionRepo.find.mockResolvedValueOnce([
+        { id: 'opt-1', text: 'Opt 1', order: 1, isCorrect: true },
+        { id: 'opt-2', text: 'Opt 2', order: 2, isCorrect: false },
+      ]);
+
+      const result = await service.getLatestPublishedQuizVersion('quiz-pub-1');
+      expect(result.version).toBe(2);
+      expect(result.quizVersionId).toBe('ver-v2');
+      expect(result.questions[0].options[0]).not.toHaveProperty('isCorrect');
+    });
+
+    it('7.3-6. getPublishedQuizzes lists only published quizzes having published versions and omits answer keys', async () => {
+      const qbMock = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValueOnce([
+          [
+            { id: 'quiz-1', title: 'Quiz 1', description: 'Desc 1', status: QuizStatus.PUBLISHED, createdAt: new Date(), updatedAt: new Date() },
+          ],
+          1,
+        ]),
+      };
+      mockQuizRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock as any);
+
+      mockQuizVersionRepo.find.mockResolvedValueOnce([
+        { id: 'v-1', quizId: 'quiz-1', version: 1, status: QuizVersionStatus.PUBLISHED, timeLimitSeconds: 300, publishedAt: new Date() },
+      ]);
+
+      mockQuestionRepo.find.mockResolvedValueOnce([
+        { id: 'q-1', quizVersionId: 'v-1', marks: 5 },
+        { id: 'q-2', quizVersionId: 'v-1', marks: 5 },
+      ]);
+
+      const catalog = await service.getPublishedQuizzes();
+      expect(catalog.total).toBe(1);
+      expect(catalog.items).toHaveLength(1);
+      expect(catalog.items[0].latestPublishedVersionId).toBe('v-1');
+      expect(catalog.items[0].totalQuestions).toBe(2);
+      expect(catalog.items[0].totalMarks).toBe(10);
+      expect(catalog.items[0].timeLimitSeconds).toBe(300);
+    });
+
+    it('7.3-7. startAttempt with only quizId automatically resolves and binds to the active published version', async () => {
+      const activePubVersion = {
+        id: 'ver-active-pub',
+        quizId: 'quiz-1',
+        version: 2,
+        status: QuizVersionStatus.PUBLISHED,
+        timeLimitSeconds: 600,
+      };
+      const sampleQuestion = { id: 'q-1', quizVersionId: 'ver-active-pub', marks: 2, order: 1 };
+      const sampleOption = { id: 'opt-1', questionId: 'q-1', text: 'Option A', order: 1 };
+
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity, opts) => {
+          if (entity === Quiz) return Promise.resolve({ id: 'quiz-1', status: QuizStatus.PUBLISHED, organizationId: null });
+          if (entity === QuizVersion) {
+            if (opts?.where?.status === QuizVersionStatus.PUBLISHED) return Promise.resolve(activePubVersion);
+          }
+          if (entity === QuizAttempt) return Promise.resolve(null);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve([sampleQuestion]);
+          if (entity === Option) return Promise.resolve([sampleOption]);
+          return Promise.resolve([]);
+        }),
+        create: vi.fn().mockImplementation((_entity, data) => ({ id: 'new-att-uuid', ...data })),
+        save: vi.fn().mockImplementation((_entity, record) => Promise.resolve(record)),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      const attemptResult = await service.startAttempt('quiz-1', learnerA);
+      expect(attemptResult.quizVersionId).toBe('ver-active-pub');
+      expect(attemptResult.remainingTimeSeconds).toBe(600);
+    });
+
+    it('7.3-8. startAttempt rejects attempts against unpublished quizzes and draft versions', async () => {
+      const txManagerUnpublished = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve({ id: 'quiz-draft', status: QuizStatus.DRAFT });
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManagerUnpublished));
+
+      await expect(
+        service.startAttempt('quiz-draft', 'ver-1', learnerA),
+      ).rejects.toThrow(new BadRequestException('Only published quizzes can be attempted'));
+
+      const txManagerDraftVersion = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve({ id: 'quiz-pub', status: QuizStatus.PUBLISHED });
+          if (entity === QuizVersion) return Promise.resolve({ id: 'ver-draft', status: QuizVersionStatus.DRAFT, quizId: 'quiz-pub' });
+          return Promise.resolve(null);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManagerDraftVersion));
+
+      await expect(
+        service.startAttempt('quiz-pub', 'ver-draft', learnerA),
+      ).rejects.toThrow(new BadRequestException('Only published quiz versions can be attempted'));
+    });
+  });
+
+  describe('Phase 7.4 — Learner-Facing Quiz Discovery, Pre-Attempt & Tenant Isolation', () => {
+    const orgQuiz: Quiz = {
+      id: 'quiz-org-1',
+      title: 'Org Assessment',
+      description: 'Private org quiz',
+      creatorId: 'creator-uuid-1',
+      organizationId: 'org-1',
+      status: QuizStatus.PUBLISHED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Quiz;
+
+    const orgVersion: QuizVersion = {
+      id: 'ver-org-1',
+      quizId: 'quiz-org-1',
+      version: 1,
+      status: QuizVersionStatus.PUBLISHED,
+      timeLimitSeconds: 1200,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      publishedAt: new Date(),
+    } as QuizVersion;
+
+    const activeOrgAssignment: QuizAssignment = {
+      id: 'assign-org-1',
+      quizId: 'quiz-org-1',
+      quizVersionId: 'ver-org-1',
+      organizationId: 'org-1',
+      isActive: true,
+      startsAt: null,
+      dueAt: null,
+    } as QuizAssignment;
+
+    it('7.4-1. getPublishedQuizzes filters by timing (timed vs untimed)', async () => {
+      const qbMock = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([
+          [
+            { id: 'quiz-timed', title: 'Timed Quiz', description: 'Timed', status: QuizStatus.PUBLISHED, createdAt: new Date(), updatedAt: new Date() },
+            { id: 'quiz-untimed', title: 'Untimed Quiz', description: 'Untimed', status: QuizStatus.PUBLISHED, createdAt: new Date(), updatedAt: new Date() },
+          ],
+          2,
+        ]),
+      };
+      mockQuizRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock as any);
+
+      mockQuizVersionRepo.find.mockResolvedValue([
+        { id: 'v-timed', quizId: 'quiz-timed', version: 1, status: QuizVersionStatus.PUBLISHED, timeLimitSeconds: 600, publishedAt: new Date() },
+        { id: 'v-untimed', quizId: 'quiz-untimed', version: 1, status: QuizVersionStatus.PUBLISHED, timeLimitSeconds: null, publishedAt: new Date() },
+      ]);
+
+      mockQuestionRepo.find.mockResolvedValue([
+        { id: 'q-1', quizVersionId: 'v-timed', marks: 5 },
+        { id: 'q-2', quizVersionId: 'v-untimed', marks: 10 },
+      ]);
+
+      const timedCatalog = await service.getPublishedQuizzes({ timing: 'timed' }, learnerA);
+      expect(timedCatalog.items).toHaveLength(1);
+      expect(timedCatalog.items[0].id).toBe('quiz-timed');
+      expect(timedCatalog.items[0].timeLimitSeconds).toBe(600);
+
+      const untimedCatalog = await service.getPublishedQuizzes({ timing: 'untimed' }, learnerA);
+      expect(untimedCatalog.items).toHaveLength(1);
+      expect(untimedCatalog.items[0].id).toBe('quiz-untimed');
+      expect(untimedCatalog.items[0].timeLimitSeconds).toBeNull();
+    });
+
+    it('7.4-2. getPublishedQuizVersion rejects unassigned learner for organization-owned quiz', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(orgQuiz);
+      mockQuizVersionRepo.findOne.mockResolvedValue(orgVersion);
+
+      const mockAssignmentRepo = {
+        find: vi.fn().mockResolvedValue([activeOrgAssignment]),
+      };
+      const mockRecipientRepo = {
+        find: vi.fn().mockResolvedValue([]), // learnerA is NOT in recipients
+      };
+
+      mockDataSource.getRepository = vi.fn().mockImplementation((entity) => {
+        if (entity === QuizAssignment) return mockAssignmentRepo;
+        if (entity === QuizAssignmentRecipient) return mockRecipientRepo;
+        return {};
+      });
+
+      await expect(
+        service.getPublishedQuizVersion('quiz-org-1', 'ver-org-1', learnerA),
+      ).rejects.toThrow(new ForbiddenException('You are not assigned to take this quiz'));
+    });
+
+    it('7.4-3. getPublishedQuizVersion permits assigned learner, admin, and quiz creator', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(orgQuiz);
+      mockQuizVersionRepo.findOne.mockResolvedValue(orgVersion);
+      mockQuestionRepo.find.mockResolvedValue([
+        { id: 'q-org-1', quizVersionId: 'ver-org-1', marks: 5, questionType: QuestionType.SINGLE_CHOICE, order: 1 },
+      ]);
+      mockOptionRepo.find.mockResolvedValue([
+        { id: 'opt-1', questionId: 'q-org-1', text: 'Option A', isCorrect: true, order: 1 },
+      ]);
+
+      const mockAssignmentRepo = {
+        find: vi.fn().mockResolvedValue([activeOrgAssignment]),
+      };
+      const mockRecipientRepo = {
+        find: vi.fn().mockResolvedValue([{ assignmentId: 'assign-org-1', studentId: learnerA.userId }]),
+      };
+
+      mockDataSource.getRepository = vi.fn().mockImplementation((entity) => {
+        if (entity === QuizAssignment) return mockAssignmentRepo;
+        if (entity === QuizAssignmentRecipient) return mockRecipientRepo;
+        return {};
+      });
+
+      // 1. Assigned learner
+      const learnerResult = await service.getPublishedQuizVersion('quiz-org-1', 'ver-org-1', learnerA);
+      expect(learnerResult.quizId).toBe('quiz-org-1');
+      expect(learnerResult.organizationId).toBe('org-1');
+      expect((learnerResult.questions[0].options[0] as any).isCorrect).toBeUndefined();
+
+      // 2. Creator
+      const creatorResult = await service.getPublishedQuizVersion('quiz-org-1', 'ver-org-1', {
+        userId: 'creator-uuid-1',
+        role: UserRole.CREATOR,
+        email: 'creator@test.com',
+      });
+      expect(creatorResult.quizId).toBe('quiz-org-1');
+
+      // 3. Admin
+      const adminResult = await service.getPublishedQuizVersion('quiz-org-1', 'ver-org-1', {
+        userId: 'admin-uuid-1',
+        role: UserRole.ADMIN,
+        email: 'admin@test.com',
+      });
+      expect(adminResult.quizId).toBe('quiz-org-1');
+    });
+
+    it('7.4-4. startAttempt rejects unassigned learner when no assignments exist for org quiz', async () => {
+      const txManager = {
+        findOne: vi.fn().mockImplementation((entity) => {
+          if (entity === Quiz) return Promise.resolve(orgQuiz);
+          if (entity === QuizVersion) return Promise.resolve(orgVersion);
+          return Promise.resolve(null);
+        }),
+        find: vi.fn().mockImplementation((entity) => {
+          if (entity === Question) return Promise.resolve([{ id: 'q-1', marks: 1, order: 1 }]);
+          if (entity === QuizAssignment) return Promise.resolve([]); // zero assignments
+          return Promise.resolve([]);
+        }),
+      };
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (m: any) => unknown) => cb(txManager));
+
+      await expect(
+        service.startAttempt('quiz-org-1', 'ver-org-1', learnerA),
+      ).rejects.toThrow(new ForbiddenException('You are not assigned to take this quiz'));
+    });
+  });
+
+  describe('Phase 7.5 — Creator Analytics & Performance Insights', () => {
+    const creatorA: AuthenticatedUser = {
+      userId: 'creator-a-id',
+      email: 'creator.a@example.com',
+      role: UserRole.CREATOR,
+    };
+    const creatorB: AuthenticatedUser = {
+      userId: 'creator-b-id',
+      email: 'creator.b@example.com',
+      role: UserRole.CREATOR,
+    };
+    const adminUser: AuthenticatedUser = {
+      userId: 'admin-id',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+    };
+    const learnerUser: AuthenticatedUser = {
+      userId: 'learner-id',
+      email: 'learner@example.com',
+      role: UserRole.TAKER,
+    };
+
+    const testQuiz: Quiz = {
+      id: 'quiz-analytics-1',
+      title: 'Analytics Test Quiz',
+      creatorId: creatorA.userId,
+      organizationId: null,
+      status: QuizStatus.PUBLISHED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Quiz;
+
+    const version1: QuizVersion = {
+      id: 'ver-1',
+      quizId: testQuiz.id,
+      version: 1,
+      status: QuizVersionStatus.PUBLISHED,
+      timeLimitSeconds: 600,
+      createdAt: new Date('2026-01-01T10:00:00Z'),
+      updatedAt: new Date('2026-01-01T10:00:00Z'),
+      publishedAt: new Date('2026-01-01T10:00:00Z'),
+    } as QuizVersion;
+
+    const version2: QuizVersion = {
+      id: 'ver-2',
+      quizId: testQuiz.id,
+      version: 2,
+      status: QuizVersionStatus.DRAFT,
+      timeLimitSeconds: 900,
+      createdAt: new Date('2026-01-02T10:00:00Z'),
+      updatedAt: new Date('2026-01-02T10:00:00Z'),
+      publishedAt: null,
+    } as QuizVersion;
+
+    const q1: Question = {
+      id: 'q-mcq-1',
+      quizVersionId: version1.id,
+      text: 'Select the primary colors',
+      questionType: QuestionType.MULTIPLE_CHOICE,
+      order: 1,
+      marks: 3,
+      options: [
+        { id: 'opt-red', questionId: 'q-mcq-1', text: 'Red', isCorrect: true, order: 1 } as Option,
+        { id: 'opt-blue', questionId: 'q-mcq-1', text: 'Blue', isCorrect: true, order: 2 } as Option,
+        { id: 'opt-green', questionId: 'q-mcq-1', text: 'Green', isCorrect: false, order: 3 } as Option,
+      ],
+    } as Question;
+
+    const q2: Question = {
+      id: 'q-sc-2',
+      quizVersionId: version1.id,
+      text: 'What is 2 + 2?',
+      questionType: QuestionType.SINGLE_CHOICE,
+      order: 2,
+      marks: 2,
+      options: [
+        { id: 'opt-4', questionId: 'q-sc-2', text: '4', isCorrect: true, order: 1 } as Option,
+        { id: 'opt-5', questionId: 'q-sc-2', text: '5', isCorrect: false, order: 2 } as Option,
+      ],
+    } as Question;
+
+    const q3: Question = {
+      id: 'q-tf-3',
+      quizVersionId: version1.id,
+      text: 'Earth is flat',
+      questionType: QuestionType.TRUE_FALSE,
+      order: 3,
+      marks: 1,
+      options: [
+        { id: 'opt-t', questionId: 'q-tf-3', text: 'True', isCorrect: false, order: 1 } as Option,
+        { id: 'opt-f', questionId: 'q-tf-3', text: 'False', isCorrect: true, order: 2 } as Option,
+      ],
+    } as Question;
+
+    const allQ1 = [q1, q2, q3];
+
+    it('7.5-1. Creator viewing their own quiz analytics succeeds and returns complete KPIs and metrics', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version2, version1]);
+
+      const attemptA: QuizAttempt = {
+        id: 'att-a',
+        quizVersionId: version1.id,
+        userId: 'user-alice',
+        status: AttemptStatus.SUBMITTED,
+        score: 6,
+        percentage: 100,
+        correctAnswers: 3,
+        wrongAnswers: 0,
+        unanswered: 0,
+        startedAt: new Date('2026-01-01T10:00:00Z'),
+        submittedAt: new Date('2026-01-01T10:05:00Z'), // 300s
+        expiresAt: new Date('2026-01-01T10:10:00Z'),
+        user: { id: 'user-alice', username: 'alice', email: 'alice@example.com' },
+      } as any;
+
+      const attemptB: QuizAttempt = {
+        id: 'att-b',
+        quizVersionId: version1.id,
+        userId: 'user-bob',
+        status: AttemptStatus.EXPIRED,
+        score: 2,
+        percentage: 40,
+        correctAnswers: 1,
+        wrongAnswers: 1,
+        unanswered: 1,
+        startedAt: new Date('2026-01-01T10:00:00Z'),
+        submittedAt: new Date('2026-01-01T10:10:00Z'),
+        expiresAt: new Date('2026-01-01T10:10:00Z'), // 600s
+        user: { id: 'user-bob', username: 'bob', email: 'bob@example.com' },
+      } as any;
+
+      const attemptC: QuizAttempt = {
+        id: 'att-c',
+        quizVersionId: version1.id,
+        userId: 'user-charlie',
+        status: AttemptStatus.IN_PROGRESS,
+        score: null,
+        percentage: null,
+        startedAt: new Date(),
+        submittedAt: null,
+        expiresAt: new Date(Date.now() + 600000),
+      } as any;
+
+      const attemptsVer2: QuizAttempt = {
+        id: 'att-v2-1',
+        quizVersionId: version2.id,
+        userId: 'user-david',
+        status: AttemptStatus.SUBMITTED,
+        score: 10,
+        percentage: 100,
+      } as any;
+
+      mockQuizAttemptRepo.find.mockImplementation(async (opts?: any) => {
+        if (opts?.relations?.user) {
+          return [attemptA, attemptB, attemptC];
+        }
+        return [attemptA, attemptB, attemptC, attemptsVer2];
+      });
+
+      mockQuestionRepo.find.mockImplementation(async (opts?: any) => {
+        if (opts?.relations?.options) {
+          return allQ1;
+        }
+        return allQ1;
+      });
+
+      // Answers and answer options for question analytics
+      const answers: Answer[] = [
+        // Alice answered all 3 correctly
+        { id: 'ans-a1', attemptId: 'att-a', questionId: 'q-mcq-1' } as Answer,
+        { id: 'ans-a2', attemptId: 'att-a', questionId: 'q-sc-2' } as Answer,
+        { id: 'ans-a3', attemptId: 'att-a', questionId: 'q-tf-3' } as Answer,
+        // Bob answered q2 correctly, q1 wrong, q3 unanswered
+        { id: 'ans-b1', attemptId: 'att-b', questionId: 'q-mcq-1' } as Answer,
+        { id: 'ans-b2', attemptId: 'att-b', questionId: 'q-sc-2' } as Answer,
+      ];
+
+      const answerOptions: AnswerOption[] = [
+        // Alice selected red and blue for q1
+        { id: 'ao-a1-1', answerId: 'ans-a1', optionId: 'opt-red' } as AnswerOption,
+        { id: 'ao-a1-2', answerId: 'ans-a1', optionId: 'opt-blue' } as AnswerOption,
+        { id: 'ao-a2', answerId: 'ans-a2', optionId: 'opt-4' } as AnswerOption,
+        { id: 'ao-a3', answerId: 'ans-a3', optionId: 'opt-f' } as AnswerOption,
+        // Bob selected only red for q1 (partial -> wrong under all-or-nothing)
+        { id: 'ao-b1', answerId: 'ans-b1', optionId: 'opt-red' } as AnswerOption,
+        { id: 'ao-b2', answerId: 'ans-b2', optionId: 'opt-4' } as AnswerOption,
+      ];
+
+      mockDataSource.getRepository = vi.fn().mockImplementation((entity) => {
+        if (entity === Answer) return { find: vi.fn().mockResolvedValue(answers) };
+        if (entity === AnswerOption) return { find: vi.fn().mockResolvedValue(answerOptions) };
+        return {};
+      });
+
+      const res = await service.getQuizAnalytics(testQuiz.id, undefined, creatorA);
+
+      expect(res.quizId).toBe(testQuiz.id);
+      expect(res.versionId).toBe(version1.id); // Defaults to published version
+      expect(res.publishedVersionsCount).toBe(1);
+      expect(res.availableVersions).toHaveLength(2);
+
+      // Summary KPIs
+      expect(res.summary.totalAttempts).toBe(3);
+      expect(res.summary.submittedAttempts).toBe(1);
+      expect(res.summary.expiredAttempts).toBe(1);
+      expect(res.summary.inProgressAttempts).toBe(1);
+      expect(res.summary.completedAttempts).toBe(2);
+      expect(res.summary.completionRate).toBe(33.33); // 1 / 3
+      expect(res.summary.finalizedRate).toBe(66.67); // 2 / 3
+      expect(res.summary.avgScore).toBe(4); // (6 + 2) / 2
+      expect(res.summary.avgPercentage).toBe(70); // (100 + 40) / 2
+      expect(res.summary.highestScore).toBe(6);
+      expect(res.summary.lowestScore).toBe(2);
+      expect(res.summary.avgDurationSeconds).toBe(450); // (300 + 600) / 2
+      expect(res.summary.totalQuestions).toBe(3);
+      expect(res.summary.totalMarks).toBe(6);
+
+      // Version summaries
+      expect(res.versionSummaries).toHaveLength(2);
+      const v1Summary = res.versionSummaries.find((v) => v.versionId === version1.id);
+      expect(v1Summary?.totalAttempts).toBe(3);
+      expect(v1Summary?.submittedAttempts).toBe(1);
+      expect(v1Summary?.expiredAttempts).toBe(1);
+
+      // Top Scorers with privacy-masked emails
+      expect(res.topScorers).toHaveLength(2);
+      expect(res.topScorers[0].username).toBe('alice');
+      expect(res.topScorers[0].email).toBe('al***@example.com');
+      expect(res.topScorers[0].score).toBe(6);
+      expect(res.topScorers[1].username).toBe('bob');
+      expect(res.topScorers[1].email).toBe('bo***@example.com');
+
+      // Question Analytics with all-or-nothing check and defensible difficulty
+      expect(res.questionAnalytics).toHaveLength(3);
+      const qMcq = res.questionAnalytics.find((q) => q.questionId === 'q-mcq-1');
+      expect(qMcq?.attemptCount).toBe(2);
+      expect(qMcq?.correctCount).toBe(1); // Alice only; Bob's partial selection is wrong
+      expect(qMcq?.wrongCount).toBe(1);
+      expect(qMcq?.unansweredCount).toBe(0);
+      expect(qMcq?.correctPercentage).toBe(50);
+      expect(qMcq?.difficultyEstimate).toBe('MEDIUM'); // 50% is between 40 and 75
+
+      const qSc = res.questionAnalytics.find((q) => q.questionId === 'q-sc-2');
+      expect(qSc?.correctCount).toBe(2); // Alice and Bob
+      expect(qSc?.correctPercentage).toBe(100);
+      expect(qSc?.difficultyEstimate).toBe('EASY'); // 100% >= 75
+
+      const qTf = res.questionAnalytics.find((q) => q.questionId === 'q-tf-3');
+      expect(qTf?.correctCount).toBe(1);
+      expect(qTf?.unansweredCount).toBe(1); // Bob didn't answer
+
+      // Question Type Breakdown
+      expect(res.questionTypeBreakdown[QuestionType.MULTIPLE_CHOICE]).toBeDefined();
+      expect(res.questionTypeBreakdown[QuestionType.MULTIPLE_CHOICE].questionCount).toBe(1);
+      expect(res.questionTypeBreakdown[QuestionType.SINGLE_CHOICE].questionCount).toBe(1);
+      expect(res.questionTypeBreakdown[QuestionType.TRUE_FALSE].questionCount).toBe(1);
+    });
+
+    it('7.5-2. Cross-creator access is forbidden (Creator B cannot inspect Creator A quiz)', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+
+      await expect(
+        service.getQuizAnalytics(testQuiz.id, undefined, creatorB),
+      ).rejects.toThrow(new ForbiddenException('You do not have permission to view analytics for this quiz'));
+    });
+
+    it('7.5-3. Learner access is forbidden', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+
+      await expect(
+        service.getQuizAnalytics(testQuiz.id, undefined, learnerUser),
+      ).rejects.toThrow(new ForbiddenException('You do not have permission to view analytics for this quiz'));
+    });
+
+    it('7.5-4. Admin can view analytics for any creator quiz', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+      mockQuizAttemptRepo.find.mockResolvedValue([]);
+      mockQuestionRepo.find.mockResolvedValue([]);
+
+      const res = await service.getQuizAnalytics(testQuiz.id, undefined, adminUser);
+      expect(res.quizId).toBe(testQuiz.id);
+    });
+
+    it('7.5-5. Non-existent quiz throws NotFoundException', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getQuizAnalytics('non-existent-quiz', undefined, creatorA),
+      ).rejects.toThrow(new NotFoundException('Quiz not found'));
+    });
+
+    it('7.5-6. Non-existent versionId throws NotFoundException', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+
+      await expect(
+        service.getQuizAnalytics(testQuiz.id, 'missing-version-id', creatorA),
+      ).rejects.toThrow(new NotFoundException('Quiz version not found'));
+    });
+
+    it('7.5-7. Zero attempts handles division-by-zero safely and returns 0 metrics', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+      mockQuizAttemptRepo.find.mockResolvedValue([]);
+      mockQuestionRepo.find.mockResolvedValue(allQ1);
+
+      const res = await service.getQuizAnalytics(testQuiz.id, undefined, creatorA);
+
+      expect(res.summary.totalAttempts).toBe(0);
+      expect(res.summary.submittedAttempts).toBe(0);
+      expect(res.summary.completedAttempts).toBe(0);
+      expect(res.summary.completionRate).toBe(0);
+      expect(res.summary.finalizedRate).toBe(0);
+      expect(res.summary.avgScore).toBe(0);
+      expect(res.summary.avgPercentage).toBe(0);
+      expect(res.summary.highestScore).toBe(0);
+      expect(res.summary.lowestScore).toBe(0);
+      expect(res.topScorers).toEqual([]);
+
+      for (const qa of res.questionAnalytics) {
+        expect(qa.attemptCount).toBe(0);
+        expect(qa.correctCount).toBe(0);
+        expect(qa.correctPercentage).toBe(0);
+        expect(qa.difficultyEstimate).toBe('MEDIUM');
+        expect(qa.observedAccuracy).toBe(0);
+      }
+    });
+
+    it('7.5-8. Handles null or undefined scores safely without crashing', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+
+      const attemptNullScore: QuizAttempt = {
+        id: 'att-null',
+        quizVersionId: version1.id,
+        userId: 'user-null',
+        status: AttemptStatus.SUBMITTED,
+        score: null,
+        percentage: null,
+        startedAt: new Date(),
+        submittedAt: new Date(),
+      } as any;
+
+      mockQuizAttemptRepo.find.mockImplementation(async (opts?: any) => {
+        if (opts?.relations?.user) return [attemptNullScore];
+        return [attemptNullScore];
+      });
+      mockQuestionRepo.find.mockResolvedValue(allQ1);
+
+      mockDataSource.getRepository = vi.fn().mockImplementation((entity) => {
+        if (entity === Answer) return { find: vi.fn().mockResolvedValue([]) };
+        if (entity === AnswerOption) return { find: vi.fn().mockResolvedValue([]) };
+        return {};
+      });
+
+      const res = await service.getQuizAnalytics(testQuiz.id, undefined, creatorA);
+      expect(res.summary.totalAttempts).toBe(1);
+      expect(res.summary.submittedAttempts).toBe(1);
+      expect(res.summary.avgScore).toBe(0);
+      expect(res.summary.avgPercentage).toBe(0);
+    });
+
+    it('7.5-9. Correctly categorizes difficulty estimate: HARD (<40%), MEDIUM (40-74%), EASY (>=75%)', async () => {
+      mockQuizRepo.findOne.mockResolvedValue(testQuiz);
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+
+      // 4 completed attempts
+      const attempts = [1, 2, 3, 4].map(
+        (i) =>
+          ({
+            id: `att-${i}`,
+            quizVersionId: version1.id,
+            status: AttemptStatus.SUBMITTED,
+            score: 5,
+            percentage: 80,
+            startedAt: new Date(),
+            submittedAt: new Date(),
+          }) as any,
+      );
+
+      mockQuizAttemptRepo.find.mockImplementation(async (opts?: any) => {
+        if (opts?.relations?.user) return attempts;
+        return attempts;
+      });
+
+      mockQuestionRepo.find.mockResolvedValue(allQ1);
+
+      // Answers:
+      // q1: 1 out of 4 correct = 25% -> HARD
+      // q2: 2 out of 4 correct = 50% -> MEDIUM
+      // q3: 3 out of 4 correct = 75% -> EASY
+      const answers: Answer[] = [
+        // q1: only att-1 correct
+        { id: 'ans-1-1', attemptId: 'att-1', questionId: 'q-mcq-1' } as Answer,
+        // q2: att-1 and att-2 correct
+        { id: 'ans-2-1', attemptId: 'att-1', questionId: 'q-sc-2' } as Answer,
+        { id: 'ans-2-2', attemptId: 'att-2', questionId: 'q-sc-2' } as Answer,
+        // q3: att-1, att-2, att-3 correct
+        { id: 'ans-3-1', attemptId: 'att-1', questionId: 'q-tf-3' } as Answer,
+        { id: 'ans-3-2', attemptId: 'att-2', questionId: 'q-tf-3' } as Answer,
+        { id: 'ans-3-3', attemptId: 'att-3', questionId: 'q-tf-3' } as Answer,
+      ];
+
+      const answerOptions: AnswerOption[] = [
+        { id: 'ao-1-1a', answerId: 'ans-1-1', optionId: 'opt-red' } as AnswerOption,
+        { id: 'ao-1-1b', answerId: 'ans-1-1', optionId: 'opt-blue' } as AnswerOption,
+        { id: 'ao-2-1', answerId: 'ans-2-1', optionId: 'opt-4' } as AnswerOption,
+        { id: 'ao-2-2', answerId: 'ans-2-2', optionId: 'opt-4' } as AnswerOption,
+        { id: 'ao-3-1', answerId: 'ans-3-1', optionId: 'opt-f' } as AnswerOption,
+        { id: 'ao-3-2', answerId: 'ans-3-2', optionId: 'opt-f' } as AnswerOption,
+        { id: 'ao-3-3', answerId: 'ans-3-3', optionId: 'opt-f' } as AnswerOption,
+      ];
+
+      mockDataSource.getRepository = vi.fn().mockImplementation((entity) => {
+        if (entity === Answer) return { find: vi.fn().mockResolvedValue(answers) };
+        if (entity === AnswerOption) return { find: vi.fn().mockResolvedValue(answerOptions) };
+        return {};
+      });
+
+      const res = await service.getQuizAnalytics(testQuiz.id, undefined, creatorA);
+
+      const qa1 = res.questionAnalytics.find((q) => q.questionId === 'q-mcq-1');
+      expect(qa1?.correctPercentage).toBe(25);
+      expect(qa1?.difficultyEstimate).toBe('HARD');
+
+      const qa2 = res.questionAnalytics.find((q) => q.questionId === 'q-sc-2');
+      expect(qa2?.correctPercentage).toBe(50);
+      expect(qa2?.difficultyEstimate).toBe('MEDIUM');
+
+      const qa3 = res.questionAnalytics.find((q) => q.questionId === 'q-tf-3');
+      expect(qa3?.correctPercentage).toBe(75);
+      expect(qa3?.difficultyEstimate).toBe('EASY');
+    });
+
+    it('7.5-10. Enforces organization tenant membership for organization-owned quizzes', async () => {
+      const orgQuiz = { ...testQuiz, organizationId: 'org-tenant-1' } as Quiz;
+      mockQuizRepo.findOne.mockResolvedValue(orgQuiz);
+
+      const orgService = (service as any).organizationService;
+      orgService.getPrimaryMembership = vi.fn().mockResolvedValue({
+        organizationId: 'other-org-id', // Mismatch!
+      });
+
+      await expect(
+        service.getQuizAnalytics(orgQuiz.id, undefined, creatorA),
+      ).rejects.toThrow(new ForbiddenException('You do not have permission to view analytics for this organization quiz'));
+
+      // Same organization passes
+      orgService.getPrimaryMembership.mockResolvedValue({
+        organizationId: 'org-tenant-1',
+      });
+      mockQuizVersionRepo.find.mockResolvedValue([version1]);
+      mockQuizAttemptRepo.find.mockResolvedValue([]);
+      mockQuestionRepo.find.mockResolvedValue([]);
+
+      const allowedRes = await service.getQuizAnalytics(orgQuiz.id, undefined, creatorA);
+      expect(allowedRes.quizId).toBe(orgQuiz.id);
+    });
+  });
 });

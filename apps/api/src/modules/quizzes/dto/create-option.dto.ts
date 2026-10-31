@@ -1,11 +1,11 @@
 import {
   IsBoolean,
-  IsInt,
+// IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Length,
-  Min,
+// Min,
 } from 'class-validator';
 
 export class CreateOptionDto {

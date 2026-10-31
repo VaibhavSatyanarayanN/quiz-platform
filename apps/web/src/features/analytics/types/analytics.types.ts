@@ -4,20 +4,52 @@ export interface AnalyticsVersionItem {
   status: string;
 }
 
+export interface VersionAnalyticsSummary {
+  versionId: string;
+  versionNumber: number;
+  status: string;
+  totalQuestions: number;
+  totalMarks: number;
+  timeLimitSeconds: number | null;
+  totalAttempts: number;
+  submittedAttempts: number;
+  expiredAttempts: number;
+  inProgressAttempts: number;
+  avgScore: number;
+  avgPercentage: number;
+  highestPercentage: number;
+  lowestPercentage: number;
+}
+
+export interface QuestionTypePerformance {
+  questionType: string;
+  questionCount: number;
+  totalResponses: number;
+  correctResponses: number;
+  accuracyPercentage: number;
+}
+
 export interface QuizAnalyticsSummary {
   totalAttempts: number;
+  submittedAttempts: number;
+  expiredAttempts: number;
+  inProgressAttempts: number;
   completedAttempts: number;
   completionRate: number;
+  finalizedRate: number;
   avgScore: number;
   avgPercentage: number;
   highestScore: number;
   lowestScore: number;
+  highestPercentage: number;
+  lowestPercentage: number;
   avgDurationSeconds: number;
   totalQuestions: number;
   totalMarks: number;
   totalCorrectAnswers: number;
   totalWrongAnswers: number;
   totalUnanswered: number;
+  publishedVersionsCount: number;
 }
 
 export interface ScoreBucket {
@@ -66,6 +98,8 @@ export interface QuestionAnalytics {
   wrongPercentage: number;
   unansweredCount: number;
   unansweredPercentage: number;
+  difficultyEstimate: 'EASY' | 'MEDIUM' | 'HARD';
+  observedAccuracy: number;
   options: OptionDistribution[];
 }
 
@@ -74,8 +108,11 @@ export interface QuizAnalyticsResponse {
   quizTitle: string;
   versionId: string;
   versionNumber: number;
+  publishedVersionsCount: number;
   availableVersions: AnalyticsVersionItem[];
+  versionSummaries?: VersionAnalyticsSummary[];
   summary: QuizAnalyticsSummary;
+  questionTypeBreakdown?: Record<string, QuestionTypePerformance>;
   scoreDistribution: ScoreDistribution;
   topScorers: TopScorer[];
   questionAnalytics: QuestionAnalytics[];

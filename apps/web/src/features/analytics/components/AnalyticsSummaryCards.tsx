@@ -18,17 +18,24 @@ function formatDuration(seconds: number): string {
 }
 
 export const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
+  const submitted = summary.submittedAttempts ?? summary.completedAttempts;
+  const expired = summary.expiredAttempts ?? 0;
+  const inProgress = summary.inProgressAttempts ?? Math.max(0, summary.totalAttempts - summary.completedAttempts);
+  const finalized = summary.completedAttempts;
+  const finalizedPct = summary.finalizedRate ?? (summary.totalAttempts > 0 ? Math.round((finalized / summary.totalAttempts) * 100) : 0);
+  const completionPct = summary.completionRate ?? (summary.totalAttempts > 0 ? Math.round((submitted / summary.totalAttempts) * 100) : 0);
+
   return (
     <div className={styles.kpiGrid}>
       <Card variant="outlined">
         <CardBody className={styles.kpiCardBody}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Total Attempts</span>
-            <Badge variant="brand">{summary.completionRate}% Completed</Badge>
+            <Badge variant="brand">{finalizedPct}% Finalized</Badge>
           </div>
           <div className={styles.kpiValue}>{summary.totalAttempts}</div>
           <div className={styles.kpiSubtext}>
-            {summary.completedAttempts} completed, {summary.totalAttempts - summary.completedAttempts} in progress
+            {submitted} submitted ({completionPct}%), {expired} expired, {inProgress} in progress
           </div>
         </CardBody>
       </Card>
@@ -45,7 +52,7 @@ export const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
             {summary.avgScore} <span className={styles.kpiUnit}>/ {summary.totalMarks} pts</span>
           </div>
           <div className={styles.kpiSubtext}>
-            Across all completed attempts
+            Across all {finalized} finalized attempt{finalized !== 1 ? 's' : ''}
           </div>
         </CardBody>
       </Card>
@@ -54,13 +61,15 @@ export const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
         <CardBody className={styles.kpiCardBody}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Score Range</span>
-            <Badge variant="neutral">Highest & Lowest</Badge>
+            <Badge variant="neutral">
+              {summary.lowestPercentage ?? 0}% – {summary.highestPercentage ?? 0}%
+            </Badge>
           </div>
           <div className={styles.kpiValue}>
             {summary.highestScore} <span className={styles.kpiUnit}>High</span> / {summary.lowestScore} <span className={styles.kpiUnit}>Low</span>
           </div>
           <div className={styles.kpiSubtext}>
-            Total questions: {summary.totalQuestions} ({summary.totalMarks} total marks)
+            {summary.totalQuestions} question{summary.totalQuestions !== 1 ? 's' : ''} ({summary.totalMarks} total marks)
           </div>
         </CardBody>
       </Card>
@@ -69,7 +78,7 @@ export const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
         <CardBody className={styles.kpiCardBody}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Avg Duration</span>
-            <Badge variant="neutral">Completion Time</Badge>
+            <Badge variant="neutral">Active Time</Badge>
           </div>
           <div className={styles.kpiValue}>{formatDuration(summary.avgDurationSeconds)}</div>
           <div className={styles.kpiSubtext}>

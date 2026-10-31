@@ -498,6 +498,55 @@ describe('QuizController', () => {
         await controller.discardVersion('quiz-1', 'ver-2', mockUser);
         expect(mockQuizService.discardVersion).toHaveBeenCalledWith('quiz-1', 'ver-2', mockUser);
       });
+
+      it('getPublishedQuizzes should delegate to quizService.getPublishedQuizzes without @Roles restriction', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.getPublishedQuizzes);
+        expect(roles).toBeUndefined();
+
+        const mockResponse = { items: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+        (mockQuizService.getPublishedQuizzes as any) = vi.fn().mockResolvedValue(mockResponse);
+
+        const result = await controller.getPublishedQuizzes({ page: 1, limit: 10 }, mockLearner);
+        expect(result).toBe(mockResponse);
+        expect(mockQuizService.getPublishedQuizzes).toHaveBeenCalledWith({ page: 1, limit: 10 }, mockLearner);
+      });
+
+      it('getLatestPublishedQuizVersion should delegate to quizService.getLatestPublishedQuizVersion without @Roles restriction', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.getLatestPublishedQuizVersion);
+        expect(roles).toBeUndefined();
+
+        const mockVersionResponse = { quizId: 'quiz-1', quizVersionId: 'ver-1', questions: [] };
+        (mockQuizService.getLatestPublishedQuizVersion as any) = vi.fn().mockResolvedValue(mockVersionResponse);
+
+        const result = await controller.getLatestPublishedQuizVersion('quiz-1', mockLearner);
+        expect(result).toBe(mockVersionResponse);
+        expect(mockQuizService.getLatestPublishedQuizVersion).toHaveBeenCalledWith('quiz-1', mockLearner);
+      });
+
+      it('startAttempt should support 2-argument invocation with just quizId and authenticated learner', async () => {
+        (mockQuizService.startAttempt as any) = vi.fn().mockResolvedValue({ attemptId: 'att-1' });
+        const result = await controller.startAttempt('quiz-1', mockLearner);
+        expect(result).toEqual({ attemptId: 'att-1' });
+        expect(mockQuizService.startAttempt).toHaveBeenCalledWith('quiz-1', undefined, mockLearner);
+      });
+
+      it('getQuizAnalytics should enforce @Roles(CREATOR, ADMIN) and delegate to quizService', async () => {
+        const roles = Reflect.getMetadata(ROLES_KEY, controller.getQuizAnalytics);
+        expect(roles).toEqual([UserRole.CREATOR, UserRole.ADMIN]);
+
+        const mockAnalytics = { quizId: 'quiz-1', summary: {} };
+        (mockQuizService.getQuizAnalytics as any) = vi.fn().mockResolvedValue(mockAnalytics);
+
+        // Path versionId
+        const pathResult = await controller.getQuizAnalytics('quiz-1', 'ver-path', undefined, mockUser);
+        expect(pathResult).toBe(mockAnalytics);
+        expect(mockQuizService.getQuizAnalytics).toHaveBeenCalledWith('quiz-1', 'ver-path', mockUser);
+
+        // Query versionId
+        const queryResult = await controller.getQuizAnalytics('quiz-1', undefined, 'ver-query', mockUser);
+        expect(queryResult).toBe(mockAnalytics);
+        expect(mockQuizService.getQuizAnalytics).toHaveBeenCalledWith('quiz-1', 'ver-query', mockUser);
+      });
     });
   });
 });

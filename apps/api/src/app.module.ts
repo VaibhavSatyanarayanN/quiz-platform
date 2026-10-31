@@ -18,11 +18,13 @@ import { ClassroomModule } from './modules/classrooms/classroom.module.js';
 import { QuizAssignmentModule } from './modules/quiz-assignments/quiz-assignment.module.js';
 import { DashboardModule } from './modules/dashboards/dashboard.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { validateEnv } from './config/env.validation.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnv,
     }),
     HealthModule,
     DatabaseModule,
