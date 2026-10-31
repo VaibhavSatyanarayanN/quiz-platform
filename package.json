@@ -1,4 +1,14 @@
 {
+  "name": "quiz-platform",
+  "private": true,
+  "scripts": {
+    "start:ai": "cd apps/ai && .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "start:api": "npm --prefix apps/api run start:dev",
+    "start:web": "npm --prefix apps/web run dev",
+    "test:ai": "cd apps/ai && .\\.venv\\Scripts\\python.exe -m pytest",
+    "test:api": "npm --prefix apps/api test",
+    "test:web": "node --test apps/web/tests/*.test.ts"
+  },
   "devDependencies": {
     "@types/multer": "^2.3.0"
   },

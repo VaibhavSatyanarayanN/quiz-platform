@@ -268,3 +268,115 @@ For production operations, alert on:
 ### 4. Windows Sandbox `EPERM: operation not permitted` on `mkdir`
 - On Windows, anti-virus or indexers occasionally lock transient `.vite-temp` directories.
 - Clean `.vite-temp` or retry command up to twice before treating as an access failure.
+
+---
+
+## 9. 12-Point Beta Smoke Test Checklist
+
+The following 12 smoke tests form the core release validation gate before admitting beta cohorts.
+
+| # | Domain / Capability | Verification Method | Expected Outcome | Citations (Tests / Code / Endpoints) |
+|---|---------------------|---------------------|------------------|--------------------------------------|
+| **1** | **User Authentication & Throttling** | Automated & Manual | • Register/login issues valid access token (15m) & HTTP-only refresh token.<br>• Password & refresh token hashes omitted from user responses.<br>• Exceeding 10 attempts/min returns HTTP 429 with `Retry-After`.<br>• Frontend intercepts 401 and refreshes or redirects without infinite loops. | • `auth.service.spec.ts`<br>• `auth-throttler.guard.spec.ts`<br>• `POST /auth/login`<br>• `POST /auth/register`<br>• `apps/web/src/lib/api-client.ts` |
+| **2** | **Quiz Creation & Draft Editing** | Automated & Manual | • Creator creates quiz with draft version 1.<br>• Edits to title, description, time limit, and questions mutate draft only.<br>• Single-draft-per-quiz constraint strictly enforced (HTTP 409 if duplicate draft attempted). | • `quizzes.service.spec.ts`<br>• `quiz-editing-version-integrity.test.ts`<br>• `POST /quizzes`<br>• `PUT /quizzes/:id/draft` |
+| **3** | **AI Generation from Prompt** | Automated & Manual | • Creator inputs prompt; API dispatches BullMQ background job.<br>• Returns HTTP 202 with `generationId` and status `PENDING`.<br>• Polling transitions to `COMPLETED` with validated questions, options, and explanations.<br>• Raw prompt and sensitive parameters redacted in server logs. | • `ai.service.spec.ts`<br>• `test_workflow.py`<br>• `POST /quizzes/generate-questions`<br>• `GET /quizzes/generations/:id` |
+| **4** | **AI Generation from PDF** | Automated & Manual | • Creator uploads PDF document (<= 10MB).<br>• Magic bytes `%PDF-` validated; non-PDF rejected with HTTP 400.<br>• Worker extracts text, generates questions, and deletes temporary PDF immediately upon job completion or failure. | • `ai-pdf-storage.service.spec.ts`<br>• `POST /quizzes/generate-from-pdf`<br>• `apps/api/uploads/ai-source-pdfs` |
+| **5** | **AI Failure & Recovery** | Automated (Unit & Mock) | • Upstream AI timeout or 503 triggers up to 3 BullMQ retries with exponential backoff.<br>• Terminal failure transitions database generation record to `FAILED` with sanitized error message.<br>• Temporary disk files purged; creator sees actionable retry alert in UI. | • `ai-question-generation.processor.spec.ts`<br>• `quiz-question-generation.entity.ts`<br>• `AiService.handleFailure()` |
+| **6** | **Question Review & Apply** | Automated & Manual | • Creator reviews generated questions, modifies wording, toggles correct options, or discards items.<br>• Applying valid questions appends them transactionally to the active draft version with sequential order indices. | • `quizzes.service.spec.ts`<br>• `review-validation.test.ts`<br>• `POST /quizzes/:id/draft/questions/bulk` |
+| **7** | **Publication & Version Integrity** | Automated (Integration) | • Readiness validation blocks publishing if questions lack correct options or quiz has 0 questions.<br>• Successful publication locks version to `PUBLISHED` and bumps quiz live version pointer.<br>• Subsequent edits spawn draft version (v2); published version remains strictly immutable. | • Scenario 10 in `quiz-lifecycle.integration.spec.ts`<br>• `quizzes.service.spec.ts`<br>• `POST /quizzes/:id/publish` |
+| **8** | **Learner Discovery & Access Controls** | Automated (Integration) | • Learner catalog lists only `PUBLISHED` quizzes.<br>• Private organization quizzes inaccessible to learners outside organization (HTTP 403).<br>• Quizzes with future `availableFrom` or past `availableTo` hidden or blocked. | • Scenario 12 in `quiz-lifecycle.integration.spec.ts`<br>• `GET /quizzes/catalog`<br>• `GET /quizzes/:id/pre-attempt` |
+| **9** | **Timed Attempts, Saving, & Expiration** | Automated (Integration) | • Attempt creation snapshots current published version schema.<br>• Answer submission saves selections idempotently.<br>• Server enforces deadline using `SELECT FOR UPDATE` row lock.<br>• Answers submitted past `deadlineAt` rejected with HTTP 400 `ATTEMPT_EXPIRED`. | • Scenarios 2, 3, 4 in `quiz-lifecycle.integration.spec.ts`<br>• `POST /quizzes/:id/attempts`<br>• `PUT /attempts/:attemptId/answers`<br>• `POST /attempts/:attemptId/submit` |
+| **10** | **Results, History, & Creator Analytics** | Automated (Integration) | • All-or-nothing scoring evaluates attempts automatically.<br>• Learner sees earned score, percentage, and option-level explanations.<br>• Creator analytics dashboard aggregates total attempts, pass rate, average score, and question difficulty distribution. | • Scenarios 11 & 13 in `quiz-lifecycle.integration.spec.ts`<br>• `GET /attempts/:id/results`<br>• `GET /quizzes/:id/analytics` |
+| **11** | **Classroom & Assignment BOLA Authorization** | Automated (Unit & Integration) | • Teachers can only manage classrooms and assignments they own.<br>• Cross-tenant or unauthorized teacher updates rejected with HTTP 403 Forbidden.<br>• Non-teacher roles blocked from teacher dashboard endpoints. | • `classroom.service.spec.ts`<br>• `quiz-assignment.service.spec.ts`<br>• `roles.guard.ts`<br>• `PATCH /classrooms/:id` |
+| **12** | **Dependency Outage Behavior** | Automated & Manual | • Database failure causes `/health` to return HTTP 503 (`database: down`).<br>• AI service outage flags `/health` HTTP 503 (`ai: down`), while quiz viewing and evaluation continue functioning normally.<br>• Redis outage prevents new job queuing but gracefully transitions API response without crashing server process. | • `health.controller.spec.ts`<br>• `GET /health`<br>• `AiService` catch block |
+
+---
+
+## 10. Failed BullMQ & AI Job Triage Guide
+
+### 10.1 Inspecting BullMQ Queues via Redis CLI
+When an AI question generation task appears stuck in `PENDING` or fails:
+
+1. **Connect to Redis**:
+   ```bash
+   docker exec -it quiz-redis redis-cli
+   ```
+2. **Inspect Queue Job Counts**:
+   ```redis
+   KEYS bull:ai-question-generation:*
+   HGETALL bull:ai-question-generation:counts
+   ```
+3. **Inspect Failed Job Details**:
+   ```redis
+   ZRANGE bull:ai-question-generation:failed 0 -1 WITHSCORES
+   HGETALL bull:ai-question-generation:<jobId>
+   ```
+4. **Reconcile Orphaned Jobs**:
+   If a worker was terminated mid-execution, inspect `quiz_question_generations` table:
+   ```sql
+   SELECT id, quiz_id, status, error_message, updated_at 
+   FROM quiz_question_generations 
+   WHERE status = 'PENDING' AND updated_at < NOW() - INTERVAL '10 minutes';
+   ```
+
+### 10.2 Investigating Upstream AI Inference Failures
+1. Check FastAPI logs:
+   ```bash
+   # In apps/ai terminal or container logs
+   uvicorn app.main:app
+   ```
+2. Verify Provider Response:
+   - Check if rate limit (HTTP 429) was hit on Google Gemini or Groq.
+   - Verify token usage and timeout thresholds.
+   - Ensure input text character count does not exceed `MAX_INPUT_CHARS` (200,000).
+
+---
+
+## 11. Application Rollback Runbook
+
+If an unrecoverable defect is detected during beta rollout:
+
+### Step 1: Revert API / Web Releases
+```bash
+# Checkout previous stable Git commit or tag
+git checkout <previous_stable_tag>
+
+# Rebuild frontend and backend assets
+npm --prefix apps/api run build
+npm --prefix apps/web run build
+
+# Restart service processes
+```
+
+### Step 2: Database Migration Revert (If Migration Applied)
+```bash
+cd apps/api
+npm run migration:revert
+```
+*Note: Only revert if the migration rollback script does not drop populated user or attempt data.*
+
+### Step 3: Point-in-Time Database Restoration (Disaster Recovery)
+If schema corruption occurred:
+```bash
+# 1. Terminate active backend processes to release database locks
+# 2. Restore verified snapshot
+docker exec -i quiz-postgres pg_restore -U TestUser -d quiz_platform --clean --if-exists < backup_pre_release.dump
+```
+
+---
+
+## 12. Beta Feedback Collection & Prioritization Framework
+
+### 12.1 Feedback Channels
+- **In-App Issue Reporting**: UI header link to GitHub Issues or feedback modal.
+- **Error Tracking**: Client-side unhandled rejection logs and API HTTP 500 monitoring.
+
+### 12.2 Severity Classification & SLA
+- **P0 — Critical (Blocker)**: Complete service outage, data corruption, auth bypass, attempt submission failure.
+  - *SLA*: Immediate rollback or hotfix within 2 hours.
+- **P1 — High**: AI generation failure for specific prompt shapes, timeout on large quizzes, analytics aggregation inaccuracy.
+  - *SLA*: Fix within 24 hours.
+- **P2 — Medium**: Minor UI alignment defects, non-critical validation error clarity, cosmetic rendering anomalies.
+  - *SLA*: Next scheduled beta patch.
+- **P3 — Low**: Enhancement requests, additional question types, workflow optimizations.
+  - *SLA*: Backlog for General Availability (GA).
