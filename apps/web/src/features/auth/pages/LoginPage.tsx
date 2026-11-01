@@ -1,10 +1,12 @@
 import { useNavigate, useLocation, Link } from 'react-router';
 import { useLogin } from '../hooks/use-auth';
 import { LoginForm } from '../components/LoginForm';
+import { AuthShowcase } from '../components/AuthShowcase';
 import { ThemeToggle } from '@/components/ui/ThemeToggle/ThemeToggle';
 import { Alert } from '@/components/feedback/Alert';
 import { extractErrorMessage } from '@/lib/api/errors';
 import type { LoginRequest } from '../types/auth.types';
+import styles from '../styles/Auth.module.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -27,54 +29,46 @@ export default function LoginPage() {
     : null;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'var(--color-bg-base, #f8fafc)',
-        padding: '24px',
-        position: 'relative',
-      }}
-    >
-      <div style={{ position: 'absolute', top: '24px', right: '24px' }}>
-        <ThemeToggle />
-      </div>
+    <div className={styles.pageContainer}>
+      {/* Left: Product & Assessment Showcase */}
+      <AuthShowcase
+        headline="Automated quiz authoring, delivery, and verification."
+        subtext="Structured assessments with schema-validated AI question generation, server-synchronized timers, and deterministic scoring."
+      />
 
-      <div style={{ width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {isRegisteredSuccess && (
-          <Alert variant="success" title="Account Created Successfully!">
-            Your account {registeredEmail ? `(${registeredEmail}) ` : ''}has been created. Please sign in below to access your workspace.
-          </Alert>
-        )}
+      {/* Right: Auth Form Panel */}
+      <div className={styles.formColumn}>
+        <div className={styles.topBarActions}>
+          <ThemeToggle />
+        </div>
 
-        <LoginForm
-          onSubmit={handleLogin}
-          isLoading={loginMutation.isPending}
-          error={errorMessage}
-        />
+        <div className={styles.formWrapper}>
+          <div className={styles.formHeader}>
+            <h2 className={styles.formTitle}>Sign In</h2>
+            <p className={styles.formDescription}>
+              Enter your credentials to access your assessment studio
+            </p>
+          </div>
 
-        <p
-          style={{
-            textAlign: 'center',
-            fontSize: '0.875rem',
-            color: 'var(--color-text-secondary, #6b7280)',
-            marginTop: '8px',
-          }}
-        >
-          Don't have an account?{' '}
-          <Link
-            to="/register"
-            style={{
-              color: 'var(--brand-600, #4f46e5)',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            Create one
-          </Link>
-        </p>
+          {isRegisteredSuccess && (
+            <Alert variant="success" title="Account Created Successfully!">
+              Your account {registeredEmail ? `(${registeredEmail}) ` : ''}has been created. Please sign in below.
+            </Alert>
+          )}
+
+          <LoginForm
+            onSubmit={handleLogin}
+            isLoading={loginMutation.isPending}
+            error={errorMessage}
+          />
+
+          <p className={styles.switchAuthPrompt}>
+            Don't have an account?{' '}
+            <Link to="/register" className={styles.switchAuthLink}>
+              Create an account
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

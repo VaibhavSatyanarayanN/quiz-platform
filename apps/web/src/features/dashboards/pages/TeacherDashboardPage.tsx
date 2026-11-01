@@ -32,10 +32,10 @@ export const TeacherDashboardPage: React.FC = () => {
       {/* Welcome & Action Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-            Teacher Studio Dashboard
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+            Teacher Dashboard
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
             Manage classrooms, create assessments, and monitor student performance.
           </p>
         </div>
@@ -43,14 +43,14 @@ export const TeacherDashboardPage: React.FC = () => {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {organizationId && (
             <Button variant="outline" onClick={() => setIsStudentModalOpen(true)}>
-              + Register Student
+              Register Student
             </Button>
           )}
           <Link to="/classrooms">
-            <Button variant="outline">+ Classrooms</Button>
+            <Button variant="outline">Classrooms</Button>
           </Link>
           <Link to="/quizzes/new">
-            <Button variant="primary">+ Create Quiz</Button>
+            <Button variant="primary">Create Quiz</Button>
           </Link>
         </div>
       </div>
@@ -58,43 +58,43 @@ export const TeacherDashboardPage: React.FC = () => {
       {banner && <Alert variant="success">{banner}</Alert>}
 
       {/* KPI Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>My Classrooms</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.myClassrooms}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>My Classrooms</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.myClassrooms}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Active batches</div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Enrolled Students</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.myStudents}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Enrolled Students</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.myStudents}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Total unique students</div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>My Quizzes</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.myQuizzes}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>My Quizzes</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.myQuizzes}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{metrics.assignedQuizzes} Assigned</div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Completed Attempts</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.completedAttempts}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Completed Attempts</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.completedAttempts}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Submitted attempts</div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Average Score</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.avgScorePercentage}%</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Average Score</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.avgScorePercentage}%</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Class accuracy avg</div>
           </CardBody>
         </Card>

@@ -1,11 +1,11 @@
-/* Badge.module.css — Clean SaaS Badges */
+/* Badge.module.css — Clean SaaS Badges (Slate & Indigo Palette) */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   white-space: nowrap;
   font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-full);
+  border-radius: 4px;
   line-height: 1;
   border: 1px solid transparent;
 }
@@ -26,45 +26,69 @@
 
 /* Variants */
 .brand {
-  background: rgba(227, 154, 123, 0.12);
-  color: #AF6448;
-  border-color: rgba(227, 154, 123, 0.25);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border-color: var(--brand-200);
 }
-.peach {
-  background: rgba(255, 211, 172, 0.25);
-  color: #8C4B33;
-  border-color: rgba(255, 211, 172, 0.4);
+:global([data-theme="dark"]) .brand {
+  color: var(--brand-300);
 }
-.pink {
-  background: rgba(255, 181, 171, 0.2);
-  color: #993333;
-  border-color: rgba(255, 181, 171, 0.35);
-}
+
 .coral {
-  background: rgba(227, 154, 123, 0.15);
-  color: #C97E60;
-  border-color: rgba(227, 154, 123, 0.3);
+  background: var(--brand-50);
+  color: var(--brand-600);
+  border-color: var(--brand-200);
 }
+:global([data-theme="dark"]) .coral {
+  color: var(--brand-400);
+}
+
+.peach {
+  background: rgba(14, 165, 233, 0.08);
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.2);
+}
+:global([data-theme="dark"]) .peach {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.pink {
+  background: rgba(168, 85, 247, 0.08);
+  color: #7e22ce;
+  border-color: rgba(168, 85, 247, 0.2);
+}
+:global([data-theme="dark"]) .pink {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
 .mustard {
-  background: rgba(219, 176, 107, 0.2);
-  color: #8A5F1C;
-  border-color: rgba(219, 176, 107, 0.35);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
 }
+
 .success {
   background: var(--success-bg);
   color: var(--success-text);
   border-color: var(--success-border);
 }
+
 .warning {
   background: var(--warning-bg);
   color: var(--warning-text);
   border-color: var(--warning-border);
 }
+
 .danger {
   background: var(--danger-bg);
   color: var(--danger-text);
   border-color: var(--danger-border);
 }
+
 .neutral {
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);

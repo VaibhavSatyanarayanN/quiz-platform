@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardBody } from '@/components/ui/Card/Card';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
@@ -7,6 +6,7 @@ import { Alert } from '@/components/feedback/Alert';
 import { Avatar } from '@/components/ui/Avatar/Avatar';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { authApi } from '@/features/auth/api/auth.api';
+import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -19,6 +19,12 @@ export default function ProfilePage() {
 
   const email = user?.email || 'user@quizplatform.com';
   const username = user?.username || email.split('@')[0] || 'User';
+  const userId = user?.userId || 'usr_anonymous';
+  const role = user?.role || 'user';
+  const organizations = user?.organizations || [];
+
+  const roleLabel = role === 'admin' ? 'Administrator' : role === 'creator' ? 'Quiz Creator' : 'Learner';
+  const roleBadgeVariant = role === 'admin' ? 'danger' : role === 'creator' ? 'brand' : 'neutral';
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +46,7 @@ export default function ProfilePage() {
     try {
       setIsSubmitting(true);
       await authApi.changePassword({ currentPassword, newPassword });
-      setFeedback({ type: 'success', msg: 'Password updated successfully!' });
+      setFeedback({ type: 'success', msg: 'Password updated successfully.' });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -59,69 +65,119 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Title */}
-      <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
-          Profile Settings
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
-          Manage your account information and password.
+    <div className={styles.pageContainer}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Account Settings</h1>
+        <p className={styles.pageDescription}>
+          Manage your personal identity, organization memberships, and security credentials.
         </p>
       </div>
 
-      {/* Mandatory Password Alert if active */}
+      {/* Mandatory Password Notice if temp password active */}
       {user?.mustChangePassword && (
         <Alert variant="warning">
-          <strong>Action Required:</strong> You are using a temporary password. Please update your password below.
+          Action Required: You are signed in with a temporary password. Update your password below to secure your account.
         </Alert>
       )}
 
-      {/* Simple Modern User Header */}
-      <Card variant="default">
-        <CardBody style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 24px' }}>
-          <Avatar username={username} email={email} size="lg" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
-                {username}
-              </h2>
-              <Badge variant={user?.role === 'admin' ? 'danger' : user?.role === 'creator' ? 'brand' : 'neutral'} size="sm">
-                {user?.role || 'user'}
-              </Badge>
+      {/* Section 1: Identity & Credentials */}
+      <section className={styles.sectionRow}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Profile Information</h2>
+          <p className={styles.sectionDescription}>
+            Your public identity and workspace account identifiers.
+          </p>
+        </div>
+
+        <div className={styles.sectionPanel}>
+          <div className={styles.identityBanner}>
+            <Avatar username={username} email={email} size="lg" />
+            <div className={styles.identityInfo}>
+              <div className={styles.identityNameRow}>
+                <h3 className={styles.identityUsername}>{username}</h3>
+                <Badge variant={roleBadgeVariant} size="sm">
+                  {roleLabel}
+                </Badge>
+              </div>
+              <p className={styles.identityEmail}>{email}</p>
             </div>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '2px 0 0 0', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {email}
-            </p>
           </div>
-        </CardBody>
-      </Card>
 
-      {/* Account Details */}
-      <Card variant="default">
-        <CardHeader>
-          <CardTitle style={{ fontSize: '1rem' }}>Account Details</CardTitle>
-        </CardHeader>
-        <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Input id="profile-username" label="Username" value={username} readOnly disabled />
-          <Input id="profile-email" label="Email Address" value={email} readOnly disabled />
-        </CardBody>
-      </Card>
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailItem}>
+              <label className={styles.detailLabel}>Account Username</label>
+              <div className={styles.detailValue}>{username}</div>
+            </div>
+            <div className={styles.detailItem}>
+              <label className={styles.detailLabel}>Email Address</label>
+              <div className={styles.detailValue}>{email}</div>
+            </div>
+            <div className={styles.detailItem}>
+              <label className={styles.detailLabel}>User Identifier</label>
+              <div className={`${styles.detailValue} ${styles.detailValueMono}`}>{userId}</div>
+            </div>
+            <div className={styles.detailItem}>
+              <label className={styles.detailLabel}>Platform Access Tier</label>
+              <div className={styles.detailValue}>{roleLabel}</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Security & Password Change */}
-      <Card variant="default">
-        <CardHeader>
-          <CardTitle style={{ fontSize: '1rem' }}>Change Password</CardTitle>
-          <CardDescription>Ensure your account is using a long, secure password.</CardDescription>
-        </CardHeader>
-        <CardBody>
+      <hr className={styles.sectionDivider} />
+
+      {/* Section 2: Organization Memberships */}
+      <section className={styles.sectionRow}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Organizations</h2>
+          <p className={styles.sectionDescription}>
+            Institutions and workspaces associated with your profile.
+          </p>
+        </div>
+
+        <div className={styles.sectionPanel}>
+          {organizations.length > 0 ? (
+            <div className={styles.orgsList}>
+              {organizations.map((org) => (
+                <div key={org.organizationId} className={styles.orgItem}>
+                  <div className={styles.orgNameGroup}>
+                    <span className={styles.orgName}>{org.organizationName}</span>
+                    <span className={styles.orgSlug}>{org.organizationSlug}</span>
+                  </div>
+                  <Badge variant="neutral" size="sm">
+                    {org.role}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.sectionDescription} style={{ margin: 0 }}>
+              Personal workspace · No external organization affiliations attached to this account.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <hr className={styles.sectionDivider} />
+
+      {/* Section 3: Password & Security */}
+      <section className={styles.sectionRow}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Password & Security</h2>
+          <p className={styles.sectionDescription}>
+            Update your account password. Choose a secure passphrase of at least 6 characters.
+          </p>
+        </div>
+
+        <div className={styles.sectionPanel}>
           {feedback && (
-            <Alert variant={feedback.type} style={{ marginBottom: '16px' }}>
+            <Alert variant={feedback.type}>
               {feedback.msg}
             </Alert>
           )}
 
-          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handlePasswordSubmit} className={styles.form}>
             <Input
               id="current-password"
               type="password"
@@ -150,14 +206,14 @@ export default function ProfilePage() {
               required
             />
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <div className={styles.formActions}>
               <Button type="submit" variant="primary" isLoading={isSubmitting}>
                 Update Password
               </Button>
             </div>
           </form>
-        </CardBody>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

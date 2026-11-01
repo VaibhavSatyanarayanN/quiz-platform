@@ -83,7 +83,7 @@ export const OrgAnalyticsWidget: React.FC<Props> = ({ analytics }) => {
                           to={`/creator/quizzes/${q.quizId}/analytics`}
                           className={styles.analyticsLink}
                         >
-                          View Analytics →
+                          View Analytics
                         </Link>
                       </td>
                     </tr>

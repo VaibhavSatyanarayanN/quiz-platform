@@ -14,17 +14,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className={styles.appContainer}>
-      <Header
-        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-        isMobileMenuOpen={isMobileMenuOpen}
-      />
+      <Sidebar />
 
       {isMobileMenuOpen && (
         <MobileNav onClose={() => setIsMobileMenuOpen(false)} />
       )}
 
       <div className={styles.bodyContainer}>
-        <Sidebar />
+        <Header
+          onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+          isMobileMenuOpen={isMobileMenuOpen}
+        />
         <main className={styles.mainContent}>
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>

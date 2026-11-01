@@ -82,30 +82,29 @@ export default function DashboardPage() {
   const publishedQuizzes = creatorQuizzes?.items?.filter((q) => q.status === 'published').length || 0;
   const draftQuizzes = creatorQuizzes?.items?.filter((q) => q.status === 'draft').length || 0;
 
-  const displayName = user?.email ? user.email.split('@')[0] : 'User';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Dashboard Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
             Dashboard
           </h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
-            Welcome back, <strong>{displayName}</strong>. {isCreatorOrAdmin ? 'Manage your quizzes and build questions.' : 'Explore available assessments and track your learning progress.'}
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+            {isCreatorOrAdmin ? 'Manage assessment versions, draft questions, and classroom rosters.' : 'Explore published quizzes and track your completed attempt records.'}
           </p>
         </div>
         {isCreatorOrAdmin ? (
           <Link to="/quizzes/new">
             <Button variant="primary">
-              + Create Quiz
+              Create Quiz
             </Button>
           </Link>
         ) : (
           <Link to="/attempts">
             <Button variant="outline">
-              My Past Attempts →
+              Past Attempts
             </Button>
           </Link>
         )}
@@ -113,13 +112,13 @@ export default function DashboardPage() {
 
       {/* Summary Metrics Row */}
       {isCreatorOrAdmin ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
           <Card variant="default">
             <CardBody style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                 Total Quizzes
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--color-text-primary)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
                 {totalQuizzes}
               </div>
             </CardBody>
@@ -127,10 +126,10 @@ export default function DashboardPage() {
 
           <Card variant="default">
             <CardBody style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                 Published
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--success-text)', marginTop: '4px' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--success-text)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
                 {publishedQuizzes}
               </div>
             </CardBody>
@@ -138,23 +137,23 @@ export default function DashboardPage() {
 
           <Card variant="default">
             <CardBody style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                 Drafts
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--brand-600)', marginTop: '4px' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--brand-600)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
                 {draftQuizzes}
               </div>
             </CardBody>
           </Card>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
           <Card variant="default">
             <CardBody style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                 Available Assessments
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--brand-600)', marginTop: '4px' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--brand-600)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
                 {publishedQuizzesData?.total ?? 0}
               </div>
             </CardBody>
@@ -162,13 +161,13 @@ export default function DashboardPage() {
 
           <Card variant="default">
             <CardBody style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                 Assessment Center
               </div>
               <div style={{ marginTop: '6px' }}>
                 <Link to="/attempts">
                   <Button variant="outline" size="sm">
-                    View Assessment History →
+                    View Assessment History
                   </Button>
                 </Link>
               </div>
@@ -226,7 +225,7 @@ export default function DashboardPage() {
             </div>
             <Link to="/quizzes">
               <Button variant="outline" size="sm">
-                View all quizzes →
+                View all quizzes
               </Button>
             </Link>
           </CardHeader>
@@ -276,7 +275,7 @@ export default function DashboardPage() {
                 <p style={{ margin: '0 0 12px 0', fontSize: '0.9375rem' }}>No quizzes yet. Create your first quiz to start building your question bank.</p>
                 <Link to="/quizzes/new">
                   <Button variant="primary" size="sm">
-                    + Create Quiz
+                    Create Quiz
                   </Button>
                 </Link>
               </div>
@@ -295,7 +294,7 @@ export default function DashboardPage() {
               </div>
               <Link to="/attempts">
                 <Button variant="outline" size="sm">
-                  View Past Attempts →
+                  View Past Attempts
                 </Button>
               </Link>
             </div>
@@ -429,7 +428,7 @@ export default function DashboardPage() {
                           <Td style={{ textAlign: 'right' }}>
                             <Link to={`/quizzes/${quiz.id}/take`}>
                               <Button variant="primary" size="sm">
-                                Start Assessment →
+                                Start Assessment
                               </Button>
                             </Link>
                           </Td>

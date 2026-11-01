@@ -79,18 +79,19 @@ export default function CreatorQuizListPage() {
         <div>
           <h1
             style={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
+              fontSize: '1.5rem',
+              fontWeight: 650,
               margin: 0,
               color: 'var(--color-text-primary)',
+              letterSpacing: '-0.02em',
             }}
           >
-            Quiz Creator Dashboard
+            Quizzes
           </h1>
           <p
             style={{
               color: 'var(--color-text-secondary)',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               margin: '4px 0 0 0',
             }}
           >
@@ -103,7 +104,7 @@ export default function CreatorQuizListPage() {
             onClick={() => setIsModalOpen(true)}
             aria-label="Create New Quiz"
           >
-            + Create Quiz
+            Create Quiz
           </Button>
         </div>
       </div>
@@ -120,7 +121,7 @@ export default function CreatorQuizListPage() {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
+          gap: '12px',
         }}
       >
         <Card variant="default">
@@ -128,10 +129,8 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '0.75rem',
-                fontWeight: 700,
+                fontWeight: 500,
                 color: 'var(--color-text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
               }}
             >
               Total Quizzes
@@ -139,9 +138,10 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '1.75rem',
-                fontWeight: 700,
+                fontWeight: 650,
                 color: 'var(--color-text-primary)',
                 marginTop: '4px',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
               {stats.total}
@@ -154,10 +154,8 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '0.75rem',
-                fontWeight: 700,
+                fontWeight: 500,
                 color: 'var(--color-text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
               }}
             >
               Published
@@ -165,9 +163,10 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '1.75rem',
-                fontWeight: 700,
+                fontWeight: 650,
                 color: 'var(--success-text, #059669)',
                 marginTop: '4px',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
               {stats.published}
@@ -180,10 +179,8 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '0.75rem',
-                fontWeight: 700,
+                fontWeight: 500,
                 color: 'var(--color-text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
               }}
             >
               Drafts
@@ -191,9 +188,10 @@ export default function CreatorQuizListPage() {
             <div
               style={{
                 fontSize: '1.75rem',
-                fontWeight: 700,
-                color: 'var(--brand-600, #4f46e5)',
+                fontWeight: 650,
+                color: 'var(--brand-600)',
                 marginTop: '4px',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
               {stats.drafts}
@@ -450,7 +448,7 @@ export default function CreatorQuizListPage() {
                               size="sm"
                               aria-label={`Open AI question generator for ${quiz.title}`}
                             >
-                              ✨ AI Questions
+                              AI Questions
                             </Button>
                           </Link>
                           <Link to={`/quizzes/${quiz.id}/analytics`}>

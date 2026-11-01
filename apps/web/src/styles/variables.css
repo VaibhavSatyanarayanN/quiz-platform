@@ -1,82 +1,82 @@
 /* ==========================================================================
-   Design Tokens & Variable Engine — Premium SaaS Palette & Typography
-   Palette: Peach (#FFD3AC), Pink (#FFB5AB), Coral (#E39A7B), Mustard (#DBB06B)
+   Design Tokens & Variable Engine — Modern Slate & Electric Indigo Theme
+   taste-skill v2 House Style · Full Light & Dark Mode Engine
    ========================================================================== */
 
 :root {
   /* ------------------------------------------------------------------------
-     1. Brand Palette Tokens
+     1. Brand Palette Tokens (Electric Indigo Scale)
      ------------------------------------------------------------------------ */
-  --color-peach: #FFD3AC;
-  --color-pink: #FFB5AB;
-  --color-coral: #E39A7B;
-  --color-mustard: #DBB06B;
+  --brand-50: rgba(79, 70, 229, 0.08);
+  --brand-100: rgba(79, 70, 229, 0.15);
+  --brand-200: #c7d2fe;
+  --brand-300: #a5b4fc;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-800: #3730a3;
+  --brand-900: #312e81;
+  --brand-text: #ffffff;
 
-  /* Brand Scale Mappings */
-  --brand-50: rgba(227, 154, 123, 0.08);
-  --brand-100: rgba(227, 154, 123, 0.15);
-  --brand-200: #FFD3AC;
-  --brand-300: #FFB5AB;
-  --brand-400: #E39A7B;
-  --brand-500: #E39A7B;
-  --brand-600: #C97E60;
-  --brand-700: #AF6448;
-  --brand-800: #8C4B33;
-  --brand-900: #663421;
-  --brand-text: #FFFFFF;
+  /* Legacy aliases for backward compatibility */
+  --color-peach: #e0e7ff;
+  --color-pink: #ede9fe;
+  --color-coral: #6366f1;
+  --color-mustard: #fef3c7;
 
   /* ------------------------------------------------------------------------
-     2. Neutral Surfaces & Backgrounds
+     2. Neutral Surfaces & Backgrounds (Crisp Slate Light Mode)
      ------------------------------------------------------------------------ */
-  --color-background: #FAF9F7;
-  --color-bg: #FAF9F7;
-  --color-bg-base: #FAF9F7;
-  --color-bg-subtle: #F5F3F0;
+  --color-background: #f8fafc;
+  --color-bg: #f8fafc;
+  --color-bg-base: #f8fafc;
+  --color-bg-subtle: #f1f5f9;
 
-  --color-surface: #FFFFFF;
-  --color-surface-subtle: #F5F3F0;
-  --color-surface-hover: #F0EEEA;
-  --color-surface-active: #E9E5E0;
-  --color-surface-raised: #FFFFFF;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-hover: #f8fafc;
+  --color-surface-active: #e2e8f0;
+  --color-surface-raised: #ffffff;
 
   /* Text Colors */
-  --color-text-primary: #242321;
-  --color-text-secondary: #6D6A66;
-  --color-text-muted: #96918B;
-  --color-text-inverse: #FFFFFF;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #ffffff;
 
   /* Borders */
-  --color-border: #E9E5E0;
-  --color-border-strong: #D9D3CC;
-  --color-border-hover: #D9D3CC;
-  --color-border-focus: var(--color-coral);
-  --color-border-subtle: #F0EEEA;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-border-hover: #94a3b8;
+  --color-border-focus: var(--brand-600);
+  --color-border-subtle: #edf2f7;
 
   /* Semantic Feedback */
-  --color-success: #32845C;
-  --color-warning: #B77C25;
-  --color-danger: #C84D4D;
-  --color-info: #587C9B;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
 
-  --success-bg: rgba(50, 132, 92, 0.08);
-  --success-border: rgba(50, 132, 92, 0.2);
-  --success-text: #32845C;
-  --success-accent: #32845C;
+  --success-bg: rgba(16, 185, 129, 0.08);
+  --success-border: rgba(16, 185, 129, 0.2);
+  --success-text: #059669;
+  --success-accent: #10b981;
 
-  --warning-bg: rgba(183, 124, 37, 0.08);
-  --warning-border: rgba(183, 124, 37, 0.2);
-  --warning-text: #B77C25;
-  --warning-accent: #B77C25;
+  --warning-bg: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.25);
+  --warning-text: #b45309;
+  --warning-accent: #f59e0b;
 
-  --danger-bg: rgba(200, 77, 77, 0.08);
-  --danger-border: rgba(200, 77, 77, 0.2);
-  --danger-text: #C84D4D;
-  --danger-accent: #C84D4D;
+  --danger-bg: rgba(239, 68, 68, 0.08);
+  --danger-border: rgba(239, 68, 68, 0.2);
+  --danger-text: #dc2626;
+  --danger-accent: #ef4444;
 
-  --info-bg: rgba(88, 124, 155, 0.08);
-  --info-border: rgba(88, 124, 155, 0.2);
-  --info-text: #587C9B;
-  --info-accent: #587C9B;
+  --info-bg: rgba(59, 130, 246, 0.08);
+  --info-border: rgba(59, 130, 246, 0.2);
+  --info-text: #2563eb;
+  --info-accent: #3b82f6;
 
   /* ------------------------------------------------------------------------
      3. Spatial 4px / 8px Grid System
@@ -136,26 +136,26 @@
   /* ------------------------------------------------------------------------
      6. Shadows & Elevations (Clean Modern SaaS)
      ------------------------------------------------------------------------ */
-  --shadow-xs: 0 1px 2px rgba(36, 35, 33, 0.04);
-  --shadow-sm: 0 1px 3px rgba(36, 35, 33, 0.06), 0 1px 2px rgba(36, 35, 33, 0.04);
-  --shadow-md: 0 4px 12px rgba(36, 35, 33, 0.06), 0 1px 3px rgba(36, 35, 33, 0.04);
-  --shadow-lg: 0 10px 24px rgba(36, 35, 33, 0.08), 0 2px 6px rgba(36, 35, 33, 0.04);
-  --shadow-modal: 0 20px 40px rgba(36, 35, 33, 0.12);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --shadow-modal: 0 20px 40px rgba(15, 23, 42, 0.12);
 
   /* Fallback aliases for legacy neu references */
   --shadow-neu-sm: var(--shadow-sm);
   --shadow-neu-md: var(--shadow-md);
   --shadow-neu-lg: var(--shadow-lg);
-  --shadow-neu-inset: inset 0 1px 2px rgba(36, 35, 33, 0.06);
-  --shadow-neu-inset-sm: inset 0 1px 2px rgba(36, 35, 33, 0.04);
+  --shadow-neu-inset: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-neu-inset-sm: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 
   /* Gradients */
-  --gradient-brand: linear-gradient(135deg, var(--color-coral) 0%, #C97E60 100%);
+  --gradient-brand: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-700) 100%);
   --gradient-hero: linear-gradient(180deg, var(--color-surface) 0%, var(--color-background) 100%);
   --gradient-card-border: none;
 
   /* Focus Ring */
-  --focus-ring: 0 0 0 3px rgba(227, 154, 123, 0.25);
+  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.2);
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: var(--color-border);
 
@@ -173,6 +173,55 @@
   --transition-fast: 120ms ease;
   --transition-normal: 180ms ease;
   --transition-spring: 250ms ease;
+}
+
+/* ==========================================================================
+   Dark Mode Token Engine ([data-theme="dark"])
+   Obsidian Midnight & Electric Neon Indigo Aesthetic
+   ========================================================================== */
+[data-theme="dark"] {
+  --color-background: #090d16;
+  --color-bg: #090d16;
+  --color-bg-base: #090d16;
+  --color-bg-subtle: #0f172a;
+
+  --color-surface: #131c31;
+  --color-surface-subtle: #0f172a;
+  --color-surface-hover: #1e293b;
+  --color-surface-active: #334155;
+  --color-surface-raised: #18223c;
+
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #0f172a;
+
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+  --color-border-hover: #475569;
+  --color-border-focus: #6366f1;
+  --color-border-subtle: #172239;
+
+  --brand-50: rgba(99, 102, 241, 0.14);
+  --brand-100: rgba(99, 102, 241, 0.22);
+  --brand-200: rgba(99, 102, 241, 0.3);
+  --brand-300: #818cf8;
+  --brand-400: #a5b4fc;
+  --brand-500: #818cf8;
+  --brand-600: #6366f1;
+  --brand-700: #4f46e5;
+
+  --color-peach: rgba(99, 102, 241, 0.18);
+  --color-coral: #818cf8;
+
+  --glass-bg: rgba(15, 23, 42, 0.85);
+  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.35);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.7);
 }
 
 @keyframes modalPopIn {

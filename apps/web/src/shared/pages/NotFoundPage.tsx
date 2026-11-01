@@ -11,14 +11,12 @@ export default function NotFoundPage() {
           <CardBody>
             <div
               style={{
-                fontSize: '5.5rem',
-                fontWeight: '900',
-                letterSpacing: '-0.05em',
+                fontSize: '4.5rem',
+                fontWeight: '800',
+                letterSpacing: '-0.04em',
                 lineHeight: 1,
                 marginBottom: 'var(--space-2)',
-                background: 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-400) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: 'var(--color-text-primary)',
               }}
             >
               404

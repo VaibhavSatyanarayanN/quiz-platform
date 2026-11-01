@@ -59,15 +59,15 @@ export const ClassroomListPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-            Classrooms Directory
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+            Classrooms
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
             Manage institutional classrooms, teachers, and enrolled students.
           </p>
         </div>
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-          + Create Classroom
+          Create Classroom
         </Button>
       </div>
 
@@ -81,7 +81,7 @@ export const ClassroomListPage: React.FC = () => {
               Create your first classroom batch to assign quizzes and manage students.
             </p>
             <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-              + Create Classroom
+              Create Classroom
             </Button>
           </CardBody>
         </Card>
@@ -111,7 +111,7 @@ export const ClassroomListPage: React.FC = () => {
                       <Td style={{ textAlign: 'right' }}>
                         <Link to={`/classrooms/${c.id}`}>
                           <Button variant="outline" size="sm">
-                            Manage Classroom →
+                            Manage Classroom
                           </Button>
                         </Link>
                       </Td>

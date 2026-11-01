@@ -18,37 +18,38 @@
 }
 
 .statCard {
-  padding: var(--space-5);
+  padding: 16px 20px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
-  border-radius: var(--radius-lg);
+  box-shadow: none;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 4px;
 }
 
 .statLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .statValue {
   font-size: 1.75rem;
-  font-weight: var(--font-weight-bold);
+  font-weight: 650;
   color: var(--color-text-primary);
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .chartContainer {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .chartTitle {
@@ -69,28 +70,29 @@
 
 .chartFill {
   height: 100%;
-  background: var(--color-coral);
+  background: var(--brand-600);
   border-radius: var(--radius-full);
 }
 
 .rankBadge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  background: rgba(227, 154, 123, 0.15);
-  color: #C97E60;
-  border: 1px solid rgba(227, 154, 123, 0.3);
-  border-radius: var(--radius-full);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-xs);
+  padding: 3px 8px;
+  background: var(--brand-50);
+  color: var(--brand-600);
+  border: 1px solid var(--brand-200);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .questionStatsSummary {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-xs);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: none;
 }
 
 .optionRow {

@@ -1,23 +1,19 @@
-/* Avatar.module.css — Premium Brand Avatars */
+/* Avatar.module.css — Architectural Avatars (taste-skill v2) */
 .avatar {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
-  color: #FFFFFF;
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.02em;
+  border-radius: 6px;
+  font-weight: 600;
   user-select: none;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(36, 35, 33, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  border: 1.5px solid var(--color-surface);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: none;
+  border: 1px solid var(--color-border);
+  transition: opacity 0.12s ease;
 }
 
 .avatarInitials {
-  color: #FFFFFF;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   line-height: 1;
 }
 
@@ -25,7 +21,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
 }
 
 .avatarIcon {

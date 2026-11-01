@@ -1,16 +1,172 @@
+/* ==========================================================================
+   Layout.module.css — Professional Workbench Shell Architecture (taste-skill v2)
+   Fixed Left Workbench Rail · Flat Opaque Surfaces · Zero Slop
+   ========================================================================== */
+
 .appContainer {
   display: flex;
-  flex-direction: column;
   min-height: 100vh;
   background-color: var(--color-bg);
   color: var(--color-text-primary);
 }
 
+/* --------------------------------------------------------------------------
+   1. Left Workbench Sidebar (Desktop)
+   -------------------------------------------------------------------------- */
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 961px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    background-color: var(--color-bg-subtle);
+    border-right: 1px solid var(--color-border);
+    padding: 16px 12px;
+    box-sizing: border-box;
+    z-index: 40;
+    overflow-y: auto;
+  }
+}
+
+.sidebarBrand {
+  padding: 4px 6px 14px 6px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: 12px;
+}
+
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.brandMonogram {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:global([data-theme="dark"]) .brandMonogram {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.brandMeta {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.brandTitle {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.brandScope {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.sidebarNav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.navGroupLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 14px 10px 4px 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  line-height: 1;
+}
+
+.navItem:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/* Active item: Quiet neutral tone step (taste-skill v2 app rule) */
+.navItemActive {
+  background-color: var(--color-surface-active) !important;
+  color: var(--color-text-primary) !important;
+  font-weight: 600;
+}
+
+:global([data-theme="dark"]) .navItemActive {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+.navIcon {
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.sidebarFooter {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: auto;
+}
+
+/* --------------------------------------------------------------------------
+   2. Main Area Container (Header + Canvas)
+   -------------------------------------------------------------------------- */
+.bodyContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+/* Header — 48px Utilitarian Top Bar */
 .header {
-  height: 60px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  height: 48px;
+  background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -18,168 +174,71 @@
   padding: 0 24px;
   position: sticky;
   top: 0;
-  z-index: 50;
-  box-shadow: 0 1px 3px rgba(36, 35, 33, 0.04);
+  z-index: 30;
+  box-sizing: border-box;
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
+}
+
+.headerBreadcrumb {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
 }
 
 .headerRight {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.logoArea {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  text-decoration: none;
-  color: var(--color-text-primary);
-  transition: opacity var(--transition-fast);
 }
 
-.logoArea:hover {
-  opacity: 0.9;
-}
-
-.logoIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #D96E43 0%, #C45B31 100%);
-  color: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(217, 110, 67, 0.3);
-}
-
-.logoText {
-  font-size: 1.05rem;
-  font-weight: var(--font-weight-extrabold);
-  letter-spacing: -0.025em;
-  color: var(--color-text-primary);
-}
-
-/* Organization Badge Header Context */
+/* Organization Pill in Top Bar */
 .orgBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(227, 154, 123, 0.1);
-  border: 1px solid rgba(227, 154, 123, 0.25);
-  border-radius: var(--radius-full);
-  transition: all var(--transition-fast);
-}
-
-.orgBadge:hover {
-  background: rgba(227, 154, 123, 0.16);
-  border-color: rgba(227, 154, 123, 0.38);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .orgIcon {
-  color: #D96E43;
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 .orgName {
-  font-size: 0.8125rem;
-  font-weight: var(--font-weight-semibold);
-  color: #8C4B33;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--color-text-primary);
   line-height: 1;
   white-space: nowrap;
 }
 
-/* Primary Desktop Horizontal Navigation */
-.desktopNav {
+/* Mobile Logo (hidden on desktop) */
+.mobileLogoArea {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.topNavItem {
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  gap: 8px;
   text-decoration: none;
-  transition: all var(--transition-fast);
-  border: 1px solid transparent;
-}
-
-.topNavItem:hover {
-  background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
-.topNavItemActive {
-  background: rgba(227, 154, 123, 0.12);
-  color: #B04A22;
-  font-weight: var(--font-weight-semibold);
-  border-color: rgba(227, 154, 123, 0.25);
-}
-
-/* Utility buttons */
-.iconUtilityBtn {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all var(--transition-fast);
-}
-
-.iconUtilityBtn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
-}
-
-.avatarBtn {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  border-radius: var(--radius-full);
-  display: inline-flex;
-  transition: transform var(--transition-fast);
-}
-
-.avatarBtn:hover {
-  transform: scale(1.06);
-}
-
-.avatarBtn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.bodyContainer {
-  display: flex;
-  flex: 1;
-}
-
-.sidebar {
-  display: none;
-}
-
-.mainContent {
-  flex: 1;
-  padding: 32px 36px;
-  width: 100%;
+@media (min-width: 961px) {
+  .mobileLogoArea {
+    display: none;
+  }
 }
 
 .mobileToggleBtn {
@@ -189,7 +248,40 @@
   color: var(--color-text-primary);
   cursor: pointer;
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
+}
+
+@media (max-width: 960px) {
+  .mobileToggleBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .headerBreadcrumb {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. User Profile Dropdown & Controls
+   -------------------------------------------------------------------------- */
+.avatarBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  transition: transform 0.12s ease;
+}
+
+.avatarBtn:hover {
+  transform: scale(1.04);
+}
+
+.avatarBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .userMenuWrapper {
@@ -200,35 +292,48 @@
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
-  width: 230px;
+  width: 220px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-modal);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
   padding: 6px;
   z-index: 100;
-  animation: modalPopIn var(--duration-fast) var(--ease-spring);
+  box-sizing: border-box;
+}
+
+:global([data-theme="dark"]) .userDropdown {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .dropdownItem {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  font-size: var(--font-size-sm);
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
   color: var(--color-text-primary);
   text-decoration: none;
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
+  border-radius: 6px;
+  transition: background-color 0.12s ease;
   background: none;
   border: none;
   width: 100%;
   cursor: pointer;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .dropdownItem:hover {
-  background: var(--color-surface-hover);
+  background-color: var(--color-surface-hover);
+}
+
+.dropdownItemDanger {
+  color: var(--color-danger);
+}
+
+.dropdownItemDanger:hover {
+  background-color: var(--danger-bg);
 }
 
 .dropdownDivider {
@@ -237,6 +342,9 @@
   margin: 4px 0;
 }
 
+/* --------------------------------------------------------------------------
+   4. Mobile Slide-out Drawer
+   -------------------------------------------------------------------------- */
 .mobileDrawer {
   position: fixed;
   inset: 0;
@@ -247,7 +355,7 @@
 .mobileDrawerBackdrop {
   position: absolute;
   inset: 0;
-  background: rgba(36, 35, 33, 0.4);
+  background: rgba(15, 23, 42, 0.45);
 }
 
 .mobileDrawerContent {
@@ -257,21 +365,27 @@
   height: 100%;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
-  padding: 20px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: var(--shadow-modal);
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   5. Canvas / Main Content
+   -------------------------------------------------------------------------- */
+.mainContent {
+  flex: 1;
+  padding: 28px 36px;
+  max-width: 1280px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 @media (max-width: 768px) {
-  .desktopNav {
-    display: none;
-  }
-  .mobileToggleBtn {
-    display: flex;
-  }
   .mainContent {
-    padding: 16px;
+    padding: 20px 16px;
   }
 }

@@ -1,39 +1,42 @@
-/* Table.module.css — Responsive Data Tables */
+/* Table.module.css — Architectural Data Table (taste-skill v2) */
 .container {
   width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
   background: var(--color-surface);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 .th {
-  padding: 12px 16px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-subtle);
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .td {
-  padding: 14px 16px;
-  font-size: var(--font-size-sm);
+  padding: 12px 16px;
+  font-size: 0.8125rem;
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border-subtle);
+  vertical-align: middle;
 }
 
 .tr {
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.1s ease;
 }
 
 .tr:last-child .td {

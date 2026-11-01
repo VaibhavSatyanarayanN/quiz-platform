@@ -29,16 +29,16 @@ export default function AdminOrganizationsPage() {
               ← Back to Admin Overview
             </Link>
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-            Organizations Directory
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+            Organizations
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
             Manage organization tenants and creator assignments.
           </p>
         </div>
 
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-          + Create Organization
+          Create Organization
         </Button>
       </div>
 
@@ -53,7 +53,7 @@ export default function AdminOrganizationsPage() {
             Create your first organization tenant to onboard creators.
           </p>
           <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            + Create Organization
+            Create Organization
           </Button>
         </Card>
       ) : (
@@ -88,7 +88,7 @@ export default function AdminOrganizationsPage() {
                       <Td style={{ textAlign: 'right' }}>
                         <Link to={`/admin/organizations/${org.id}`}>
                           <Button variant="outline" size="sm">
-                            Manage Creators →
+                            Manage Creators
                           </Button>
                         </Link>
                       </Td>

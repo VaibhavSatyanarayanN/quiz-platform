@@ -41,7 +41,7 @@ export const OrganizationMembersPage: React.FC = () => {
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
-  const creators = creatorsData?.items ?? [];
+  const creators = useMemo(() => creatorsData?.items ?? [], [creatorsData?.items]);
 
   // Combine members list
   const combinedMembers = useMemo(() => {
@@ -121,15 +121,15 @@ export const OrganizationMembersPage: React.FC = () => {
       {/* Top Header & Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-              {organizationName} Directory
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+              Members & Roles
             </h1>
-            <Badge variant="brand" size="sm">
-              {isOrgAdmin ? 'Organization Admin View' : isTeacher ? 'Teacher View' : 'Member'}
+            <Badge variant="neutral" size="sm">
+              {isOrgAdmin ? 'Admin View' : isTeacher ? 'Teacher View' : 'Member'}
             </Badge>
           </div>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
             Manage teachers, instructors, and student accounts under {organizationName}.
           </p>
         </div>
@@ -137,13 +137,13 @@ export const OrganizationMembersPage: React.FC = () => {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {(isTeacher || isOrgAdmin) && (
             <Button variant="primary" onClick={() => setIsStudentModalOpen(true)}>
-              + Register New Student
+              Register Student
             </Button>
           )}
 
           {isOrgAdmin && (
             <Button variant="outline" onClick={() => setIsTeacherModalOpen(true)}>
-              + Create Teacher Account
+              Add Teacher
             </Button>
           )}
         </div>

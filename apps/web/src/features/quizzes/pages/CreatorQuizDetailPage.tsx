@@ -492,13 +492,13 @@ export default function CreatorQuizDetailPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
         <Link to="/quizzes">
-          <Button variant="outline" size="sm">← Back to Quizzes</Button>
+          <Button variant="outline" size="sm">Back to Quizzes</Button>
         </Link>
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <Link to={`/quizzes/${quiz.id}/analytics`}>
             <Button variant="outline" size="sm">
-              📊 Analytics
+              Analytics
             </Button>
           </Link>
 
@@ -762,8 +762,8 @@ export default function CreatorQuizDetailPage() {
                     }}
                   >
                     <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-                        ✨ AI Question Generation & Review
+                      <h3 style={{ fontSize: '1rem', fontWeight: 650, margin: 0 }}>
+                        AI Question Generation & Review
                       </h3>
                       <p
                         style={{
@@ -781,7 +781,7 @@ export default function CreatorQuizDetailPage() {
                       size="sm"
                       onClick={() => setShowAiGenerator((prev) => !prev)}
                     >
-                      {showAiGenerator ? 'Close Generator' : '✨ Generate with AI'}
+                      {showAiGenerator ? 'Close Generator' : 'Generate with AI'}
                     </Button>
                   </div>
 
@@ -1022,7 +1022,7 @@ export default function CreatorQuizDetailPage() {
                                   {gen.isApplied
                                     ? 'View Applied Set'
                                     : gen.status === GenerationStatus.COMPLETED
-                                      ? 'Review & Apply Questions →'
+                                      ? 'Review & Apply Questions'
                                       : 'View Status'}
                                 </Button>
                               </Link>
@@ -1058,7 +1058,7 @@ export default function CreatorQuizDetailPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary, #111827)' }}>
-                        🔒 Published Version (v{selectedVersion.version}) — Read-Only & Immutable
+                        Published Version (v{selectedVersion.version}) — Read-Only & Immutable
                       </div>
                       <p style={{ margin: '4px 0 0 0', fontSize: '0.825rem', color: 'var(--color-text-secondary, #6b7280)' }}>
                         This version is permanently locked to preserve grading integrity for historical attempts. To edit questions or adjust timing, create a new draft version.

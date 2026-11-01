@@ -4,7 +4,7 @@
   gap: var(--space-1);
   font-family: var(--font-sans);
   font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-full);
+  border-radius: 4px;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.05em;

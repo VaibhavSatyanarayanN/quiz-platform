@@ -504,7 +504,7 @@ export default function QuizAttemptPage() {
         </Alert>
         <div style={{ marginTop: '16px' }}>
           <Link to="/dashboard">
-            <Button variant="outline">← Back to Dashboard</Button>
+            <Button variant="outline">Back to Dashboard</Button>
           </Link>
         </div>
       </div>
@@ -589,7 +589,7 @@ export default function QuizAttemptPage() {
           ) : (
             <Link to={`/attempts/${resolvedAttemptId}/result`}>
               <Button type="button" variant="primary">
-                View Results →
+                View Results
               </Button>
             </Link>
           )}
@@ -760,7 +760,7 @@ export default function QuizAttemptPage() {
                   )
                 }
               >
-                ← Previous
+                Previous
               </Button>
 
               <span className="question-nav-center" aria-live="polite">
@@ -778,7 +778,7 @@ export default function QuizAttemptPage() {
                   )
                 }
               >
-                Next →
+                Next
               </Button>
             </nav>
 

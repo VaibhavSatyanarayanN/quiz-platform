@@ -35,7 +35,7 @@ export const ClassroomDetailPage: React.FC = () => {
         <Alert variant="danger">{(error as Error)?.message || 'Classroom not found.'}</Alert>
         <div style={{ marginTop: '16px' }}>
           <Link to="/classrooms">
-            <Button variant="outline">← Back to Classrooms</Button>
+            <Button variant="outline">Back to Classrooms</Button>
           </Link>
         </div>
       </div>
@@ -75,11 +75,11 @@ export const ClassroomDetailPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header Breadcrumb */}
       <div>
-        <Link to="/classrooms" style={{ fontSize: '0.875rem', color: 'var(--brand-600, #2563eb)', textDecoration: 'none' }}>
-          ← Back to Classrooms Directory
+        <Link to="/classrooms" style={{ fontSize: '0.8125rem', color: 'var(--brand-600)', textDecoration: 'none' }}>
+          Back to Classrooms
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>{classroom.name}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, letterSpacing: '-0.02em' }}>{classroom.name}</h1>
           <Badge variant={classroom.isActive ? 'success' : 'neutral'}>
             {classroom.isActive ? '● Active' : '● Inactive'}
           </Badge>

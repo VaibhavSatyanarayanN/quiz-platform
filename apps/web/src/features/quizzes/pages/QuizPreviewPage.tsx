@@ -61,7 +61,7 @@ export default function QuizPreviewPage() {
         </Alert>
         <div style={{ marginTop: '16px' }}>
           <Link to="/dashboard">
-            <Button variant="outline">← Back to Dashboard</Button>
+            <Button variant="outline">Back to Dashboard</Button>
           </Link>
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function QuizPreviewPage() {
         </Alert>
         <div style={{ marginTop: '16px' }}>
           <Link to="/dashboard">
-            <Button variant="outline">← Back to Dashboard</Button>
+            <Button variant="outline">Back to Dashboard</Button>
           </Link>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function QuizPreviewPage() {
     <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
         <Link to="/dashboard">
-          <Button variant="ghost" size="sm">← Back to Dashboard</Button>
+          <Button variant="ghost" size="sm">Back to Dashboard</Button>
         </Link>
       </div>
 
@@ -146,7 +146,7 @@ export default function QuizPreviewPage() {
               size="md"
               onClick={() => navigate(`/attempts/${inProgressAttempt.attemptId}`)}
             >
-              Resume Attempt →
+              Resume Attempt
             </Button>
           </CardBody>
         </Card>
@@ -157,7 +157,7 @@ export default function QuizPreviewPage() {
           Your active session reached its deadline and has expired. You can view your completed evaluation result or begin a new attempt.
           <div style={{ marginTop: '8px' }}>
             <Link to={`/attempts/${inProgressAttempt.attemptId}/result`}>
-              <Button variant="outline" size="sm">View Expired Result →</Button>
+              <Button variant="outline" size="sm">View Expired Result</Button>
             </Link>
           </div>
         </Alert>
@@ -249,7 +249,7 @@ export default function QuizPreviewPage() {
             disabled={totalQuestions === 0 || startAttemptMutation.isPending}
             isLoading={startAttemptMutation.isPending}
           >
-            {inProgressAttempt && !isExpiredOnClient ? 'Resume Attempt →' : 'Start Assessment →'}
+            {inProgressAttempt && !isExpiredOnClient ? 'Resume Attempt' : 'Start Assessment'}
           </Button>
         </CardFooter>
       </Card>
@@ -352,7 +352,7 @@ export default function QuizPreviewPage() {
                       <Td style={{ textAlign: 'right' }}>
                         <Link to={`/attempts/${attempt.attemptId}/result`}>
                           <Button variant="outline" size="sm">
-                            View Result →
+                            View Result
                           </Button>
                         </Link>
                       </Td>

@@ -45,7 +45,7 @@ export default function AdminOrganizationDetailPage() {
         </Alert>
         <div style={{ marginTop: '16px' }}>
           <Link to="/admin/organizations">
-            <Button variant="outline">← Back to Organizations</Button>
+            <Button variant="outline">Back to Organizations</Button>
           </Link>
         </div>
       </div>
@@ -78,11 +78,11 @@ export default function AdminOrganizationDetailPage() {
       {/* Top Breadcrumb & Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <Link to="/admin/organizations" style={{ fontSize: '0.875rem', color: 'var(--brand-600, #2563eb)', textDecoration: 'none' }}>
-            ← Back to Organizations
+          <Link to="/admin/organizations" style={{ fontSize: '0.8125rem', color: 'var(--brand-600)', textDecoration: 'none' }}>
+            Back to Organizations
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>{org.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, letterSpacing: '-0.02em' }}>{org.name}</h1>
             <Badge variant={org.isActive ? 'success' : 'neutral'} size="sm">
               {org.isActive ? '● Active' : '● Inactive'}
             </Badge>

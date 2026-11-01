@@ -42,24 +42,24 @@ function getUserInitials(name?: string, email?: string, username?: string): stri
   return source.slice(0, 1).toUpperCase() || 'U';
 }
 
-/* Warm, rich SaaS Brand Gradients (Peach, Pink, Coral, Mustard) */
-const GRADIENTS = [
-  'linear-gradient(135deg, #E39A7B 0%, #D96E43 100%)', // Rich Coral
-  'linear-gradient(135deg, #FFD3AC 0%, #E39A7B 100%)', // Peach-Coral
-  'linear-gradient(135deg, #FFB5AB 0%, #D96E43 100%)', // Pink-Coral
-  'linear-gradient(135deg, #DBB06B 0%, #D96E43 100%)', // Mustard-Coral
-  'linear-gradient(135deg, #E39A7B 0%, #8C4B33 100%)', // Terracotta
-  'linear-gradient(135deg, #FFB5AB 0%, #DBB06B 100%)', // Warm Sunburst
-  'linear-gradient(135deg, #D96E43 0%, #A85232 100%)', // Deep Coral
+/* Identity-preserving pale tone steps (taste-skill v2) */
+const AVATAR_TONES = [
+  { bg: 'var(--brand-50, #e0e7ff)', text: 'var(--brand-700, #3730a3)' },
+  { bg: '#ede9fe', text: '#5b21b6' },
+  { bg: '#e0f2fe', text: '#0369a1' },
+  { bg: '#dcfce7', text: '#166534' },
+  { bg: '#fef3c7', text: '#92400e' },
+  { bg: '#fee2e2', text: '#991b1b' },
+  { bg: 'var(--color-surface-active, #e2e8f0)', text: 'var(--color-text-primary, #0f172a)' },
 ];
 
-function getGradientForString(str: string = 'user'): string {
+function getToneForString(str: string = 'user') {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % GRADIENTS.length;
-  return GRADIENTS[index];
+  const index = Math.abs(hash) % AVATAR_TONES.length;
+  return AVATAR_TONES[index];
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
@@ -76,7 +76,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const initials = getUserInitials(name, email, username);
   const identifier = email || username || name || 'default';
-  const backgroundGradient = getGradientForString(identifier);
+  const tone = getToneForString(identifier);
 
   const containerClasses = [
     styles.avatar,
@@ -91,7 +91,8 @@ export const Avatar: React.FC<AvatarProps> = ({
     <div
       className={containerClasses}
       style={{
-        background: src ? 'none' : backgroundGradient,
+        background: src ? 'none' : tone.bg,
+        color: src ? 'inherit' : tone.text,
         ...style,
       }}
       title={name || username || email || 'User Avatar'}

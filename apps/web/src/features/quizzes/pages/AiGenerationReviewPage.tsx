@@ -396,7 +396,7 @@ export default function AiGenerationReviewPage() {
         }}
       >
         <Button variant="outline" size="sm" onClick={handleBackToQuiz}>
-          ← Back to Quiz
+          Back to Quiz
         </Button>
 
         {isEditable && (

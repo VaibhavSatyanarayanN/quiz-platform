@@ -43,7 +43,7 @@ export const QuizAnalyticsPage: React.FC = () => {
     return (
       <div className={styles.container}>
         <Button variant="ghost" onClick={() => navigate(-1)} className={styles.backButton}>
-          ← Back
+          Back
         </Button>
         <Alert variant="danger" title="Failed to load analytics">
           {(error as Error)?.message || 'Quiz analytics could not be retrieved.'}
@@ -74,7 +74,7 @@ export const QuizAnalyticsPage: React.FC = () => {
             onClick={() => navigate(`/creator/quizzes/${analytics.quizId}`)}
             className={styles.backButton}
           >
-            ← Back to Quiz
+            Back to Quiz
           </Button>
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{analytics.quizTitle}</h1>

@@ -41,17 +41,17 @@
 }
 
 .title {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-extrabold);
+  font-size: 1.5rem;
+  font-weight: 650;
   color: var(--color-text-primary);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
 .subtitle {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  margin: var(--space-1) 0 0 0;
+  font-size: 0.8125rem;
+  margin: 4px 0 0 0;
 }
 
 .versionSelectorContainer {
@@ -59,39 +59,38 @@
   align-items: center;
   gap: var(--space-3);
   background: var(--color-surface);
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  border-radius: 6px;
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
 }
 
 .versionLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .versionSelect {
   background: var(--color-surface-subtle);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
   outline: none;
 }
 
 .analyticsBadge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
-  background: rgba(227, 154, 123, 0.12);
-  color: #C97E60;
-  border: 1px solid rgba(227, 154, 123, 0.25);
-  border-radius: var(--radius-full);
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-xs);
+  padding: 3px 8px;
+  background: var(--brand-50);
+  color: var(--brand-600);
+  border: 1px solid var(--brand-200);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
 }
 
 .content {

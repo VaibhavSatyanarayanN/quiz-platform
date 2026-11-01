@@ -30,11 +30,21 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isCreatorOrAdmin = user?.role === 'creator' || user?.role === 'admin' || isPlatformAdmin;
+  const getBreadcrumb = () => {
+    const p = location.pathname;
+    if (p.startsWith('/quizzes')) return 'Workbench / Quizzes';
+    if (p.startsWith('/classrooms')) return 'Workbench / Classrooms';
+    if (p.startsWith('/attempts')) return 'Workbench / Submissions';
+    if (p.startsWith('/organization')) return 'Organization / Members';
+    if (p.startsWith('/admin')) return 'System Admin / Overview';
+    if (p.startsWith('/profile')) return 'Account / Settings';
+    return 'Workbench / Dashboard';
+  };
 
   return (
     <header className={styles.header}>
       <div className={styles.headerLeft}>
+        {/* Mobile Hamburger Toggle */}
         <button
           type="button"
           className={styles.mobileToggleBtn}
@@ -55,115 +65,32 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </button>
 
-        <Link to="/dashboard" className={styles.logoArea} aria-label="QuizPlatform Dashboard">
-          <div className={styles.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        {/* Mobile Logo (hidden on desktop) */}
+        <Link to="/dashboard" className={styles.mobileLogoArea} aria-label="QuizPlatform Dashboard">
+          <div className={styles.brandMonogram} style={{ width: 26, height: 26 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 19 21 12 17 5 21 12 2" />
             </svg>
           </div>
-          <span className={styles.logoText}>QuizPlatform</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>QuizPlatform</span>
         </Link>
 
-        {/* Primary Desktop Horizontal Navigation */}
-        <nav className={styles.desktopNav}>
-          <Link
-            to="/dashboard"
-            className={`${styles.topNavItem} ${
-              location.pathname === '/dashboard' || location.pathname === '/'
-                ? styles.topNavItemActive
-                : ''
-            }`}
-          >
-            Dashboard
-          </Link>
-
-          {isCreatorOrAdmin ? (
-            <>
-              <Link
-                to="/classrooms"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/classrooms') ? styles.topNavItemActive : ''
-                }`}
-              >
-                Classrooms
-              </Link>
-              <Link
-                to="/organization/members"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/organization') ? styles.topNavItemActive : ''
-                }`}
-              >
-                Organization Members
-              </Link>
-              <Link
-                to="/quizzes"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/quizzes') ? styles.topNavItemActive : ''
-                }`}
-              >
-                Quizzes
-              </Link>
-              <Link
-                to="/attempts"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/attempts') ? styles.topNavItemActive : ''
-                }`}
-              >
-                Analytics & Submissions
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/attempts"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/attempts') ? styles.topNavItemActive : ''
-                }`}
-              >
-                My Results
-              </Link>
-            </>
-          )}
-
-          {isPlatformAdmin && (
-            <>
-              <Link
-                to="/admin/organizations"
-                className={`${styles.topNavItem} ${
-                  location.pathname.startsWith('/admin/organizations') ? styles.topNavItemActive : ''
-                }`}
-              >
-                Organizations
-              </Link>
-              <Link
-                to="/admin"
-                className={`${styles.topNavItem} ${
-                  location.pathname === '/admin' ? styles.topNavItemActive : ''
-                }`}
-              >
-                Platform Admin
-              </Link>
-            </>
-          )}
-        </nav>
+        {/* Desktop Breadcrumb Navigation Indicator */}
+        <div className={styles.headerBreadcrumb} aria-label="Current Scope">
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>{getBreadcrumb()}</span>
+        </div>
       </div>
 
       <div className={styles.headerRight}>
         {currentOrganization && (
           <div className={styles.orgBadge}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.orgIcon}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.orgIcon}>
               <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
               <path d="M9 22v-4h6v4" />
               <path d="M8 6h.01" />
               <path d="M16 6h.01" />
               <path d="M12 6h.01" />
               <path d="M12 10h.01" />
-              <path d="M12 14h.01" />
-              <path d="M16 10h.01" />
-              <path d="M16 14h.01" />
-              <path d="M8 10h.01" />
-              <path d="M8 14h.01" />
             </svg>
             <span className={styles.orgName}>{currentOrganization.organizationName}</span>
           </div>
@@ -187,11 +114,11 @@ export const Header: React.FC<HeaderProps> = ({
               <div className={styles.userDropdown}>
                 <div style={{ padding: '10px 14px' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Signed in as</div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
                     {user.email || `User #${user.userId.slice(0, 8)}`}
                   </div>
                   <div style={{ marginTop: '6px' }}>
-                    <Badge variant={isPlatformAdmin ? 'coral' : user.role === 'admin' ? 'coral' : user.role === 'creator' ? 'peach' : 'neutral'} size="sm">
+                    <Badge variant={isPlatformAdmin ? 'neutral' : user.role === 'admin' ? 'neutral' : 'neutral'} size="sm">
                       {isPlatformAdmin ? 'Super Admin' : user.role === 'admin' ? 'Org Admin' : user.role === 'creator' ? 'Teacher' : 'Student'}
                     </Badge>
                   </div>
@@ -208,15 +135,14 @@ export const Header: React.FC<HeaderProps> = ({
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-                  Profile & Settings
+                  <span>Profile & Settings</span>
                 </Link>
 
                 <div className={styles.dropdownDivider} />
 
                 <button
                   type="button"
-                  className={styles.dropdownItem}
-                  style={{ color: 'var(--color-danger)' }}
+                  className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
                   onClick={() => {
                     setIsDropdownOpen(false);
                     logout();
@@ -227,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
-                  Log out
+                  <span>Log out</span>
                 </button>
               </div>
             )}

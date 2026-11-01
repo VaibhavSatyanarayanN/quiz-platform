@@ -22,60 +22,60 @@ export default function AdminDashboardPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Badge variant="brand" size="sm">Platform Admin Console</Badge>
+            <Badge variant="neutral" size="sm">System Console</Badge>
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-            Admin Overview
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+            Platform Admin
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
-            Manage platform organizations, tenant creators, and authorization.
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
+            Manage platform organizations, tenant creators, and system authorization.
           </p>
         </div>
 
         <Link to="/admin/organizations">
-          <Button variant="primary">Manage Organizations →</Button>
+          <Button variant="primary">Manage Organizations</Button>
         </Link>
       </div>
 
       {/* Metrics Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <Card variant="elevated">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <Card variant="default">
           <CardBody>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
               Organizations
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--brand-600, #2563eb)', marginTop: '4px' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--brand-600)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
               {overview?.totalOrganizations ?? 0}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
               Total registered tenants
             </div>
           </CardBody>
         </Card>
 
-        <Card variant="elevated">
+        <Card variant="default">
           <CardBody>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
               Active Tenants
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-success-text, #166534)', marginTop: '4px' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--color-success)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
               {overview?.activeOrganizations ?? 0}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
               Currently active organizations
             </div>
           </CardBody>
         </Card>
 
-        <Card variant="elevated">
+        <Card variant="default">
           <CardBody>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>
               Total Creators
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary, #111827)', marginTop: '4px' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, color: 'var(--color-text-primary)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
               {overview?.totalCreators ?? 0}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
               Organization-affiliated creators
             </div>
           </CardBody>
@@ -87,8 +87,8 @@ export default function AdminDashboardPage() {
         <CardBody style={{ padding: 0 }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border, #e5e7eb)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Organizations Summary</h3>
-            <Link to="/admin/organizations" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--brand-600, #2563eb)', textDecoration: 'none' }}>
-              View All ({organizations.length}) →
+            <Link to="/admin/organizations" style={{ fontSize: '0.8125rem', fontWeight: 550, color: 'var(--brand-600)', textDecoration: 'none' }}>
+              View All ({organizations.length})
             </Link>
           </div>
 

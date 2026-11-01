@@ -56,11 +56,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onClose }) => {
 
         {isCreatorOrAdmin ? (
           <>
+            <Link to="/quizzes" className={styles.dropdownItem} onClick={onClose}>
+              Quizzes
+            </Link>
             <Link to="/classrooms" className={styles.dropdownItem} onClick={onClose}>
               Classrooms
             </Link>
-            <Link to="/quizzes" className={styles.dropdownItem} onClick={onClose}>
-              Quizzes
+            <Link to="/organization/members" className={styles.dropdownItem} onClick={onClose}>
+              Organization Members
             </Link>
             <Link to="/attempts" className={styles.dropdownItem} onClick={onClose}>
               Analytics & Submissions

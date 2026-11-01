@@ -51,12 +51,12 @@ export default function CreateQuizPage() {
       <div>
         <Link to="/quizzes">
           <Button variant="ghost" size="sm">
-            ← Back to Quizzes
+            Back to Quizzes
           </Button>
         </Link>
       </div>
 
-      <Card variant="elevated">
+      <Card variant="default">
         <CardHeader>
           <CardTitle style={{ fontSize: '1.5rem', fontWeight: 700 }}>Create New Quiz</CardTitle>
           <CardDescription>
@@ -193,7 +193,7 @@ export default function CreateQuizPage() {
                 variant="primary"
                 isLoading={createQuizMutation.isPending}
               >
-                Create Quiz & Add Questions →
+                Create Quiz & Add Questions
               </Button>
             </div>
           </form>

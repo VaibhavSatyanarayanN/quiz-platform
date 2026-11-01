@@ -36,14 +36,14 @@ export default function AttemptHistoryPage() {
   };
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-            {quizId ? 'Quiz Attempt History' : 'My Attempt History'}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+            {quizId ? 'Quiz Attempts' : 'Attempt History'}
           </h1>
-          <p style={{ color: 'var(--color-text-secondary, #6b7280)', margin: '4px 0 0 0', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '4px 0 0 0', fontSize: '0.8125rem' }}>
             {quizId
               ? 'Past assessment attempts for this specific quiz.'
               : 'View all your completed, expired, and in-progress quiz attempts.'}
@@ -54,7 +54,7 @@ export default function AttemptHistoryPage() {
           {quizId && (
             <Link to="/attempts">
               <Button variant="outline" size="sm">
-                View All Quizzes
+                All Quizzes
               </Button>
             </Link>
           )}

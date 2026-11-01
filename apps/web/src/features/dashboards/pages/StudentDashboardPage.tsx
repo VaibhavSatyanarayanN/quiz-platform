@@ -25,52 +25,52 @@ export const StudentDashboardPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Welcome Banner */}
       <div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
-          Student Learning Dashboard
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 650, margin: 0, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
+          Student Dashboard
         </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
           Overview of your assigned quizzes, completion status, and assessment performance.
         </p>
       </div>
 
       {/* KPI Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Assigned Quizzes</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.assignedQuizzes}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Assigned Quizzes</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.assignedQuizzes}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-              {metrics.completedQuizzes} Completed | {metrics.pendingQuizzes} Pending | {metrics.missedQuizzes} Missed
+              {metrics.completedQuizzes} completed · {metrics.pendingQuizzes} pending
             </div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Average Score</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.avgPercentage}%</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Average Score</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.avgPercentage}%</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-              Avg score: {metrics.avgScore} pts
+              {metrics.avgScore} pts avg
             </div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Accuracy Rate</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.accuracy}%</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Accuracy Rate</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.accuracy}%</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-              {metrics.correctAnswers} Correct / {metrics.totalQuestionsAnswered} Answered
+              {metrics.correctAnswers} of {metrics.totalQuestionsAnswered} answered
             </div>
           </CardBody>
         </Card>
 
         <Card variant="outlined">
-          <CardBody style={{ padding: '16px' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Questions Answered</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, margin: '4px 0' }}>{metrics.totalQuestionsAnswered}</div>
+          <CardBody style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Questions Answered</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 650, margin: '4px 0', fontVariantNumeric: 'tabular-nums' }}>{metrics.totalQuestionsAnswered}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-              {metrics.wrongAnswers} Wrong | {metrics.unansweredQuestions} Unanswered
+              {metrics.wrongAnswers} wrong · {metrics.unansweredQuestions} unanswered
             </div>
           </CardBody>
         </Card>
@@ -130,7 +130,7 @@ export const StudentDashboardPage: React.FC = () => {
                         {q.status === 'pending' ? (
                           <Link to={`/quizzes/${q.quizId}/versions/${q.quizVersionId}`}>
                             <Button variant="primary" size="sm">
-                              Start Quiz →
+                              Start Quiz
                             </Button>
                           </Link>
                         ) : (
