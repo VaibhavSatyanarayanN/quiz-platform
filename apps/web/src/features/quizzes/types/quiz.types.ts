@@ -323,6 +323,8 @@ export interface UpdateGenerationReviewRequest {
     cognitiveLevel?: string | null;
     learningObjectiveId?: string | null;
     correctAnswer?: string | null;
+    validationFeedback?: Record<string, unknown> | null;
+    pedagogyFeedback?: Record<string, unknown> | null;
     options?: Array<{
       id?: string;
       text: string;

@@ -91,6 +91,12 @@ export class ReviewQuestionInputDto {
   correctAnswer?: string | null;
 
   @IsOptional()
+  validationFeedback?: Record<string, any> | null;
+
+  @IsOptional()
+  pedagogyFeedback?: Record<string, any> | null;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ReviewOptionInputDto)

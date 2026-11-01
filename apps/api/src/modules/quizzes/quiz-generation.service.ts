@@ -1459,8 +1459,14 @@ export class QuizGenerationService {
             ? q.learningObjectiveId || null
             : (priorQuestion?.learningObjectiveId ?? null),
         correctAnswer: resolvedCorrectAnswer,
-        validationFeedback: priorQuestion?.validationFeedback ?? null,
-        pedagogyFeedback: priorQuestion?.pedagogyFeedback ?? null,
+        validationFeedback:
+          q.validationFeedback !== undefined
+            ? (q.validationFeedback as Record<string, any> | null)
+            : (priorQuestion?.validationFeedback ?? null),
+        pedagogyFeedback:
+          q.pedagogyFeedback !== undefined
+            ? (q.pedagogyFeedback as Record<string, any> | null)
+            : (priorQuestion?.pedagogyFeedback ?? null),
         options: normalizedOptions,
       });
     }

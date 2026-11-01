@@ -244,11 +244,32 @@ export default function AiGenerationReviewPage() {
       return;
     }
 
+    const payloadQuestions = activeQuestions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      questionType: q.questionType,
+      marks: q.marks,
+      order: q.order,
+      explanation: q.explanation ?? null,
+      difficulty: q.difficulty ?? null,
+      cognitiveLevel: q.cognitiveLevel ?? null,
+      learningObjectiveId: q.learningObjectiveId ?? null,
+      correctAnswer: q.correctAnswer ?? null,
+      validationFeedback: q.validationFeedback ?? null,
+      pedagogyFeedback: q.pedagogyFeedback ?? null,
+      options: q.options?.map((opt, idx) => ({
+        id: opt.id,
+        text: opt.text,
+        isCorrect: opt.isCorrect,
+        order: opt.order ?? idx + 1,
+      })),
+    }));
+
     saveReviewMutation.mutate(
       {
         quizId,
         generationId,
-        data: { questions: activeQuestions },
+        data: { questions: payloadQuestions },
       },
       {
         onSuccess: (updated) => {
@@ -306,13 +327,34 @@ export default function AiGenerationReviewPage() {
       return;
     }
 
+    const payloadQuestions = activeQuestions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      questionType: q.questionType,
+      marks: q.marks,
+      order: q.order,
+      explanation: q.explanation ?? null,
+      difficulty: q.difficulty ?? null,
+      cognitiveLevel: q.cognitiveLevel ?? null,
+      learningObjectiveId: q.learningObjectiveId ?? null,
+      correctAnswer: q.correctAnswer ?? null,
+      validationFeedback: q.validationFeedback ?? null,
+      pedagogyFeedback: q.pedagogyFeedback ?? null,
+      options: q.options?.map((opt, idx) => ({
+        id: opt.id,
+        text: opt.text,
+        isCorrect: opt.isCorrect,
+        order: opt.order ?? idx + 1,
+      })),
+    }));
+
     applyQuestionsMutation.mutate(
       {
         quizId,
         generationId,
         data: {
           targetVersionId: review?.targetVersionId,
-          questions: activeQuestions,
+          questions: payloadQuestions,
         },
       },
       {
