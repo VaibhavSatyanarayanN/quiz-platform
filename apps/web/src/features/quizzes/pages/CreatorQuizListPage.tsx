@@ -4,15 +4,12 @@ import { useCreatorQuizzes } from '../hooks/use-quizzes';
 import { CreateQuizModal } from '../components/CreateQuizModal';
 import { QuizStatus } from '../types/quiz.types';
 import { useAuth } from '@/features/auth/hooks/use-auth';
-import { Card, CardBody } from '@/components/ui/Card/Card';
-import { Badge } from '@/components/ui/Badge/Badge';
 import { Button } from '@/components/ui/Button/Button';
-import { Input } from '@/components/ui/Input/Input';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
-import { TableContainer, Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table/Table';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Alert } from '@/components/feedback/Alert';
 import { formatDate } from '@/lib/utils/formatters';
+import styles from './CreatorQuizListPage.module.css';
 
 export default function CreatorQuizListPage() {
   const { user } = useAuth();
@@ -39,12 +36,15 @@ export default function CreatorQuizListPage() {
   };
 
   // Primary paginated and filtered quiz list query
-  const queryParams = useMemo(() => ({
-    search: debouncedSearch || undefined,
-    status: filterStatus === 'all' ? undefined : (filterStatus as QuizStatus),
-    page,
-    limit,
-  }), [debouncedSearch, filterStatus, page, limit]);
+  const queryParams = useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      status: filterStatus === 'all' ? undefined : (filterStatus as QuizStatus),
+      page,
+      limit,
+    }),
+    [debouncedSearch, filterStatus, page, limit],
+  );
 
   const { data, isLoading, error, refetch } = useCreatorQuizzes(queryParams);
 
@@ -65,45 +65,37 @@ export default function CreatorQuizListPage() {
   const totalPages = data?.totalPages ?? Math.max(1, Math.ceil(total / limit));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Header Row */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 650,
-              margin: 0,
-              color: 'var(--color-text-primary)',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Quizzes
-          </h1>
-          <p
-            style={{
-              color: 'var(--color-text-secondary)',
-              fontSize: '0.8125rem',
-              margin: '4px 0 0 0',
-            }}
-          >
-            Create, manage, and inspect your quizzes and AI-generated question banks.
+    <div className={styles.pageContainer}>
+      {/* Top Header Bar */}
+      <div className={styles.headerBar}>
+        <div className={styles.titleArea}>
+          <h1 className={styles.pageTitle}>Quizzes</h1>
+          <p className={styles.pageSubtitle}>
+            Author, manage, and monitor assessments and AI-generated question banks.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+
+        <div className={styles.headerActions}>
           <Button
             variant="primary"
             onClick={() => setIsModalOpen(true)}
             aria-label="Create New Quiz"
           >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ marginRight: 6 }}
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             Create Quiz
           </Button>
         </div>
@@ -112,439 +104,394 @@ export default function CreatorQuizListPage() {
       {/* Role Notice for non-creator / learner accounts */}
       {user?.role === 'user' && (
         <Alert variant="warning" title="Learner Account Notice">
-          Your current account role is "{user?.role}". Authoring, editing, and managing quizzes requires Creator or Admin privileges.
+          Your current account role is "{user?.role}". Authoring, editing, and managing quizzes
+          requires Creator or Admin privileges.
         </Alert>
       )}
 
-      {/* KPI Metrics Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '12px',
-        }}
-      >
-        <Card variant="default">
-          <CardBody style={{ padding: '16px 20px' }}>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              Total Quizzes
-            </div>
-            <div
-              style={{
-                fontSize: '1.75rem',
-                fontWeight: 650,
-                color: 'var(--color-text-primary)',
-                marginTop: '4px',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {stats.total}
-            </div>
-          </CardBody>
-        </Card>
+      {/* KPI Metrics Band (references/app-screens.md §5) */}
+      <div className={styles.kpiStrip}>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Total Quizzes</span>
+          <span className={styles.kpiValue}>{stats.total}</span>
+          <span className={styles.kpiSubtext}>Total registered assessments</span>
+        </div>
 
-        <Card variant="default">
-          <CardBody style={{ padding: '16px 20px' }}>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              Published
-            </div>
-            <div
-              style={{
-                fontSize: '1.75rem',
-                fontWeight: 650,
-                color: 'var(--success-text, #059669)',
-                marginTop: '4px',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {stats.published}
-            </div>
-          </CardBody>
-        </Card>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Published</span>
+          <span className={`${styles.kpiValue} ${styles.kpiValuePublished}`}>{stats.published}</span>
+          <span className={styles.kpiSubtext}>Live & accessible to learners</span>
+        </div>
 
-        <Card variant="default">
-          <CardBody style={{ padding: '16px 20px' }}>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              Drafts
-            </div>
-            <div
-              style={{
-                fontSize: '1.75rem',
-                fontWeight: 650,
-                color: 'var(--brand-600)',
-                marginTop: '4px',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {stats.drafts}
-            </div>
-          </CardBody>
-        </Card>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Drafts</span>
+          <span className={`${styles.kpiValue} ${styles.kpiValueDraft}`}>{stats.drafts}</span>
+          <span className={styles.kpiSubtext}>Staged & work-in-progress</span>
+        </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <Card variant="default">
-        <CardBody style={{ padding: '16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              flexWrap: 'wrap',
-            }}
+      {/* Search and Filter Toolbar (references/app-screens.md §4.4) */}
+      <div className={styles.toolbarCard}>
+        <div className={styles.searchBox}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={styles.searchIcon}
+            aria-hidden="true"
           >
-            <div style={{ flex: 1, minWidth: '240px' }}>
-              <Input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search quizzes by title or description..."
-                aria-label="Search quizzes"
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <Button
-                variant={filterStatus === 'all' ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => handleStatusFilterChange('all')}
-                aria-label="Filter all quizzes"
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            className={styles.searchInput}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search quizzes by title or description..."
+            aria-label="Search quizzes"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              className={styles.clearSearchButton}
+              onClick={() => setSearchInput('')}
+              aria-label="Clear search query"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                All
-              </Button>
-              <Button
-                variant={filterStatus === QuizStatus.PUBLISHED ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => handleStatusFilterChange(QuizStatus.PUBLISHED)}
-                aria-label="Filter published quizzes"
-              >
-                Published
-              </Button>
-              <Button
-                variant={filterStatus === QuizStatus.DRAFT ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => handleStatusFilterChange(QuizStatus.DRAFT)}
-                aria-label="Filter draft quizzes"
-              >
-                Drafts
-              </Button>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <div className={styles.filterSegmentedTrack}>
+          <button
+            type="button"
+            className={`${styles.filterTab} ${filterStatus === 'all' ? styles.filterTabActive : ''}`}
+            onClick={() => handleStatusFilterChange('all')}
+            aria-label="Filter all quizzes"
+          >
+            <span>All</span>
+            <span className={styles.filterTabCount}>{stats.total}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterTab} ${filterStatus === QuizStatus.PUBLISHED ? styles.filterTabActive : ''}`}
+            onClick={() => handleStatusFilterChange(QuizStatus.PUBLISHED)}
+            aria-label="Filter published quizzes"
+          >
+            <span>Published</span>
+            <span className={styles.filterTabCount}>{stats.published}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterTab} ${filterStatus === QuizStatus.DRAFT ? styles.filterTabActive : ''}`}
+            onClick={() => handleStatusFilterChange(QuizStatus.DRAFT)}
+            aria-label="Filter draft quizzes"
+          >
+            <span>Drafts</span>
+            <span className={styles.filterTabCount}>{stats.drafts}</span>
+          </button>
+        </div>
+      </div>
 
       {/* Main Content Area: Loading, Error, Empty, or Table */}
       {isLoading ? (
-        <Card variant="default">
-          <CardBody style={{ padding: '24px' }}>
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-              aria-busy="true"
-              aria-label="Loading quizzes"
-            >
-              {[1, 2, 3, 4, 5].map((idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '16px',
-                    padding: '12px 0',
-                    borderBottom: '1px solid var(--color-border, #e5e7eb)',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <Skeleton width="45%" height={20} style={{ marginBottom: '8px' }} />
-                    <Skeleton width="75%" height={14} />
-                  </div>
-                  <Skeleton width="80px" height={24} />
-                  <Skeleton width="110px" height={16} />
-                  <Skeleton width="160px" height={32} />
+        <div className={styles.tableCard}>
+          <div className={styles.skeletonList} aria-busy="true" aria-label="Loading quizzes">
+            {[1, 2, 3, 4, 5].map((idx) => (
+              <div key={idx} className={styles.skeletonRow}>
+                <div style={{ flex: 1 }}>
+                  <Skeleton width="45%" height={20} style={{ marginBottom: 6 }} />
+                  <Skeleton width="75%" height={14} />
                 </div>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
+                <Skeleton width="80px" height={24} />
+                <Skeleton width="110px" height={16} />
+                <Skeleton width="160px" height={32} />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : error ? (
-        <Card variant="default">
-          <CardBody style={{ padding: '24px' }}>
-            <Alert variant="danger" title="Unable to load quizzes">
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                  width: '100%',
-                }}
-              >
-                <span>
-                  {error instanceof Error
-                    ? error.message
-                    : 'A network or server error occurred while retrieving your quizzes.'}
-                </span>
-                <div>
-                  <Button variant="outline" size="sm" onClick={() => refetch()}>
-                    ↻ Retry Loading
-                  </Button>
-                </div>
+        <div className={styles.tableCard} style={{ padding: 24 }}>
+          <Alert variant="danger" title="Unable to load quizzes">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span>
+                {error instanceof Error
+                  ? error.message
+                  : 'A network or server error occurred while retrieving your quizzes.'}
+              </span>
+              <div>
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ marginRight: 6 }}
+                    aria-hidden="true"
+                  >
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  Retry Loading
+                </Button>
               </div>
-            </Alert>
-          </CardBody>
-        </Card>
+            </div>
+          </Alert>
+        </div>
       ) : quizzes.length === 0 ? (
-        <Card variant="default">
-          <CardBody style={{ padding: '32px 16px' }}>
-            <EmptyState
-              title={
-                debouncedSearch || filterStatus !== 'all'
-                  ? 'No matching quizzes found'
-                  : 'No quizzes yet'
+        <div className={styles.tableCard} style={{ padding: '32px 16px' }}>
+          <EmptyState
+            title={
+              debouncedSearch || filterStatus !== 'all'
+                ? 'No matching quizzes found'
+                : 'No quizzes yet'
+            }
+            description={
+              debouncedSearch || filterStatus !== 'all'
+                ? 'No quizzes match your current search query or filter selection. Try adjusting or clearing filters.'
+                : 'Start building your assessment bank by creating your first quiz.'
+            }
+            actionLabel={
+              debouncedSearch || filterStatus !== 'all'
+                ? 'Clear Filters'
+                : '+ Create Quiz'
+            }
+            onAction={() => {
+              if (debouncedSearch || filterStatus !== 'all') {
+                setSearchInput('');
+                setFilterStatus('all');
+                setPage(1);
+              } else {
+                setIsModalOpen(true);
               }
-              description={
-                debouncedSearch || filterStatus !== 'all'
-                  ? 'No quizzes match your current search query or filter selection. Try adjusting or clearing filters.'
-                  : 'Start building your assessment bank by creating your first quiz.'
-              }
-              actionLabel={
-                debouncedSearch || filterStatus !== 'all'
-                  ? 'Clear Filters'
-                  : '+ Create Quiz'
-              }
-              onAction={() => {
-                if (debouncedSearch || filterStatus !== 'all') {
-                  setSearchInput('');
-                  setFilterStatus('all');
-                  setPage(1);
-                } else {
-                  setIsModalOpen(true);
-                }
-              }}
-            />
-          </CardBody>
-        </Card>
+            }}
+          />
+        </div>
       ) : (
-        <Card variant="default">
-          <CardBody style={{ padding: 0 }}>
-            <TableContainer>
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th>Quiz</Th>
-                    <Th>Status</Th>
-                    <Th>Version Info</Th>
-                    <Th>Updated</Th>
-                    <Th style={{ textAlign: 'right' }}>Actions</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {quizzes.map((quiz) => (
-                    <Tr key={quiz.id}>
-                      <Td>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
-                          {quiz.title}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.8125rem',
-                            color: 'var(--color-text-secondary)',
-                            marginTop: '2px',
-                          }}
-                        >
-                          {quiz.description || 'No description provided'}
-                        </div>
-                      </Td>
-                      <Td>
-                        <Badge
-                          variant={
-                            quiz.status === 'published' ? 'success' : 'neutral'
-                          }
-                          size="sm"
-                        >
-                          {quiz.status === 'published'
-                            ? '● Published'
-                            : '● Draft'}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '2px',
-                            fontSize: '0.8125rem',
-                          }}
-                        >
-                          <span style={{ color: 'var(--color-text-primary)' }}>
-                            {quiz.publishedVersionsCount} published version
-                            {quiz.publishedVersionsCount !== 1 ? 's' : ''}
-                          </span>
-                          {quiz.hasDraft && (
-                            <span
-                              style={{
-                                color: 'var(--brand-600, #4f46e5)',
-                                fontWeight: 500,
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              ● Draft active
-                            </span>
-                          )}
-                          {quiz.latestVersion && (
-                            <span
-                              style={{
-                                color: 'var(--color-text-muted, #9ca3af)',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              Latest: v{quiz.latestVersion}
-                            </span>
-                          )}
-                        </div>
-                      </Td>
-                      <Td
-                        style={{
-                          fontSize: '0.8125rem',
-                          color: 'var(--color-text-secondary)',
-                        }}
-                      >
-                        {formatDate(quiz.updatedAt)}
-                      </Td>
-                      <Td style={{ textAlign: 'right' }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: '8px',
-                            justifyContent: 'flex-end',
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <Link to={`/quizzes/${quiz.id}?ai=open`}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Open AI question generator for ${quiz.title}`}
-                            >
-                              AI Questions
-                            </Button>
-                          </Link>
-                          <Link to={`/quizzes/${quiz.id}/analytics`}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`View analytics for ${quiz.title}`}
-                            >
-                              📊 Analytics
-                            </Button>
-                          </Link>
-                          <Link to={`/quizzes/${quiz.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              aria-label={`Manage quiz ${quiz.title}`}
-                            >
-                              Manage
-                            </Button>
-                          </Link>
-                        </div>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
+        <div className={styles.tableCard}>
+          <div className={styles.tableWrapper}>
+            <table className={styles.dataTable}>
+              <thead>
+                <tr>
+                  <th>Quiz</th>
+                  <th>Status</th>
+                  <th>Version Info</th>
+                  <th>Updated</th>
+                  <th className={styles.thRight}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quizzes.map((quiz) => (
+                  <tr key={quiz.id} className={styles.tableRow}>
+                    <td className={styles.quizCol}>
+                      <Link to={`/quizzes/${quiz.id}`} className={styles.quizTitleLink}>
+                        {quiz.title}
+                      </Link>
+                      <div className={styles.quizDescription}>
+                        {quiz.description || 'No description provided'}
+                      </div>
+                    </td>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px 20px',
-                  borderTop: '1px solid var(--color-border, #e5e7eb)',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--color-text-secondary)',
-                  }}
-                >
-                  Showing {(page - 1) * limit + 1}–
-                  {Math.min(page * limit, total)} of {total} quizzes
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '8px',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    aria-label="Previous page"
-                  >
-                    ← Previous
-                  </Button>
-                  <span
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--color-text-primary)',
-                      padding: '0 8px',
-                    }}
-                  >
-                    Page {page} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    aria-label="Next page"
-                  >
-                    Next →
-                  </Button>
-                </div>
+                    <td>
+                      <span
+                        className={`${styles.statusPill} ${
+                          quiz.status === 'published' ? styles.badgeSuccess : styles.badgeNeutral
+                        }`}
+                      >
+                        {quiz.status === 'published' ? 'Published' : 'Draft'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className={styles.versionCol}>
+                        <span className={styles.versionText}>
+                          {quiz.publishedVersionsCount} published version
+                          {quiz.publishedVersionsCount !== 1 ? 's' : ''}
+                        </span>
+                        {quiz.hasDraft && (
+                          <span className={styles.draftActiveTag}>
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                background: 'currentColor',
+                                display: 'inline-block',
+                              }}
+                            />
+                            Draft active
+                          </span>
+                        )}
+                        {quiz.latestVersion && (
+                          <span className={styles.latestVersionText}>
+                            Latest: v{quiz.latestVersion}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className={styles.dateCol}>{formatDate(quiz.updatedAt)}</td>
+
+                    <td className={styles.actionsCol}>
+                      <div className={styles.actionButtonCluster}>
+                        <Link
+                          to={`/quizzes/${quiz.id}?ai=open`}
+                          className={styles.actionBtnGhost}
+                          aria-label={`Open AI question generator for ${quiz.title}`}
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                          </svg>
+                          <span>AI Questions</span>
+                        </Link>
+
+                        <Link
+                          to={`/quizzes/${quiz.id}/analytics`}
+                          className={styles.actionBtnGhost}
+                          aria-label={`View analytics for ${quiz.title}`}
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M18 20V10M12 20V4M6 20v-6" />
+                          </svg>
+                          <span>Analytics</span>
+                        </Link>
+
+                        <Link
+                          to={`/quizzes/${quiz.id}`}
+                          className={styles.actionBtnOutline}
+                          aria-label={`Manage quiz ${quiz.title}`}
+                        >
+                          <span>Manage</span>
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className={styles.paginationBar}>
+              <div className={styles.paginationRange}>
+                Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}{' '}
+                quizzes
               </div>
-            )}
-          </CardBody>
-        </Card>
+
+              <div className={styles.paginationControls}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous page"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ marginRight: 4 }}
+                    aria-hidden="true"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previous
+                </Button>
+
+                <span className={styles.pageIndicator}>
+                  Page {page} of {totalPages}
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  aria-label="Next page"
+                >
+                  Next
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ marginLeft: 4 }}
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      <CreateQuizModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      <CreateQuizModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
