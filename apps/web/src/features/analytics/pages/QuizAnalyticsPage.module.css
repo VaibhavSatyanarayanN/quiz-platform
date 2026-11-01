@@ -1,23 +1,39 @@
-/* QuizAnalyticsPage.module.css */
-.container,
-.page {
+/* ==========================================================================
+   QuizAnalyticsPage.module.css — taste-skill v2 House Style
+   Quiz Performance Analytical Workbench
+   ========================================================================== */
+
+.container {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  max-width: 1200px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
+  width: 100%;
 }
 
+@media (min-width: 768px) {
+  .container {
+    padding: var(--space-8) var(--space-6);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   1. Header Bar & Breadcrumbs
+   -------------------------------------------------------------------------- */
 .header {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-5);
 }
-@media (min-width: 768px) {
+
+@media (min-width: 840px) {
   .header {
     flex-direction: row;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
   }
 }
@@ -25,215 +41,502 @@
 .headerLeft {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
 }
 
-.backButton {
-  align-self: flex-start;
-  color: var(--color-text-secondary);
+.breadcrumbBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand-700);
+  font-weight: 550;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbDivider {
+  color: var(--color-border-strong);
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text-muted);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .title {
   font-size: 1.5rem;
-  font-weight: 650;
+  font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
   margin: 0;
+  line-height: 1.2;
 }
 
-.subtitle {
-  color: var(--color-text-secondary);
-  font-size: 0.8125rem;
-  margin: 4px 0 0 0;
+@media (min-width: 768px) {
+  .title {
+    font-size: 1.75rem;
+  }
 }
 
-.versionSelectorContainer {
-  display: flex;
+.versionBadge {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  background: var(--color-surface);
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  box-shadow: none;
-}
-
-.versionLabel {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-.versionSelect {
+  padding: 2px 8px;
   background: var(--color-surface-subtle);
-  color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  outline: none;
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .analyticsBadge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
+  padding: 2px 8px;
   background: var(--brand-50);
-  color: var(--brand-600);
+  color: var(--brand-700);
   border: 1px solid var(--brand-200);
   border-radius: 4px;
-  font-weight: 600;
   font-size: 0.75rem;
+  font-weight: 650;
 }
 
-.content {
+.subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 680px;
+  line-height: 1.45;
+}
+
+.headerToolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.gridTwoColumns {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-6);
+.versionSelectorContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+  border-radius: 6px;
 }
-@media (min-width: 900px) {
-  .gridTwoColumns {
-    grid-template-columns: 1fr 1fr;
+
+.versionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.versionSelect {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  outline: none;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinIcon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
-.sectionSpacer {
-  margin-top: var(--space-4);
-}
-
+/* --------------------------------------------------------------------------
+   2. Empty State Card
+   -------------------------------------------------------------------------- */
 .emptyCard {
-  text-align: center;
   background: var(--color-surface);
   border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
 }
 
 .emptyCardBody {
-  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.emptyIconBadge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text-muted);
 }
 
 .emptyTitle {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-size: 1.0625rem;
+  font-weight: 650;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .emptyText {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  max-width: 500px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
   margin: 0;
 }
 
-.typeSection {
+/* --------------------------------------------------------------------------
+   3. Multi-Version Performance Comparison Table
+   -------------------------------------------------------------------------- */
+.sectionSpacer {
+  margin-top: var(--space-2);
+}
+
+.versionSection {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-xs);
-}
-
-.typeSectionHeader {
+  border-radius: 8px;
+  padding: 18px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-4);
+  flex-direction: column;
+  gap: 14px;
 }
 
-.typeSectionTitle {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+.sectionHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  font-size: 0.9375rem;
+  font-weight: 650;
   color: var(--color-text-primary);
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
-.typeGrid {
+.sectionSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 0 0;
+}
+
+.versionTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.versionTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.versionTable th {
+  padding: 8px 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.versionTable td {
+  padding: 10px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.versionRow {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.versionRow:hover {
+  background: var(--color-surface-subtle);
+}
+
+.versionRowActive {
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.tdVersionName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.thRight,
+.tdRight {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.thCenter,
+.tdCenter {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.actionButtonActive {
+  background: var(--brand-50);
+  border: 1px solid var(--brand-200);
+  color: var(--brand-700);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.actionButtonGhost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.actionButtonGhost:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   4. Question Format Breakdown Cards
+   -------------------------------------------------------------------------- */
+.formatSection {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formatGrid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
+
 @media (min-width: 640px) {
-  .typeGrid {
+  .formatGrid {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 }
 
-.typeCard {
+.formatCard {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  border-radius: 6px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
-.typeCardHeader {
+.formatCardHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
-.typeCardLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+.formatCardLabel {
+  font-size: 0.75rem;
+  font-weight: 650;
   color: var(--color-text-primary);
   text-transform: capitalize;
 }
 
-.typeAccuracy {
+.formatAccuracyRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.formatAccuracyValue {
   font-size: 1.5rem;
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
   color: var(--color-text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-.typeMeta {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+.formatAccuracyLabel {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
 }
 
-.versionTableCard {
+.formatTrack {
+  height: 6px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.activeVersionRow {
-  background: rgba(227, 154, 123, 0.08);
+.formatFill {
+  height: 100%;
+  background: var(--brand-600);
+  border-radius: 2px;
 }
 
-.clickableRow {
-  cursor: pointer;
+.formatMeta {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
-.clickableRow:hover {
+
+/* --------------------------------------------------------------------------
+   5. Two Column Grid (Histogram & Leaderboard)
+   -------------------------------------------------------------------------- */
+.gridTwoColumns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 960px) {
+  .gridTwoColumns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Status Pills */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.35;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.badgeNeutral {
   background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
 }
 
+.badgeBrand {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border-color: var(--brand-200);
+}
+
+.badgeSuccess {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.badgeWarning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.badgeDanger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+/* Feedback & Loading States */
 .loadingContainer {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 400px;
+}
+
+.backButton {
+  align-self: flex-start;
+  color: var(--color-text-secondary);
 }
 
 .errorActions {

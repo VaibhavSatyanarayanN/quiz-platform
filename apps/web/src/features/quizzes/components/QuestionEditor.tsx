@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type {
   CreateQuestionRequest,
   CreateOptionRequest,
 } from '../types/quiz.types';
 import { QuestionType } from '../types/quiz.types';
+import { Badge } from '@/components/ui/Badge/Badge';
+import { Button } from '@/components/ui/Button/Button';
+import styles from './QuestionEditor.module.css';
 
 interface QuestionEditorProps {
   questions: CreateQuestionRequest[];
@@ -18,24 +21,30 @@ export function QuestionEditor({
   onChange,
   onSave,
   isSaving = false,
-  disabled,
+  disabled = false,
 }: QuestionEditorProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<number, boolean>>({});
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [confirmRemoveIndex, setConfirmRemoveIndex] = useState<number | null>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (disabled) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (disabled) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    if (disabled || draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      return;
+    }
     const updated = [...questions];
     const [removed] = updated.splice(draggedIndex, 1);
     updated.splice(targetIndex, 0, removed);
@@ -88,7 +97,7 @@ export function QuestionEditor({
   const handleDuplicateQuestion = (qIndex: number) => {
     const q = questions[qIndex];
     const duplicated: CreateQuestionRequest = {
-      text: `${q.text} (Copy)`,
+      text: q.text ? `${q.text} (Copy)` : '',
       questionType: q.questionType,
       marks: q.marks,
       options: q.options.map((opt) => ({
@@ -101,31 +110,25 @@ export function QuestionEditor({
     onChange(updated);
   };
 
-  const handleMoveQuestion = (qIndex: number, direction: 'up' | 'down') => {
-    if (
-      (direction === 'up' && qIndex === 0) ||
-      (direction === 'down' && qIndex === questions.length - 1)
-    ) {
-      return;
-    }
-
-    const targetIndex = direction === 'up' ? qIndex - 1 : qIndex + 1;
-    const updated = [...questions];
-    const temp = updated[qIndex];
-    updated[qIndex] = updated[targetIndex];
-    updated[targetIndex] = temp;
-    onChange(updated);
-  };
-
   const handleRemoveQuestion = (qIndex: number) => {
     const updated = questions.filter((_, idx) => idx !== qIndex);
     onChange(updated);
+    setConfirmRemoveIndex(null);
   };
 
-  const handleQuestionChange = (
+  const handleMoveQuestion = (fromIndex: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (targetIndex < 0 || targetIndex >= questions.length) return;
+    const updated = [...questions];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+    onChange(updated);
+  };
+
+  const handleQuestionChange = <K extends keyof CreateQuestionRequest>(
     qIndex: number,
-    field: keyof CreateQuestionRequest,
-    value: unknown,
+    field: K,
+    value: CreateQuestionRequest[K],
   ) => {
     const updated = [...questions];
     updated[qIndex] = {
@@ -137,38 +140,49 @@ export function QuestionEditor({
 
   const handleTypeChange = (qIndex: number, newType: QuestionType) => {
     const q = questions[qIndex];
-    let newOptions = [...q.options];
+    if (q.questionType === newType) return;
 
+    let updatedOptions = [...q.options];
     if (newType === QuestionType.TRUE_FALSE) {
-      newOptions = [
+      updatedOptions = [
         { text: 'True', isCorrect: true },
         { text: 'False', isCorrect: false },
       ];
+    } else if (q.questionType === QuestionType.TRUE_FALSE) {
+      updatedOptions = [
+        { text: 'Option A', isCorrect: true },
+        { text: 'Option B', isCorrect: false },
+        { text: 'Option C', isCorrect: false },
+        { text: 'Option D', isCorrect: false },
+      ];
     } else if (newType === QuestionType.SINGLE_CHOICE) {
-      let foundCorrect = false;
-      newOptions = newOptions.map((opt) => {
-        if (opt.isCorrect && !foundCorrect) {
-          foundCorrect = true;
+      let foundFirst = false;
+      updatedOptions = updatedOptions.map((opt) => {
+        if (opt.isCorrect && !foundFirst) {
+          foundFirst = true;
           return opt;
         }
         return { ...opt, isCorrect: false };
       });
-      if (!foundCorrect && newOptions.length > 0) {
-        newOptions[0].isCorrect = true;
+      if (!foundFirst && updatedOptions.length > 0) {
+        updatedOptions[0].isCorrect = true;
       }
     }
 
     const updated = [...questions];
     updated[qIndex] = {
-      ...updated[qIndex],
+      ...q,
       questionType: newType,
-      options: newOptions,
+      options: updatedOptions,
     };
     onChange(updated);
   };
 
   const handleAddOption = (qIndex: number) => {
     const q = questions[qIndex];
+    if (q.questionType === QuestionType.TRUE_FALSE) return;
+    if (q.options.length >= 8) return;
+
     const newOption: CreateOptionRequest = {
       text: '',
       isCorrect: false,
@@ -183,9 +197,18 @@ export function QuestionEditor({
 
   const handleRemoveOption = (qIndex: number, optIndex: number) => {
     const q = questions[qIndex];
+    if (q.questionType === QuestionType.TRUE_FALSE) return;
     if (q.options.length <= 2) return;
 
-    const updatedOptions = q.options.filter((_, idx) => idx !== optIndex);
+    let updatedOptions = q.options.filter((_, idx) => idx !== optIndex);
+    const hasCorrect = updatedOptions.some((opt) => opt.isCorrect);
+    if (!hasCorrect && updatedOptions.length > 0) {
+      updatedOptions = updatedOptions.map((opt, idx) => ({
+        ...opt,
+        isCorrect: idx === 0,
+      }));
+    }
+
     const updated = [...questions];
     updated[qIndex] = {
       ...q,
@@ -214,6 +237,7 @@ export function QuestionEditor({
   };
 
   const handleOptionCorrectToggle = (qIndex: number, optIndex: number) => {
+    if (disabled) return;
     const q = questions[qIndex];
     let updatedOptions = [...q.options];
 
@@ -261,95 +285,104 @@ export function QuestionEditor({
   const totalMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 1), 0);
 
   return (
-    <div className="question-editor-container">
-      {/* Editor Header Stats & Quick Add */}
-      <div className="editor-header-bar">
-        <div className="editor-header-stats">
-          <h3>Questions ({questions.length})</h3>
-          <span className="editor-marks-pill">Total: {totalMarks} Marks</span>
+    <div className={styles.editorContainer}>
+      {/* Editor Header Toolbar */}
+      <div className={styles.headerBar}>
+        <div className={styles.headerStats}>
+          <h3 className={styles.headerTitle}>Questions ({questions.length})</h3>
+          <Badge variant="neutral" size="sm">
+            Total: {totalMarks} Marks
+          </Badge>
         </div>
 
-        <div className="editor-header-actions">
+        <div className={styles.headerActions}>
           {questions.length > 1 && (
-            <div className="accordion-toggle-group">
-              <button
+            <div className={styles.actionGroup}>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={handleExpandAll}
-                className="btn btn-sm btn-outline"
                 title="Expand all questions"
               >
                 Expand All
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={handleCollapseAll}
-                className="btn btn-sm btn-outline"
                 title="Collapse all questions"
               >
                 Collapse All
-              </button>
+              </Button>
             </div>
           )}
 
-          <div className="dropdown-add-group">
-            <button
+          <div className={styles.actionGroup}>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => handleAddQuestion(QuestionType.SINGLE_CHOICE)}
               disabled={disabled}
-              className="btn btn-sm btn-outline"
             >
-              + Add Question
-            </button>
+              Add Question
+            </Button>
             {onSave && (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={onSave}
                 disabled={disabled || isSaving}
-                className="btn btn-sm btn-primary"
+                isLoading={isSaving}
               >
-                {isSaving ? 'Saving...' : 'Save Questions'}
-              </button>
+                Save Draft Questions
+              </Button>
             )}
           </div>
         </div>
       </div>
 
       {questions.length === 0 ? (
-        <div className="empty-state-card" style={{ padding: '36px' }}>
-          <span className="empty-state-icon">✍️</span>
-          <h3>No questions in this draft</h3>
-          <p className="text-muted">
-            Add your first question to start crafting your quiz assessment.
+        <div className={styles.emptyStateCard}>
+          <h3 className={styles.emptyStateTitle}>No questions in this draft version</h3>
+          <p className={styles.emptyStateText}>
+            Add your first question manually or use AI generation to draft questions directly from topics or documents.
           </p>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-            <button
+          <div className={styles.emptyStateActions}>
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => handleAddQuestion(QuestionType.SINGLE_CHOICE)}
               disabled={disabled}
-              className="btn btn-primary btn-sm"
             >
-              + Single Choice Question
-            </button>
-            <button
+              Add Single Choice
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => handleAddQuestion(QuestionType.MULTIPLE_CHOICE)}
               disabled={disabled}
-              className="btn btn-outline btn-sm"
             >
-              + Multiple Choice Question
-            </button>
-            <button
+              Add Multiple Choice
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => handleAddQuestion(QuestionType.TRUE_FALSE)}
               disabled={disabled}
-              className="btn btn-outline btn-sm"
             >
-              + True/False Question
-            </button>
+              Add True/False
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="editor-questions-list">
+        <div className={styles.questionsList}>
           {questions.map((question, qIdx) => {
             const isCollapsed = Boolean(collapsedMap[qIdx]);
             const validation = getQuestionValidationStatus(question);
@@ -361,134 +394,145 @@ export function QuestionEditor({
                 onDragStart={(e) => handleDragStart(e, qIdx)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, qIdx)}
-                className={`editor-question-item ${
-                  !validation.valid ? 'item-has-validation-warning' : ''
-                } ${draggedIndex === qIdx ? 'item-dragging' : ''}`}
+                className={`${styles.questionCard} ${
+                  !validation.valid ? styles.cardHasWarning : ''
+                } ${draggedIndex === qIdx ? styles.cardDragging : ''}`}
               >
-                {/* Question Row Header */}
-                <div className="editor-q-header">
-                  <span
-                    className="drag-handle-grip"
-                    title="Drag to reorder question"
-                    style={{ cursor: 'grab', userSelect: 'none', padding: '0 4px', fontWeight: 'bold', color: 'var(--color-text-muted)' }}
-                  >
-                    ⋮⋮
-                  </span>
+                {/* Card Top Bar */}
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardHeaderLeft}>
+                    {!disabled && (
+                      <span
+                        className={styles.dragHandle}
+                        title="Drag to reorder question"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <circle cx="8" cy="5" r="1.5" />
+                          <circle cx="16" cy="5" r="1.5" />
+                          <circle cx="8" cy="12" r="1.5" />
+                          <circle cx="16" cy="12" r="1.5" />
+                          <circle cx="8" cy="19" r="1.5" />
+                          <circle cx="16" cy="19" r="1.5" />
+                        </svg>
+                      </span>
+                    )}
 
-                  <button
-                    type="button"
-                    onClick={() => toggleCollapse(qIdx)}
-                    className="collapse-toggle-btn"
-                    title={isCollapsed ? 'Expand Question' : 'Collapse Question'}
-                  >
-                    {isCollapsed ? '▶' : '▼'}
-                  </button>
-
-                  <span className="q-number-pill">Q{qIdx + 1}</span>
-
-                  <div className="q-type-select-group">
-                    <label htmlFor={`type-${qIdx}`}>Type:</label>
-                    <select
-                      id={`type-${qIdx}`}
-                      value={question.questionType}
-                      onChange={(e) =>
-                        handleTypeChange(qIdx, e.target.value as QuestionType)
-                      }
-                      disabled={disabled}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleCollapse(qIdx)}
+                      title={isCollapsed ? 'Expand Question' : 'Collapse Question'}
+                      aria-label={isCollapsed ? 'Expand Question' : 'Collapse Question'}
                     >
-                      <option value={QuestionType.SINGLE_CHOICE}>Single Choice</option>
-                      <option value={QuestionType.MULTIPLE_CHOICE}>Multiple Choice</option>
-                      <option value={QuestionType.TRUE_FALSE}>True / False</option>
-                    </select>
-                  </div>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        {isCollapsed ? <polyline points="9 18 15 12 9 6" /> : <polyline points="6 9 12 15 18 9" />}
+                      </svg>
+                    </Button>
 
-                  <div className="q-marks-group">
-                    <label htmlFor={`marks-${qIdx}`}>Marks:</label>
-                    <input
-                      id={`marks-${qIdx}`}
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={question.marks}
-                      onChange={(e) =>
-                        handleQuestionChange(
-                          qIdx,
-                          'marks',
-                          Math.max(1, Number(e.target.value)),
-                        )
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
+                    <Badge variant="brand">Question {qIdx + 1}</Badge>
 
-                  <div className="q-validity-status">
                     {validation.valid ? (
-                      <span className="badge badge-success">✓ Ready</span>
+                      <Badge variant="success" size="sm">Ready</Badge>
                     ) : (
-                      <span className="badge badge-warning">⚠️ {validation.message}</span>
+                      <Badge variant="warning" size="sm">{validation.message}</Badge>
                     )}
                   </div>
 
-                  {/* Reorder and Action Buttons */}
-                  <div className="q-header-actions">
-                    <button
+                  {/* Actions: Reorder, Duplicate, Remove */}
+                  <div className={styles.cardHeaderActions}>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleMoveQuestion(qIdx, 'up')}
                       disabled={disabled || qIdx === 0}
-                      className="icon-action-btn"
                       title="Move Question Up"
+                      aria-label={`Move question ${qIdx + 1} up`}
                     >
-                      ▲
-                    </button>
-                    <button
+                      ↑ Up
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleMoveQuestion(qIdx, 'down')}
                       disabled={disabled || qIdx === questions.length - 1}
-                      className="icon-action-btn"
                       title="Move Question Down"
+                      aria-label={`Move question ${qIdx + 1} down`}
                     >
-                      ▼
-                    </button>
-                    <button
+                      ↓ Down
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleDuplicateQuestion(qIdx)}
                       disabled={disabled}
-                      className="icon-action-btn"
                       title="Duplicate Question"
                     >
-                      📄
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(qIdx)}
-                      disabled={disabled}
-                      className="icon-action-btn text-danger"
-                      title="Delete Question"
-                    >
-                      🗑️
-                    </button>
+                      Duplicate
+                    </Button>
+
+                    {confirmRemoveIndex === qIdx ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleRemoveQuestion(qIdx)}
+                          disabled={disabled}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmRemoveIndex(null)}
+                          disabled={disabled}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setConfirmRemoveIndex(qIdx)}
+                        disabled={disabled}
+                        title="Delete Question"
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
                 </div>
 
                 {/* Collapsed Preview */}
                 {isCollapsed ? (
                   <div
-                    className="collapsed-q-preview"
+                    className={styles.collapsedPreview}
                     onClick={() => toggleCollapse(qIdx)}
                   >
-                    <span className="preview-prompt-text">
+                    <span className={styles.collapsedPrompt}>
                       {question.text || '(Untitled question prompt)'}
                     </span>
-                    <span className="text-muted text-xs">
-                      {question.options.length} options ({question.marks} marks)
+                    <span className={styles.collapsedMeta}>
+                      {question.options.length} options · {question.marks} marks · {question.questionType.replace('_', ' ')}
                     </span>
                   </div>
                 ) : (
                   <>
                     {/* Question Prompt Input */}
-                    <div className="form-group" style={{ marginBottom: '14px' }}>
+                    <div className={styles.fieldGroup}>
+                      <label htmlFor={`q-text-${qIdx}`} className={styles.fieldLabel}>
+                        Question Prompt
+                      </label>
                       <textarea
-                        rows={2}
+                        id={`q-text-${qIdx}`}
+                        rows={3}
                         value={question.text}
                         onChange={(e) =>
                           handleQuestionChange(qIdx, 'text', e.target.value)
@@ -496,86 +540,133 @@ export function QuestionEditor({
                         placeholder="Type your question prompt here..."
                         required
                         disabled={disabled}
+                        className={styles.promptTextarea}
                       />
                     </div>
 
-                    {/* Options Builder Box */}
-                    <div className="editor-options-box">
-                      <div className="options-title-row">
-                        <span className="text-sm font-semibold">Answer Options:</span>
-                        <span className="text-muted text-xs">
-                          {question.questionType === QuestionType.MULTIPLE_CHOICE
-                            ? 'Check all options that apply'
-                            : 'Select exactly one correct option'}
-                        </span>
+                    {/* Metadata Controls Grid */}
+                    <div className={styles.metaGrid}>
+                      <div className={styles.fieldGroup}>
+                        <label htmlFor={`type-${qIdx}`} className={styles.fieldLabel}>
+                          Question Type
+                        </label>
+                        <select
+                          id={`type-${qIdx}`}
+                          value={question.questionType}
+                          onChange={(e) =>
+                            handleTypeChange(qIdx, e.target.value as QuestionType)
+                          }
+                          disabled={disabled}
+                          className={styles.selectInput}
+                        >
+                          <option value={QuestionType.SINGLE_CHOICE}>Single Choice</option>
+                          <option value={QuestionType.MULTIPLE_CHOICE}>Multiple Choice</option>
+                          <option value={QuestionType.TRUE_FALSE}>True / False</option>
+                        </select>
                       </div>
 
-                      {question.options.map((option, optIdx) => (
-                        <div
-                          key={option.id || `opt-${optIdx}`}
-                          className={`editor-option-row ${
-                            option.isCorrect ? 'option-row-correct' : ''
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleOptionCorrectToggle(qIdx, optIdx)}
-                            disabled={disabled}
-                            className={`correct-toggle-btn ${
-                              option.isCorrect ? 'correct-active' : ''
-                            }`}
-                            title={
-                              option.isCorrect
-                                ? 'Marked as correct option'
-                                : 'Click to mark this option as correct'
-                            }
-                          >
-                            {option.isCorrect ? '✓ Correct' : 'Mark Correct'}
-                          </button>
+                      <div className={styles.fieldGroup}>
+                        <label htmlFor={`marks-${qIdx}`} className={styles.fieldLabel}>
+                          Marks (1–100)
+                        </label>
+                        <input
+                          id={`marks-${qIdx}`}
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={question.marks}
+                          onChange={(e) =>
+                            handleQuestionChange(
+                              qIdx,
+                              'marks',
+                              Math.max(1, Number(e.target.value) || 1),
+                            )
+                          }
+                          disabled={disabled}
+                          className={styles.numberInput}
+                        />
+                      </div>
+                    </div>
 
-                          <span className="option-letter-tag">
-                            {String.fromCharCode(65 + optIdx)}
+                    {/* Options Builder Section */}
+                    <div className={styles.optionsSection}>
+                      <div className={styles.optionsHeader}>
+                        <div className={styles.optionsTitleGroup}>
+                          <span className={styles.fieldLabel}>Answer Options</span>
+                          <span className={styles.fieldSubtext}>
+                            {question.questionType === QuestionType.MULTIPLE_CHOICE
+                              ? 'Check all options that apply'
+                              : 'Select exactly one correct option'}
                           </span>
+                        </div>
 
-                          <input
-                            type="text"
-                            value={option.text}
-                            onChange={(e) =>
-                              handleOptionTextChange(qIdx, optIdx, e.target.value)
-                            }
-                            placeholder={`Option ${String.fromCharCode(65 + optIdx)} text`}
-                            disabled={
-                              disabled ||
-                              question.questionType === QuestionType.TRUE_FALSE
-                            }
-                            className="editor-opt-input"
-                          />
+                        {question.questionType !== QuestionType.TRUE_FALSE &&
+                          question.options.length < 8 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddOption(qIdx)}
+                              disabled={disabled}
+                            >
+                              Add Option
+                            </Button>
+                          )}
+                      </div>
 
-                          {question.questionType !== QuestionType.TRUE_FALSE && (
+                      <div className={styles.optionsList}>
+                        {question.options.map((option, optIdx) => (
+                          <div
+                            key={option.id || `opt-${optIdx}`}
+                            className={`${styles.optionRow} ${
+                              option.isCorrect ? styles.optionRowCorrect : ''
+                            }`}
+                          >
                             <button
                               type="button"
-                              onClick={() => handleRemoveOption(qIdx, optIdx)}
-                              disabled={disabled || question.options.length <= 2}
-                              className="opt-remove-btn"
-                              title="Remove this option"
+                              onClick={() => handleOptionCorrectToggle(qIdx, optIdx)}
+                              disabled={disabled}
+                              className={`${styles.correctToggleBtn} ${
+                                option.isCorrect ? styles.correctToggleBtnActive : ''
+                              }`}
+                              title={
+                                option.isCorrect
+                                  ? 'Marked as correct option'
+                                  : 'Click to mark this option as correct'
+                              }
                             >
-                              ✕
+                              {option.isCorrect ? '✓ Correct' : String.fromCharCode(65 + optIdx)}
                             </button>
-                          )}
-                        </div>
-                      ))}
 
-                      {question.questionType !== QuestionType.TRUE_FALSE && (
-                        <button
-                          type="button"
-                          onClick={() => handleAddOption(qIdx)}
-                          disabled={disabled}
-                          className="btn btn-sm btn-outline"
-                          style={{ marginTop: '8px', alignSelf: 'flex-start' }}
-                        >
-                          + Add Option
-                        </button>
-                      )}
+                            <input
+                              type="text"
+                              value={option.text}
+                              onChange={(e) =>
+                                handleOptionTextChange(qIdx, optIdx, e.target.value)
+                              }
+                              placeholder={`Option ${String.fromCharCode(65 + optIdx)} text`}
+                              disabled={
+                                disabled ||
+                                question.questionType === QuestionType.TRUE_FALSE
+                              }
+                              className={styles.optionInput}
+                            />
+
+                            {question.questionType !== QuestionType.TRUE_FALSE && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveOption(qIdx, optIdx)}
+                                disabled={disabled || question.options.length <= 2}
+                                className={styles.removeOptionBtn}
+                                title="Remove this option"
+                                aria-label={`Remove option ${String.fromCharCode(65 + optIdx)}`}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}

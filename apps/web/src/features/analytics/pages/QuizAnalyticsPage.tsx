@@ -8,17 +8,6 @@ import { QuestionAnalyticsList } from '../components/QuestionAnalyticsList.js';
 import { LoadingSpinner } from '../../../components/feedback/LoadingSpinner.js';
 import { Alert } from '../../../components/feedback/Alert.js';
 import { Button } from '../../../components/ui/Button/Button.js';
-import { Badge } from '../../../components/ui/Badge/Badge.js';
-import { Card, CardBody } from '../../../components/ui/Card/Card.js';
-import {
-  TableContainer,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-} from '../../../components/ui/Table/Table.js';
 import styles from './QuizAnalyticsPage.module.css';
 
 export const QuizAnalyticsPage: React.FC = () => {
@@ -26,7 +15,7 @@ export const QuizAnalyticsPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(undefined);
 
-  const { data: analytics, isLoading, isError, error, refetch } = useQuizAnalytics(
+  const { data: analytics, isLoading, isError, error, refetch, isFetching } = useQuizAnalytics(
     quizId ?? '',
     selectedVersionId,
   );
@@ -34,7 +23,7 @@ export const QuizAnalyticsPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
-        <LoadingSpinner message="Loading quiz analytics..." />
+        <LoadingSpinner message="Loading quiz performance telemetry..." />
       </div>
     );
   }
@@ -65,210 +54,292 @@ export const QuizAnalyticsPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      {/* Top Header */}
+      {/* Top Header & Breadcrumbs */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(`/creator/quizzes/${analytics.quizId}`)}
-            className={styles.backButton}
-          >
-            Back to Quiz
-          </Button>
+          <div className={styles.breadcrumbBar}>
+            <button
+              type="button"
+              onClick={() => navigate(`/creator/quizzes/${analytics.quizId}`)}
+              className={styles.backLink}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Back to Quiz Editor</span>
+            </button>
+            <span className={styles.breadcrumbDivider}>/</span>
+            <span className={styles.breadcrumbCurrent}>Analytics Workbench</span>
+          </div>
+
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{analytics.quizTitle}</h1>
-            <span className={styles.analyticsBadge}>Analytics Dashboard</span>
+            <span className={styles.versionBadge}>v{analytics.versionNumber}</span>
+            <span className={styles.analyticsBadge}>Telemetry Active</span>
           </div>
+          <p className={styles.subtitle}>
+            Comprehensive learner cohort analytics, score distributions, and item-level option
+            frequencies.
+          </p>
         </div>
 
-        {/* Version Switcher */}
-        <div className={styles.versionSelectorContainer}>
-          <label htmlFor="version-select" className={styles.versionLabel}>
-            Version:
-          </label>
-          <select
-            id="version-select"
-            value={analytics.versionId}
-            onChange={handleVersionChange}
-            className={styles.versionSelect}
+        {/* Right Header Toolbar: Version Switcher & Refetch */}
+        <div className={styles.headerToolbar}>
+          <div className={styles.versionSelectorContainer}>
+            <label htmlFor="version-select" className={styles.versionLabel}>
+              Version:
+            </label>
+            <select
+              id="version-select"
+              value={analytics.versionId}
+              onChange={handleVersionChange}
+              className={styles.versionSelect}
+            >
+              {analytics.availableVersions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  v{v.versionNumber} ({v.status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className={styles.refreshButton}
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh telemetry"
           >
-            {analytics.availableVersions.map((v) => (
-              <option key={v.id} value={v.id}>
-                v{v.versionNumber} ({v.status})
-              </option>
-            ))}
-          </select>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={isFetching ? styles.spinIcon : undefined}
+              aria-hidden="true"
+            >
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span>{isFetching ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Band & Lifecycle Funnel */}
       <AnalyticsSummaryCards summary={analytics.summary} />
 
       {/* Empty State Banner if 0 attempts */}
       {hasZeroAttempts && (
-        <Card variant="outlined" className={styles.emptyCard}>
-          <CardBody className={styles.emptyCardBody}>
+        <div className={styles.emptyCard}>
+          <div className={styles.emptyCardBody}>
+            <div className={styles.emptyIconBadge}>0</div>
             <h3 className={styles.emptyTitle}>No attempts recorded yet for this version</h3>
             <p className={styles.emptyText}>
-              Learner submissions, score distributions, top scorers, and question-level accuracy will populate automatically once learners start attempting this version.
+              Learner submissions, score distributions, top scorers leaderboard, and question-level
+              accuracy will populate automatically once learners start attempting version{' '}
+              <strong>v{analytics.versionNumber}</strong>.
             </p>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Multi-Version Performance Comparison (when > 1 version exists) */}
       {analytics.versionSummaries && analytics.versionSummaries.length > 1 && (
         <div className={styles.sectionSpacer}>
-          <div className={styles.typeSection}>
-            <div className={styles.typeSectionHeader}>
-              <h2 className={styles.typeSectionTitle}>Multi-Version Performance Comparison</h2>
-              <Badge variant="neutral">
-                {analytics.publishedVersionsCount} Published / {analytics.versionSummaries.length} Total Versions
-              </Badge>
+          <div className={styles.versionSection}>
+            <div className={styles.sectionHeaderRow}>
+              <div>
+                <h2 className={styles.sectionTitle}>Multi-Version Performance Comparison</h2>
+                <p className={styles.sectionSubtitle}>
+                  Comparative cohort telemetry across published versions
+                </p>
+              </div>
+              <span className={`${styles.statusPill} ${styles.badgeNeutral}`}>
+                {analytics.publishedVersionsCount} Published / {analytics.versionSummaries.length}{' '}
+                Total Versions
+              </span>
             </div>
-            <TableContainer>
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th>Version</Th>
-                    <Th>Status</Th>
-                    <Th>Questions</Th>
-                    <Th>Total Marks</Th>
-                    <Th>Time Limit</Th>
-                    <Th>Total Attempts</Th>
-                    <Th>Submitted</Th>
-                    <Th>Expired</Th>
-                    <Th>In Progress</Th>
-                    <Th>Avg Score</Th>
-                    <Th>Avg %</Th>
-                    <Th>Action</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
+
+            <div className={styles.versionTableWrapper}>
+              <table className={styles.versionTable}>
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th className={styles.thRight}>Questions</th>
+                    <th className={styles.thRight}>Total Marks</th>
+                    <th className={styles.thRight}>Time Limit</th>
+                    <th className={styles.thRight}>Total Attempts</th>
+                    <th className={styles.thRight}>Submitted</th>
+                    <th className={styles.thRight}>Expired</th>
+                    <th className={styles.thRight}>Avg Score</th>
+                    <th className={styles.thRight}>Accuracy %</th>
+                    <th className={styles.thCenter}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {analytics.versionSummaries.map((vs) => {
                     const isSelected = vs.versionId === analytics.versionId;
+                    const accuracyBadgeClass =
+                      vs.avgPercentage >= 75
+                        ? styles.badgeSuccess
+                        : vs.avgPercentage >= 50
+                        ? styles.badgeWarning
+                        : styles.badgeDanger;
+
                     return (
-                      <Tr
+                      <tr
                         key={vs.versionId}
-                        className={isSelected ? styles.activeVersionRow : styles.clickableRow}
+                        className={`${styles.versionRow} ${
+                          isSelected ? styles.versionRowActive : ''
+                        }`}
                         onClick={() => setSelectedVersionId(vs.versionId)}
                       >
-                        <Td>
+                        <td className={styles.tdVersionName}>
                           <strong>v{vs.versionNumber}</strong>
                           {isSelected && (
-                            <Badge variant="brand" size="sm" style={{ marginLeft: 6 }}>
+                            <span className={`${styles.statusPill} ${styles.badgeBrand}`}>
                               Current
-                            </Badge>
+                            </span>
                           )}
-                        </Td>
-                        <Td>
-                          <Badge variant={vs.status === 'published' ? 'success' : 'neutral'}>
+                        </td>
+                        <td>
+                          <span
+                            className={`${styles.statusPill} ${
+                              vs.status === 'published' ? styles.badgeSuccess : styles.badgeNeutral
+                            }`}
+                          >
                             {vs.status}
-                          </Badge>
-                        </Td>
-                        <Td>{vs.totalQuestions}</Td>
-                        <Td>{vs.totalMarks} pts</Td>
-                        <Td>
+                          </span>
+                        </td>
+                        <td className={styles.tdRight}>{vs.totalQuestions}</td>
+                        <td className={styles.tdRight}>{vs.totalMarks} pts</td>
+                        <td className={styles.tdRight}>
                           {vs.timeLimitSeconds
                             ? `${Math.round(vs.timeLimitSeconds / 60)}m`
                             : 'Untimed'}
-                        </Td>
-                        <Td>
+                        </td>
+                        <td className={styles.tdRight}>
                           <strong>{vs.totalAttempts}</strong>
-                        </Td>
-                        <Td>{vs.submittedAttempts}</Td>
-                        <Td>{vs.expiredAttempts}</Td>
-                        <Td>{vs.inProgressAttempts}</Td>
-                        <Td>
+                        </td>
+                        <td className={styles.tdRight}>{vs.submittedAttempts}</td>
+                        <td className={styles.tdRight}>{vs.expiredAttempts}</td>
+                        <td className={styles.tdRight}>
                           {vs.avgScore} / {vs.totalMarks}
-                        </Td>
-                        <Td>
-                          <Badge
-                            variant={
-                              vs.avgPercentage >= 70
-                                ? 'success'
-                                : vs.avgPercentage >= 50
-                                  ? 'warning'
-                                  : 'neutral'
-                            }
-                          >
+                        </td>
+                        <td className={styles.tdRight}>
+                          <span className={`${styles.statusPill} ${accuracyBadgeClass}`}>
                             {vs.avgPercentage}%
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Button
-                            variant={isSelected ? 'secondary' : 'ghost'}
-                            size="sm"
+                          </span>
+                        </td>
+                        <td className={styles.tdCenter}>
+                          <button
+                            type="button"
+                            className={
+                              isSelected ? styles.actionButtonActive : styles.actionButtonGhost
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedVersionId(vs.versionId);
                             }}
                           >
                             {isSelected ? 'Viewing' : 'Inspect'}
-                          </Button>
-                        </Td>
-                      </Tr>
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })}
-                </Tbody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Question Type Performance Breakdown */}
+      {/* Question Format Performance Breakdown */}
       {analytics.questionTypeBreakdown &&
         Object.keys(analytics.questionTypeBreakdown).length > 0 && (
           <div className={styles.sectionSpacer}>
-            <div className={styles.typeSection}>
-              <div className={styles.typeSectionHeader}>
-                <h2 className={styles.typeSectionTitle}>Question Type Performance Breakdown</h2>
-                <Badge variant="neutral">By Format</Badge>
+            <div className={styles.formatSection}>
+              <div className={styles.sectionHeaderRow}>
+                <div>
+                  <h2 className={styles.sectionTitle}>Question Format Performance Breakdown</h2>
+                  <p className={styles.sectionSubtitle}>
+                    Accuracy comparison partitioned by question format
+                  </p>
+                </div>
+                <span className={`${styles.statusPill} ${styles.badgeNeutral}`}>
+                  {Object.keys(analytics.questionTypeBreakdown).length} Formats
+                </span>
               </div>
-              <div className={styles.typeGrid}>
-                {Object.entries(analytics.questionTypeBreakdown).map(([typeKey, perf]) => (
-                  <div key={typeKey} className={styles.typeCard}>
-                    <div className={styles.typeCardHeader}>
-                      <span className={styles.typeCardLabel}>
-                        {typeKey.replace(/_/g, ' ')}
-                      </span>
-                      <Badge
-                        variant={
-                          perf.accuracyPercentage >= 70
-                            ? 'success'
-                            : perf.accuracyPercentage >= 40
-                              ? 'warning'
-                              : 'danger'
-                        }
-                      >
-                        {perf.accuracyPercentage}%
-                      </Badge>
+              <div className={styles.formatGrid}>
+                {Object.entries(analytics.questionTypeBreakdown).map(([typeKey, perf]) => {
+                  const acc = perf.accuracyPercentage ?? 0;
+                  const accBadgeClass =
+                    acc >= 75
+                      ? styles.badgeSuccess
+                      : acc >= 50
+                      ? styles.badgeWarning
+                      : styles.badgeDanger;
+
+                  return (
+                    <div key={typeKey} className={styles.formatCard}>
+                      <div className={styles.formatCardHeader}>
+                        <span className={styles.formatCardLabel}>
+                          {typeKey.replace(/_/g, ' ')}
+                        </span>
+                        <span className={`${styles.statusPill} ${accBadgeClass}`}>
+                          {acc}% Acc
+                        </span>
+                      </div>
+                      <div className={styles.formatAccuracyRow}>
+                        <span className={styles.formatAccuracyValue}>{acc}%</span>
+                        <span className={styles.formatAccuracyLabel}>Observed Accuracy</span>
+                      </div>
+                      {/* Mini visual accuracy progress track */}
+                      <div className={styles.formatTrack}>
+                        <div
+                          className={styles.formatFill}
+                          style={{ width: `${Math.min(100, Math.max(0, acc))}%` }}
+                        />
+                      </div>
+                      <div className={styles.formatMeta}>
+                        {perf.questionCount} {perf.questionCount === 1 ? 'question' : 'questions'} ·{' '}
+                        {perf.correctResponses} / {perf.totalResponses} correct responses
+                      </div>
                     </div>
-                    <div className={styles.typeAccuracy}>{perf.accuracyPercentage}% Accuracy</div>
-                    <div className={styles.typeMeta}>
-                      {perf.questionCount} question{perf.questionCount !== 1 ? 's' : ''} ·{' '}
-                      {perf.correctResponses} / {perf.totalResponses} correct response
-                      {perf.totalResponses !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
-      {/* Two column layout: Score Distribution & Top Scorers */}
+      {/* Two Column Grid: Score Distribution Histogram & Top Scorers Leaderboard */}
       <div className={styles.gridTwoColumns}>
         <ScoreDistributionChart
           distribution={analytics.scoreDistribution}
           totalCompleted={analytics.summary.completedAttempts}
+          avgPercentage={analytics.summary.avgPercentage}
         />
         <TopScorersTable scorers={analytics.topScorers} />
       </div>
 
-      {/* Question Breakdown List */}
+      {/* Question Breakdown Matrix */}
       <div className={styles.sectionSpacer}>
         <QuestionAnalyticsList questions={analytics.questionAnalytics} />
       </div>

@@ -1072,7 +1072,7 @@ export default function CreatorQuizDetailPage() {
                           size="sm"
                           onClick={() => handleSelectVersion(existingDraftVersion.id)}
                         >
-                          ✏️ Switch to Active Draft (v{existingDraftVersion.version})
+                          Switch to Active Draft (v{existingDraftVersion.version})
                         </Button>
                       ) : (
                         <Button
@@ -1081,7 +1081,7 @@ export default function CreatorQuizDetailPage() {
                           onClick={handleCreateNewVersion}
                           isLoading={createNewVersionMutation.isPending}
                         >
-                          ➕ Create New Draft Version
+                          Create New Draft Version
                         </Button>
                       )}
                     </div>
@@ -1101,43 +1101,65 @@ export default function CreatorQuizDetailPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {(selectedVersion.questions || []).map((q, idx) => (
-                    <div key={q.id} style={{ padding: '16px', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '8px', background: 'var(--color-surface, #ffffff)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                        <div style={{ fontWeight: 600, fontSize: '1rem' }}>
-                          <span style={{ color: 'var(--brand-600, #2563eb)', marginRight: '8px' }}>Q{idx + 1}.</span>
-                          {q.text}
+                    <div
+                      key={q.id}
+                      style={{
+                        padding: '20px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--color-surface)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Badge variant="brand">Question {idx + 1}</Badge>
+                          <Badge variant="neutral" size="sm">{q.marks} Mark{q.marks > 1 ? 's' : ''}</Badge>
                         </div>
-                        <Badge variant="neutral" size="sm">{q.marks} Mark{q.marks > 1 ? 's' : ''}</Badge>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', textTransform: 'capitalize' }}>
+                          {q.questionType.replace('_', ' ')}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #6b7280)', marginTop: '4px', textTransform: 'capitalize' }}>
-                        Type: {q.questionType.replace('_', ' ')}
+
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text-primary)', lineHeight: 1.45 }}>
+                        {q.text}
                       </div>
-                      <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {q.options.map((opt, optIdx) => (
                           <div
                             key={opt.id}
                             style={{
                               fontSize: '0.875rem',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              border: opt.isCorrect ? '1px solid var(--color-success-border, #bbf7d0)' : '1px solid transparent',
-                              backgroundColor: opt.isCorrect ? 'var(--color-success-bg, #f0fdf4)' : 'transparent',
-                              color: opt.isCorrect ? 'var(--color-success-text, #166534)' : 'var(--color-text-primary, #111827)',
-                              fontWeight: opt.isCorrect ? 600 : 400,
+                              padding: '8px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: opt.isCorrect
+                                ? '1px solid rgba(16, 185, 129, 0.35)'
+                                : '1px solid var(--color-border)',
+                              backgroundColor: opt.isCorrect
+                                ? 'rgba(16, 185, 129, 0.08)'
+                                : 'var(--color-surface)',
+                              color: 'var(--color-text-primary)',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '8px',
+                              gap: '10px',
                             }}
                           >
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem' }}>
-                              {String.fromCharCode(65 + optIdx)}.
+                            <span
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                                background: opt.isCorrect ? '#16a34a' : 'var(--color-surface-hover)',
+                                color: opt.isCorrect ? '#ffffff' : 'var(--color-text-secondary)',
+                              }}
+                            >
+                              {opt.isCorrect ? '✓ Correct' : String.fromCharCode(65 + optIdx)}
                             </span>
-                            <span>{opt.text}</span>
-                            {opt.isCorrect && (
-                              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--color-success-text, #166534)' }}>
-                                ✓ Correct Option
-                              </span>
-                            )}
+                            <span style={{ flex: 1 }}>{opt.text}</span>
                           </div>
                         ))}
                       </div>

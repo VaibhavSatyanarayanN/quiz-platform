@@ -1,7 +1,5 @@
 import React from 'react';
 import type { QuizAnalyticsSummary } from '../types/analytics.types.js';
-import { Card, CardBody } from '../../../components/ui/Card/Card.js';
-import { Badge } from '../../../components/ui/Badge/Badge.js';
 import styles from './AnalyticsComponents.module.css';
 
 interface Props {
@@ -18,74 +16,158 @@ function formatDuration(seconds: number): string {
 }
 
 export const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
+  const total = summary.totalAttempts;
   const submitted = summary.submittedAttempts ?? summary.completedAttempts;
   const expired = summary.expiredAttempts ?? 0;
-  const inProgress = summary.inProgressAttempts ?? Math.max(0, summary.totalAttempts - summary.completedAttempts);
+  const inProgress = summary.inProgressAttempts ?? Math.max(0, total - summary.completedAttempts);
   const finalized = summary.completedAttempts;
-  const finalizedPct = summary.finalizedRate ?? (summary.totalAttempts > 0 ? Math.round((finalized / summary.totalAttempts) * 100) : 0);
-  const completionPct = summary.completionRate ?? (summary.totalAttempts > 0 ? Math.round((submitted / summary.totalAttempts) * 100) : 0);
+
+  const finalizedPct =
+    summary.finalizedRate ?? (total > 0 ? Math.round((finalized / total) * 100) : 0);
+  const submittedPct = total > 0 ? ((submitted / total) * 100).toFixed(1) : '0.0';
+  const inProgressPct = total > 0 ? ((inProgress / total) * 100).toFixed(1) : '0.0';
+  const expiredPct = total > 0 ? ((expired / total) * 100).toFixed(1) : '0.0';
+
+  const avgPct = summary.avgPercentage ?? 0;
+  const avgBadgeClass =
+    avgPct >= 75 ? styles.badgeSuccess : avgPct >= 50 ? styles.badgeWarning : styles.badgeDanger;
 
   return (
-    <div className={styles.kpiGrid}>
-      <Card variant="outlined">
-        <CardBody className={styles.kpiCardBody}>
-          <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Total Attempts</span>
-            <Badge variant="brand">{finalizedPct}% Finalized</Badge>
-          </div>
-          <div className={styles.kpiValue}>{summary.totalAttempts}</div>
-          <div className={styles.kpiSubtext}>
-            {submitted} submitted ({completionPct}%), {expired} expired, {inProgress} in progress
-          </div>
-        </CardBody>
-      </Card>
-
-      <Card variant="outlined">
-        <CardBody className={styles.kpiCardBody}>
+    <div className={styles.kpiContainer}>
+      {/* 4 Primary Metric Cells */}
+      <div className={styles.kpiGrid}>
+        {/* KPI 1: Average Score */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Average Score</span>
-            <Badge variant={summary.avgPercentage >= 70 ? 'success' : summary.avgPercentage >= 50 ? 'warning' : 'danger'}>
-              {summary.avgPercentage}% Avg
-            </Badge>
+            <span className={`${styles.statusPill} ${avgBadgeClass}`}>
+              {avgPct}% avg
+            </span>
           </div>
-          <div className={styles.kpiValue}>
-            {summary.avgScore} <span className={styles.kpiUnit}>/ {summary.totalMarks} pts</span>
+          <div className={styles.kpiValueRow}>
+            <span className={styles.kpiValue}>{avgPct}%</span>
+            <span className={styles.kpiSuffix}>
+              ({summary.avgScore} / {summary.totalMarks} pts)
+            </span>
           </div>
           <div className={styles.kpiSubtext}>
-            Across all {finalized} finalized attempt{finalized !== 1 ? 's' : ''}
+            Calculated across {finalized} finalized attempt{finalized !== 1 ? 's' : ''}
           </div>
-        </CardBody>
-      </Card>
+        </div>
 
-      <Card variant="outlined">
-        <CardBody className={styles.kpiCardBody}>
+        {/* KPI 2: Total Attempts */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Score Range</span>
-            <Badge variant="neutral">
+            <span className={styles.kpiLabel}>Total Attempts</span>
+            <span className={`${styles.statusPill} ${styles.badgeBrand}`}>
+              {finalizedPct}% finalized
+            </span>
+          </div>
+          <div className={styles.kpiValueRow}>
+            <span className={styles.kpiValue}>{total}</span>
+            <span className={styles.kpiSuffix}>learners</span>
+          </div>
+          <div className={styles.kpiSubtext}>
+            {submitted} submitted · {expired} expired · {inProgress} active
+          </div>
+        </div>
+
+        {/* KPI 3: Score Spread */}
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>Score Dispersion</span>
+            <span className={`${styles.statusPill} ${styles.badgeNeutral}`}>
               {summary.lowestPercentage ?? 0}% – {summary.highestPercentage ?? 0}%
-            </Badge>
+            </span>
           </div>
-          <div className={styles.kpiValue}>
-            {summary.highestScore} <span className={styles.kpiUnit}>High</span> / {summary.lowestScore} <span className={styles.kpiUnit}>Low</span>
+          <div className={styles.kpiValueRow}>
+            <span className={styles.kpiValue}>{summary.highestScore}</span>
+            <span className={styles.kpiSuffix}>
+              high / {summary.lowestScore} low pts
+            </span>
           </div>
           <div className={styles.kpiSubtext}>
-            {summary.totalQuestions} question{summary.totalQuestions !== 1 ? 's' : ''} ({summary.totalMarks} total marks)
+            {summary.totalQuestions} questions · {summary.totalMarks} max marks
           </div>
-        </CardBody>
-      </Card>
+        </div>
 
-      <Card variant="outlined">
-        <CardBody className={styles.kpiCardBody}>
+        {/* KPI 4: Average Duration */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Avg Duration</span>
-            <Badge variant="neutral">Active Time</Badge>
+            <span className={styles.kpiLabel}>Average Duration</span>
+            <span className={`${styles.statusPill} ${styles.badgeNeutral}`}>
+              Active Session
+            </span>
           </div>
-          <div className={styles.kpiValue}>{formatDuration(summary.avgDurationSeconds)}</div>
+          <div className={styles.kpiValueRow}>
+            <span className={styles.kpiValue}>
+              {formatDuration(summary.avgDurationSeconds)}
+            </span>
+          </div>
           <div className={styles.kpiSubtext}>
-            Total answers: {summary.totalCorrectAnswers} correct, {summary.totalWrongAnswers} wrong
+            {summary.totalCorrectAnswers} correct · {summary.totalWrongAnswers} wrong ·{' '}
+            {summary.totalUnanswered} skipped
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
+
+      {/* Attempt Funnel Telemetry Bar (if attempts > 0) */}
+      {total > 0 && (
+        <div className={styles.funnelCard}>
+          <div className={styles.funnelHeader}>
+            <span className={styles.funnelTitle}>Attempt Lifecycle Breakdown</span>
+            <span className={styles.funnelMeta}>
+              {finalized} of {total} completed ({finalizedPct}%)
+            </span>
+          </div>
+          <div className={styles.funnelTrack} role="img" aria-label="Attempt lifecycle distribution">
+            {submitted > 0 && (
+              <div
+                className={styles.funnelSegmentSubmitted}
+                style={{ width: `${submittedPct}%` }}
+                title={`Submitted: ${submitted} (${submittedPct}%)`}
+              />
+            )}
+            {inProgress > 0 && (
+              <div
+                className={styles.funnelSegmentInProgress}
+                style={{ width: `${inProgressPct}%` }}
+                title={`In Progress: ${inProgress} (${inProgressPct}%)`}
+              />
+            )}
+            {expired > 0 && (
+              <div
+                className={styles.funnelSegmentExpired}
+                style={{ width: `${expiredPct}%` }}
+                title={`Expired: ${expired} (${expiredPct}%)`}
+              />
+            )}
+          </div>
+          <div className={styles.funnelLegend}>
+            <div className={styles.funnelLegendItem}>
+              <span className={`${styles.legendDot} ${styles.dotSubmitted}`} />
+              <span className={styles.legendLabel}>Submitted</span>
+              <span className={styles.legendValue}>
+                {submitted} ({submittedPct}%)
+              </span>
+            </div>
+            <div className={styles.funnelLegendItem}>
+              <span className={`${styles.legendDot} ${styles.dotInProgress}`} />
+              <span className={styles.legendLabel}>In Progress</span>
+              <span className={styles.legendValue}>
+                {inProgress} ({inProgressPct}%)
+              </span>
+            </div>
+            <div className={styles.funnelLegendItem}>
+              <span className={`${styles.legendDot} ${styles.dotExpired}`} />
+              <span className={styles.legendLabel}>Expired</span>
+              <span className={styles.legendValue}>
+                {expired} ({expiredPct}%)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,117 +1,1128 @@
-/* AnalyticsComponents.module.css */
-.container {
+/* ==========================================================================
+   AnalyticsComponents.module.css — taste-skill v2 House Style
+   Analytical Workbench Components: KPIs, Histogram, Leaderboard, Question Matrix
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Shared Tokens & Status Pills
+   -------------------------------------------------------------------------- */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.35;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.badgeNeutral {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.badgeBrand {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border-color: var(--brand-200);
+}
+
+.badgeSuccess {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.badgeWarning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.badgeDanger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.emptyNotice {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  margin: var(--space-3) 0;
+}
+
+/* --------------------------------------------------------------------------
+   2. Primary KPI Container & Cards (references/app-screens.md §5)
+   -------------------------------------------------------------------------- */
+.kpiContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr;
   gap: var(--space-4);
 }
-@media (min-width: 768px) {
-  .grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1024px) {
-  .grid { grid-template-columns: repeat(4, 1fr); }
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
 }
 
-.statCard {
-  padding: 16px 20px;
+@media (min-width: 640px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .kpiGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.kpiCard {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: none;
   border-radius: 8px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: none;
+}
+
+.kpiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.kpiLabel {
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.kpiValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.kpiValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.kpiSuffix {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiSubtext {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Lifecycle Funnel Telemetry Bar */
+.funnelCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.funnelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.funnelTitle {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.funnelMeta {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnelTrack {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-surface-subtle);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.funnelSegmentSubmitted {
+  background: var(--color-success);
+  height: 100%;
+}
+
+.funnelSegmentInProgress {
+  background: var(--brand-600);
+  height: 100%;
+}
+
+.funnelSegmentExpired {
+  background: var(--color-danger);
+  height: 100%;
+}
+
+.funnelLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.75rem;
+}
+
+.funnelLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dotSubmitted {
+  background: var(--color-success);
+}
+
+.dotInProgress {
+  background: var(--brand-600);
+}
+
+.dotExpired {
+  background: var(--color-danger);
+}
+
+.legendLabel {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.legendValue {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   3. Score Distribution Histogram Panel (references/app-screens.md §6)
+   -------------------------------------------------------------------------- */
+.chartPanel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: none;
+}
+
+.chartPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.chartPanelTitle {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.chartPanelSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 0 0;
+}
+
+.chartSvgWrapper {
+  width: 100%;
+  overflow: visible;
+}
+
+.histogramSvg {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  display: block;
+}
+
+.gridLine {
+  stroke: var(--color-border-subtle);
+}
+
+.axisBaseline {
+  stroke: var(--color-border-strong);
+}
+
+.axisTickText {
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.hoverTarget {
+  cursor: pointer;
+}
+
+.histogramBar {
+  fill: var(--brand-600);
+  transition: opacity 0.15s ease;
+}
+
+.histogramBarHover {
+  fill: var(--brand-700);
+}
+
+.barTopLabel {
+  font-size: 11px;
+  font-weight: 650;
+  fill: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.xAxisLabel {
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.xAxisLabelHover {
+  fill: var(--brand-700);
+  font-weight: 650;
+}
+
+.benchmarkLine {
+  stroke: var(--brand-600);
+}
+
+.benchmarkLabel {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--brand-700);
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+/* Breakdown matrix beneath histogram */
+.breakdownMatrix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 12px;
+}
+
+.breakdownRow {
+  display: grid;
+  grid-template-columns: 88px 1fr 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.breakdownRowActive {
+  background: var(--color-surface-subtle);
+}
+
+.breakdownLabelCol {
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--color-text-secondary);
+}
+
+.breakdownTrackCol {
+  width: 100%;
+}
+
+.miniTrack {
+  height: 6px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.miniFill {
+  height: 100%;
+  background: var(--brand-600);
+  border-radius: 2px;
+}
+
+.breakdownStatCol {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdownCount {
+  font-weight: 650;
+  color: var(--color-text-primary);
+}
+
+.breakdownPct {
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   4. Top Scorers Leaderboard Panel (references/app-screens.md §7)
+   -------------------------------------------------------------------------- */
+.tablePanel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: none;
+}
+
+.tablePanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tablePanelTitle {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.tablePanelSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 0 0;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.dataTable th {
+  padding: 8px 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.thRank {
+  width: 50px;
+}
+
+.thLearner {
+  min-width: 160px;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.dataRow {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 0.1s ease;
+}
+
+.dataRow:last-child {
+  border-bottom: none;
+}
+
+.dataRow:hover {
+  background: var(--color-surface-subtle);
+}
+
+.dataRow td {
+  padding: 10px 10px;
+  vertical-align: middle;
+}
+
+.tdRank {
+  width: 50px;
+}
+
+.rankChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.rankGold {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.rankSilver {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.rankBronze {
+  background: rgba(180, 83, 9, 0.08);
+  color: #92400e;
+  border-color: rgba(180, 83, 9, 0.2);
+}
+
+.rankStandard {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.tdLearner {
+  min-width: 160px;
+}
+
+.learnerCluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatarCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+
+.learnerIdentity {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.learnerName {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.learnerEmail {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tdScore {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scoreNumber {
+  font-weight: 650;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreTotal {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tdAccuracy {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tdDuration {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tdDate {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabularFigure {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. Question Accuracy & Distractor Matrix Panel
+   -------------------------------------------------------------------------- */
+.questionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.questionSectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+@media (min-width: 900px) {
+  .questionSectionHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.questionHeaderInfo {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.statLabel {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  text-transform: none;
-  letter-spacing: 0;
+.headerTagRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.statValue {
-  font-size: 1.75rem;
+.sectionSuperLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-700);
+}
+
+.questionSectionTitle {
+  font-size: 1.0625rem;
   font-weight: 650;
   color: var(--color-text-primary);
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
+  margin: 2px 0 0 0;
+  letter-spacing: -0.01em;
 }
 
-.chartContainer {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: none;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.chartTitle {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-4);
-}
-
-.chartTrack {
-  background: var(--color-surface-subtle);
-  border-radius: var(--radius-full);
-  height: 8px;
-  overflow: hidden;
-  margin-top: var(--space-2);
-  border: 1px solid var(--color-border-subtle);
-}
-
-.chartFill {
-  height: 100%;
-  background: var(--brand-600);
-  border-radius: var(--radius-full);
-}
-
-.rankBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  background: var(--brand-50);
-  color: var(--brand-600);
-  border: 1px solid var(--brand-200);
-  border-radius: 4px;
-  font-weight: 600;
+.questionSectionSubtitle {
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 600px;
 }
 
-.questionStatsSummary {
+.questionControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.controlLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-right: 2px;
+}
+
+.filterButton {
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.filterButton:hover {
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+}
+
+.filterButtonActive {
+  background: var(--color-text-primary);
+  color: var(--color-surface);
+  border-color: var(--color-text-primary);
+}
+
+/* Horizon Comparative Bar Chart */
+.horizonPanel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: none;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.optionRow {
+.horizonHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  font-size: 0.75rem;
+}
+
+.horizonTitle {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.horizonBenchmarkText {
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.horizonList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.horizonRow {
+  display: grid;
+  grid-template-columns: 28px 1fr 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.horizonQNumber {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.horizonTrack {
+  position: relative;
+  height: 8px;
+  background: var(--color-surface-subtle);
+  border-radius: 4px;
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.horizonFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.horizonFillSuccess {
+  background: var(--color-success);
+}
+
+.horizonFillWarning {
+  background: var(--color-warning);
+}
+
+.horizonFillDanger {
+  background: var(--color-danger);
+}
+
+.horizonBenchmarkMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-text-primary);
+  opacity: 0.4;
+  z-index: 2;
+}
+
+.horizonValue {
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Question Cards Grid */
+.questionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.questionCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.questionCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 14px;
+}
+
+@media (min-width: 840px) {
+  .questionCardHeader {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.questionTitleBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.qNumberPill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.questionPromptBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.questionPromptText {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.questionMetaTags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.multipleNotePill {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.questionStatStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.statChip {
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  min-width: 76px;
+}
+
+.statChipLabel {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statChipValue {
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.textSuccess {
+  color: var(--success-text);
+}
+
+.textDanger {
+  color: var(--danger-text);
+}
+
+.textMuted {
+  color: var(--color-text-muted);
+}
+
+/* Option Choice Distribution Breakdown */
+.optionsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.optionsTitle {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.optionsMeta {
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.optionItem {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  transition: border-color 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .optionItem {
+    grid-template-columns: 2fr 1.5fr 110px;
+  }
+}
+
+.optionItemCorrect {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.optionLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.optionLetter {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.optionLetterCorrect {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+
+.optionPrompt {
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.correctIndicatorPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.optionBarCol {
+  width: 100%;
 }
 
 .optionTrack {
-  flex-grow: 1;
+  height: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.optionFill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.optionFillNeutral {
+  background: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.optionFillCorrect {
+  background: var(--color-success);
+}
+
+.optionStatsCol {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.optionCountText {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.optionPctText {
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   6. Org Analytics Widget Compatibility
+   -------------------------------------------------------------------------- */
+.orgWidgetContainer {
+  width: 100%;
+}
+
+.orgKpiBox {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  height: 8px;
-  margin: 0 var(--space-4);
-  overflow: hidden;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topQuizzesSection {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionSubTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.analyticsLink {
+  color: var(--brand-700);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.analyticsLink:hover {
+  text-decoration: underline;
 }
