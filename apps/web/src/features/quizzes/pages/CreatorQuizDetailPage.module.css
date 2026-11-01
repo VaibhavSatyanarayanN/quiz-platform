@@ -1,0 +1,786 @@
+/* ==========================================================================
+   CreatorQuizDetailPage.module.css — taste-skill v2 House Style
+   Assessment Studio & Version Workbench
+   ========================================================================== */
+
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .pageContainer {
+    padding: var(--space-8) var(--space-6);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   1. Header Bar & Navigation Cluster
+   -------------------------------------------------------------------------- */
+.topNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-5);
+}
+
+@media (min-width: 768px) {
+  .topNav {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.breadcrumbRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand-700);
+  font-weight: 550;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbDivider {
+  color: var(--color-border-strong);
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text-muted);
+}
+
+.navActionCluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   2. Quiz Metadata Panel
+   -------------------------------------------------------------------------- */
+.metaCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: none;
+}
+
+.metaHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quizTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.25;
+}
+
+@media (min-width: 768px) {
+  .quizTitle {
+    font-size: 1.75rem;
+  }
+}
+
+.quizDescription {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 720px;
+}
+
+.metaEditForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.metaEditActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   3. Version Navigation Segmented Bar
+   -------------------------------------------------------------------------- */
+.versionPickerCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.versionPickerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.versionPickerLabel {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.versionTabTrack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.versionTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.versionTab:hover {
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+}
+
+.versionTabActive {
+  background: var(--color-text-primary);
+  color: var(--color-surface);
+  border-color: var(--color-text-primary);
+}
+
+.tabStatusBadge {
+  font-size: 0.625rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.tabStatusDraft {
+  background: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.tabStatusPublished {
+  background: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+.versionTabActive .tabStatusDraft {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.versionTabActive .tabStatusPublished {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   4. Version Details & Settings Strip
+   -------------------------------------------------------------------------- */
+.workspaceCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: none;
+}
+
+.workspaceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 14px;
+}
+
+.workspaceTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.workspaceSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 0 0;
+}
+
+/* Timing Strip */
+.timingStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.timingCluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timingIconBox {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-700);
+  flex-shrink: 0;
+}
+
+.timingDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+.timingLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.timingValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.timingEditForm {
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timingEditTitle {
+  font-weight: 650;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.timingEditActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Publishing Readiness Banners
+   -------------------------------------------------------------------------- */
+.readinessReadyCard {
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.readinessReadyText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--success-text);
+}
+
+.readinessCheckIcon {
+  flex-shrink: 0;
+  color: var(--success-accent);
+}
+
+.readinessBlockersCard {
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readinessBlockersTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--warning-text);
+}
+
+.readinessBlockersList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.75rem;
+  color: var(--warning-text);
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   6. AI Question Generation & Review Panel
+   -------------------------------------------------------------------------- */
+.aiPanel {
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.aiPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aiPanelTitleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aiPanelTitle {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.aiPanelSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 620px;
+}
+
+.aiDrawer {
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aiModeSwitcher {
+  display: flex;
+  gap: 8px;
+}
+
+.aiFormGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .aiFormGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.fieldSelect,
+.fieldInput {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.fieldSelect:focus,
+.fieldInput:focus {
+  border-color: var(--brand-600);
+}
+
+.fileInputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.aiDrawerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* AI Generation Runs Feed */
+.aiRunsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aiRunsHeader {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.aiRunCard {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aiRunInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aiRunTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.aiRunTopic {
+  font-weight: 650;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.aiRunStage {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.aiRunActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   7. Published Version Read-Only Questions
+   -------------------------------------------------------------------------- */
+.publishedNoticeCard {
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.publishedNoticeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.publishedNoticeTitle {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.publishedNoticeText {
+  margin: 3px 0 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.shareableLinkBox {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.shareableLinkLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shareableLinkCode {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-700);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.copyButton:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+/* Read-Only Published Question Cards */
+.publishedQuestionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.publishedQuestionCard {
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.publishedCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.publishedBadgeCluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.publishedQuestionType {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.publishedQuestionPrompt {
+  font-weight: 650;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.publishedOptionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.publishedOptionRow {
+  font-size: 0.8125rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.publishedOptionRowCorrect {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.optionPillIndicator {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 650;
+  font-size: 0.6875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.optionPillCorrect {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.optionTextSpan {
+  flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   8. Status Badges & Utilities
+   -------------------------------------------------------------------------- */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.badgeNeutral {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.badgeBrand {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border-color: var(--brand-200);
+}
+
+.badgeSuccess {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.badgeWarning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.badgeDanger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}

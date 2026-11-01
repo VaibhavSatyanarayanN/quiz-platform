@@ -15,8 +15,6 @@ import {
 } from '../hooks/use-quizzes';
 import { QuestionEditor } from '../components/QuestionEditor';
 import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
-import { Card, CardBody } from '@/components/ui/Card/Card';
-import { Badge } from '@/components/ui/Badge/Badge';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { Alert } from '@/components/feedback/Alert';
@@ -28,6 +26,7 @@ import {
   GenerationReviewStatus,
   type CreateQuestionRequest,
 } from '../types/quiz.types';
+import styles from './CreatorQuizDetailPage.module.css';
 
 const isUuid = (str?: string): boolean => {
   if (!str) return false;
@@ -59,6 +58,7 @@ export default function CreatorQuizDetailPage() {
 
   const [isEditingVersionSettings, setIsEditingVersionSettings] = useState(false);
   const [versionTimeLimitMinutes, setVersionTimeLimitMinutes] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [searchParams] = useSearchParams();
   const [showAiGenerator, setShowAiGenerator] = useState(
@@ -159,7 +159,9 @@ export default function CreatorQuizDetailPage() {
       const correctCount = q.options.filter((o) => o.isCorrect).length;
       if (q.questionType === QuestionType.SINGLE_CHOICE || q.questionType === QuestionType.TRUE_FALSE) {
         if (correctCount !== 1) {
-          issues.push(`Question ${num} (${q.questionType}) must have exactly 1 correct answer (currently has ${correctCount}).`);
+          issues.push(
+            `Question ${num} (${q.questionType}) must have exactly 1 correct answer (currently has ${correctCount}).`,
+          );
         }
       } else if (q.questionType === QuestionType.MULTIPLE_CHOICE) {
         if (correctCount < 1) {
@@ -378,7 +380,11 @@ export default function CreatorQuizDetailPage() {
 
   const handleDiscardVersion = () => {
     if (!quizId || !selectedVersionId) return;
-    if (!window.confirm('Are you sure you want to discard this draft version? All unsaved questions will be lost.')) {
+    if (
+      !window.confirm(
+        'Are you sure you want to discard this draft version? All unsaved questions will be lost.',
+      )
+    ) {
       return;
     }
     setActionError(null);
@@ -466,21 +472,27 @@ export default function CreatorQuizDetailPage() {
     );
   };
 
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   if (isLoading) {
     return <LoadingSpinner message="Loading quiz details..." />;
   }
 
   if (error || !quiz) {
     return (
-      <div style={{ padding: '24px' }}>
+      <div className={styles.pageContainer}>
         <Alert variant="danger">
-          {error instanceof Error ? error.message : 'Failed to load quiz.'}
+          {error instanceof Error ? error.message : 'Failed to load quiz details.'}
         </Alert>
-        <div style={{ marginTop: '16px' }}>
-          <Link to="/quizzes">
-            <Button variant="outline">← Back to Quizzes</Button>
-          </Link>
-        </div>
+        <Link to="/quizzes">
+          <Button variant="outline" size="sm">
+            Back to Quizzes
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -489,32 +501,83 @@ export default function CreatorQuizDetailPage() {
   const isPublished = selectedVersion?.status === QuizVersionStatus.PUBLISHED;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-        <Link to="/quizzes">
-          <Button variant="outline" size="sm">Back to Quizzes</Button>
-        </Link>
+    <div className={styles.pageContainer}>
+      {/* Top Navigation & Action Cluster */}
+      <div className={styles.topNav}>
+        <div className={styles.breadcrumbRow}>
+          <button
+            type="button"
+            onClick={() => navigate('/quizzes')}
+            className={styles.backLink}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span>Back to Quizzes</span>
+          </button>
+          <span className={styles.breadcrumbDivider}>/</span>
+          <span className={styles.breadcrumbCurrent}>{quiz.title}</span>
+        </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className={styles.navActionCluster}>
           <Link to={`/quizzes/${quiz.id}/analytics`}>
             <Button variant="outline" size="sm">
-              Analytics
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: 6 }}
+                aria-hidden="true"
+              >
+                <path d="M18 20V10M12 20V4M6 20v-6" />
+              </svg>
+              Analytics Workbench
             </Button>
           </Link>
 
           {isPublished && (
-            <Button variant="secondary" size="sm" onClick={handleCreateNewVersion} isLoading={createNewVersionMutation.isPending}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCreateNewVersion}
+              isLoading={createNewVersionMutation.isPending}
+            >
               Create New Version
             </Button>
           )}
 
           {isDraft && (
             <>
-              <Button variant="danger" size="sm" onClick={handleDiscardVersion} isLoading={discardVersionMutation.isPending}>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDiscardVersion}
+                isLoading={discardVersionMutation.isPending}
+              >
                 Discard Draft
               </Button>
-              <Button variant="primary" size="sm" onClick={handlePublish} isLoading={publishVersionMutation.isPending}>
-                Publish Version
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handlePublish}
+                isLoading={publishVersionMutation.isPending}
+              >
+                Publish Version Live
               </Button>
             </>
           )}
@@ -525,474 +588,450 @@ export default function CreatorQuizDetailPage() {
       {actionError && <Alert variant="danger">{actionError}</Alert>}
 
       {/* Quiz Metadata Header Card */}
-      <Card variant="elevated">
-        <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {isEditingMeta ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Input
-                label="Quiz Title"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                required
-              />
-              <Input
-                label="Description"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-              />
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                <Button variant="ghost" size="sm" onClick={() => setIsEditingMeta(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" onClick={handleSaveMeta} isLoading={updateQuizMutation.isPending}>
-                  Save Changes
-                </Button>
-              </div>
+      <div className={styles.metaCard}>
+        {isEditingMeta ? (
+          <div className={styles.metaEditForm}>
+            <Input
+              label="Quiz Title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              required
+            />
+            <Input
+              label="Description"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+            />
+            <div className={styles.metaEditActions}>
+              <Button variant="ghost" size="sm" onClick={() => setIsEditingMeta(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveMeta}
+                isLoading={updateQuizMutation.isPending}
+              >
+                Save Changes
+              </Button>
             </div>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>{quiz.title}</h1>
-                  <p style={{ color: 'var(--color-text-secondary, #6b7280)', margin: '4px 0 0 0' }}>
-                    {quiz.description || 'No description provided.'}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleStartMetaEdit}>
-                  Edit Details
-                </Button>
-              </div>
+          </div>
+        ) : (
+          <div className={styles.metaHeaderRow}>
+            <div className={styles.titleArea}>
+              <h1 className={styles.quizTitle}>{quiz.title}</h1>
+              <p className={styles.quizDescription}>
+                {quiz.description || 'No description provided for this assessment.'}
+              </p>
             </div>
-          )}
-        </CardBody>
-      </Card>
+            <Button variant="outline" size="sm" onClick={handleStartMetaEdit}>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: 5 }}
+                aria-hidden="true"
+              >
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              Edit Details
+            </Button>
+          </div>
+        )}
+      </div>
 
-      {/* Version Picker */}
+      {/* Version Navigation Segmented Bar */}
       {quiz.versions && quiz.versions.length > 0 && (
-        <Card variant="default">
-          <CardBody>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>
-                Versions:
-              </span>
-              {quiz.versions.map((v) => (
-                <Button
-                  key={v.id}
-                  variant={v.id === selectedVersionId ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSelectVersion(v.id)}
-                >
-                  v{v.version} ({v.status})
-                </Button>
-              ))}
+        <div className={styles.versionPickerCard}>
+          <div className={styles.versionPickerLeft}>
+            <span className={styles.versionPickerLabel}>Versions:</span>
+            <div className={styles.versionTabTrack}>
+              {quiz.versions.map((v) => {
+                const isSelected = v.id === selectedVersionId;
+                const isVPublished = v.status === QuizVersionStatus.PUBLISHED;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className={`${styles.versionTab} ${isSelected ? styles.versionTabActive : ''}`}
+                    onClick={() => handleSelectVersion(v.id)}
+                  >
+                    <span>v{v.version}</span>
+                    <span
+                      className={`${styles.tabStatusBadge} ${isVPublished ? styles.tabStatusPublished : styles.tabStatusDraft
+                        }`}
+                    >
+                      {v.status}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </CardBody>
-        </Card>
+          </div>
+
+          {!existingDraftVersion && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateNewVersion}
+              isLoading={createNewVersionMutation.isPending}
+            >
+              + New Draft Version
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Selected Version Workspace */}
       {selectedVersion && (
-        <Card variant="elevated">
-          <CardBody>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                  Version {selectedVersion.version} ({selectedVersion.status})
-                </h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '2px 0 0 0' }}>
-                  {isDraft ? 'Editable draft version workspace.' : 'Published immutable version.'}
-                </p>
-              </div>
-              <Badge variant={selectedVersion.status === QuizVersionStatus.PUBLISHED ? 'success' : 'warning'}>
-                {selectedVersion.status}
-              </Badge>
+        <div className={styles.workspaceCard}>
+          <div className={styles.workspaceHeader}>
+            <div>
+              <h2 className={styles.workspaceTitle}>
+                Version {selectedVersion.version}
+              </h2>
+              <p className={styles.workspaceSubtitle}>
+                {isDraft
+                  ? 'Active draft version workbench. Changes are staged until published.'
+                  : 'Published immutable version locked for historical score preservation.'}
+              </p>
             </div>
-
-            {/* Version Timing & Settings Bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                background: 'var(--color-bg-subtle, #f8fafc)',
-                border: '1px solid var(--color-border, #e2e8f0)',
-                marginBottom: '16px',
-                flexWrap: 'wrap',
-                gap: '12px',
-              }}
+            <span
+              className={`${styles.statusPill} ${selectedVersion.status === QuizVersionStatus.PUBLISHED
+                  ? styles.badgeSuccess
+                  : styles.badgeWarning
+                }`}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.1rem' }}>⏱️</span>
-                <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #6b7280)', textTransform: 'uppercase' }}>
-                    Attempt Time Limit
-                  </div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
-                    {selectedVersion.timeLimitSeconds
-                      ? `${Math.round(selectedVersion.timeLimitSeconds / 60)} minutes (${selectedVersion.timeLimitSeconds}s)`
-                      : 'Untimed (No time limit)'}
-                  </div>
-                </div>
-              </div>
+              {selectedVersion.status.toUpperCase()}
+            </span>
+          </div>
 
-              {isDraft && !isEditingVersionSettings && (
-                <Button variant="outline" size="sm" onClick={handleStartVersionSettingsEdit}>
-                  ⚙️ Edit Time Limit
-                </Button>
-              )}
+          {/* Version Timing & Settings Bar */}
+          <div className={styles.timingStrip}>
+            <div className={styles.timingCluster}>
+              <div className={styles.timingIconBox} aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <div className={styles.timingDetails}>
+                <span className={styles.timingLabel}>Attempt Time Limit</span>
+                <span className={styles.timingValue}>
+                  {selectedVersion.timeLimitSeconds
+                    ? `${Math.round(selectedVersion.timeLimitSeconds / 60)} minutes (${selectedVersion.timeLimitSeconds}s)`
+                    : 'Untimed (No deadline)'}
+                </span>
+              </div>
             </div>
 
-            {/* Time Limit Edit Form */}
-            {isDraft && isEditingVersionSettings && (
-              <div
-                style={{
-                  padding: '16px',
-                  borderRadius: '8px',
-                  background: 'var(--color-surface, #ffffff)',
-                  border: '1px solid var(--color-border, #cbd5e1)',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                  Update Version {selectedVersion.version} Time Limit
-                </div>
-                <Input
-                  label="Time Limit in Minutes (leave empty for untimed quiz)"
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 15, or leave empty"
-                  value={versionTimeLimitMinutes}
-                  onChange={(e) => setVersionTimeLimitMinutes(e.target.value)}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                  <Button variant="ghost" size="sm" onClick={() => setIsEditingVersionSettings(false)}>
-                    Cancel
-                  </Button>
+            {isDraft && !isEditingVersionSettings && (
+              <Button variant="outline" size="sm" onClick={handleStartVersionSettingsEdit}>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: 5 }}
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Adjust Time Limit
+              </Button>
+            )}
+          </div>
+
+          {/* Time Limit Edit Form */}
+          {isDraft && isEditingVersionSettings && (
+            <div className={styles.timingEditForm}>
+              <div className={styles.timingEditTitle}>
+                Configure Version {selectedVersion.version} Timing
+              </div>
+              <Input
+                label="Time Limit in Minutes (leave empty for untimed quiz)"
+                type="number"
+                min="1"
+                placeholder="e.g. 15, or leave empty"
+                value={versionTimeLimitMinutes}
+                onChange={(e) => setVersionTimeLimitMinutes(e.target.value)}
+              />
+              <div className={styles.timingEditActions}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingVersionSettings(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveVersionSettings}
+                  isLoading={updateQuizVersionMutation.isPending}
+                >
+                  Save Time Limit
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Publishing Readiness Banners for Draft */}
+          {isDraft && (
+            <div>
+              {publishingChecklist.isReady ? (
+                <div className={styles.readinessReadyCard}>
+                  <div className={styles.readinessReadyText}>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={styles.readinessCheckIcon}
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>
+                      <strong>Ready to Publish:</strong> All question and timing criteria are
+                      satisfied for version {selectedVersion.version}.
+                    </span>
+                  </div>
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={handleSaveVersionSettings}
-                    isLoading={updateQuizVersionMutation.isPending}
+                    onClick={handlePublish}
+                    isLoading={publishVersionMutation.isPending}
                   >
-                    Save Time Limit
+                    Publish Version Live
                   </Button>
                 </div>
-              </div>
-            )}
-
-            {/* Publishing Readiness Banner for Draft */}
-            {isDraft && (
-              <div style={{ marginBottom: '16px' }}>
-                {publishingChecklist.isReady ? (
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      background: 'var(--color-success-bg, #f0fdf4)',
-                      border: '1px solid var(--color-success-border, #bbf7d0)',
-                      color: 'var(--color-success-text, #166534)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem' }}>
-                      <strong>✓ Ready to Publish:</strong> All question and timing criteria are satisfied for version {selectedVersion.version}.
-                    </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handlePublish}
-                      isLoading={publishVersionMutation.isPending}
+              ) : (
+                <div className={styles.readinessBlockersCard}>
+                  <div className={styles.readinessBlockersTitle}>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
                     >
-                      Publish Version Live
-                    </Button>
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>
+                      Publishing Readiness Blockers ({publishingChecklist.issues.length})
+                    </span>
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      background: 'var(--color-warning-bg, #fffbeb)',
-                      border: '1px solid var(--color-warning-border, #fef3c7)',
-                      color: 'var(--color-warning-text, #92400e)',
-                    }}
+                  <ul className={styles.readinessBlockersList}>
+                    {publishingChecklist.issues.map((iss) => (
+                      <li key={iss}>{iss}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isDraft ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* AI Question Generation Panel */}
+              <div className={styles.aiPanel}>
+                <div className={styles.aiPanelHeader}>
+                  <div className={styles.aiPanelTitleArea}>
+                    <h3 className={styles.aiPanelTitle}>AI Question Studio</h3>
+                    <p className={styles.aiPanelSubtitle}>
+                      Generate questions from topic concepts or PDF source documents, review and
+                      tune choices, then apply them to this draft version.
+                    </p>
+                  </div>
+                  <Button
+                    variant={showAiGenerator ? 'outline' : 'secondary'}
+                    size="sm"
+                    onClick={() => setShowAiGenerator((prev) => !prev)}
                   >
-                    <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '0.9rem' }}>
-                      ⚠️ Publishing Readiness Blockers ({publishingChecklist.issues.length})
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginRight: 6 }}
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                    {showAiGenerator ? 'Close Studio' : 'Generate with AI'}
+                  </Button>
+                </div>
+
+                {showAiGenerator && (
+                  <div className={styles.aiDrawer}>
+                    <div className={styles.aiModeSwitcher}>
+                      <Button
+                        variant={aiMode === 'topic' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setAiMode('topic')}
+                      >
+                        From Topic / Objective
+                      </Button>
+                      <Button
+                        variant={aiMode === 'pdf' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setAiMode('pdf')}
+                      >
+                        From PDF Document
+                      </Button>
                     </div>
-                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem' }}>
-                      {publishingChecklist.issues.map((iss) => (
-                        <li key={iss}>{iss}</li>
-                      ))}
-                    </ul>
+
+                    {aiMode === 'pdf' && (
+                      <div className={styles.fileInputWrapper}>
+                        <label className={styles.fieldLabel}>
+                          Source PDF Document (max 10 MB)
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={(e) => setAiPdfFile(e.target.files?.[0] ?? null)}
+                        />
+                      </div>
+                    )}
+
+                    <Input
+                      label={
+                        aiMode === 'pdf'
+                          ? 'Focus Topic (Optional)'
+                          : 'Topic or Learning Objective'
+                      }
+                      value={aiTopic}
+                      onChange={(e) => setAiTopic(e.target.value)}
+                      placeholder="e.g., Distributed Consensus, Raft Protocol, and State Machines"
+                    />
+
+                    <div className={styles.aiFormGrid}>
+                      <div className={styles.formField}>
+                        <label className={styles.fieldLabel}>Question Count (1–20)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={aiCount}
+                          onChange={(e) =>
+                            setAiCount(Math.min(20, Math.max(1, Number(e.target.value) || 5)))
+                          }
+                          className={styles.fieldInput}
+                        />
+                      </div>
+
+                      <div className={styles.formField}>
+                        <label className={styles.fieldLabel}>Target Difficulty</label>
+                        <select
+                          value={aiDifficulty}
+                          onChange={(e) => setAiDifficulty(e.target.value as DifficultyLevel)}
+                          className={styles.fieldSelect}
+                        >
+                          <option value={DifficultyLevel.EASY}>Easy</option>
+                          <option value={DifficultyLevel.MEDIUM}>Medium</option>
+                          <option value={DifficultyLevel.HARD}>Hard</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={styles.aiDrawerActions}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAiGenerator(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleStartAiGeneration}
+                        isLoading={generateAiMutation.isPending || generateAiPdfMutation.isPending}
+                      >
+                        Start Generation
+                      </Button>
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {isDraft ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* AI Question Generation & Review Panel */}
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: '10px',
-                    background: 'var(--color-bg-subtle, #f8fafc)',
-                    border: '1px solid var(--color-border, #e2e8f0)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 650, margin: 0 }}>
-                        AI Question Generation & Review
-                      </h3>
-                      <p
-                        style={{
-                          fontSize: '0.825rem',
-                          color: 'var(--color-text-secondary, #6b7280)',
-                          margin: '2px 0 0 0',
-                        }}
-                      >
-                        Generate questions asynchronously, review and edit them, then explicitly
-                        apply approved questions to this draft version.
-                      </p>
-                    </div>
-                    <Button
-                      variant={showAiGenerator ? 'outline' : 'secondary'}
-                      size="sm"
-                      onClick={() => setShowAiGenerator((prev) => !prev)}
-                    >
-                      {showAiGenerator ? 'Close Generator' : 'Generate with AI'}
-                    </Button>
-                  </div>
-
-                  {showAiGenerator && (
-                    <div
-                      style={{
-                        padding: '14px',
-                        borderRadius: '8px',
-                        background: 'var(--color-surface, #ffffff)',
-                        border: '1px solid var(--color-border, #cbd5e1)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <Button
-                          variant={aiMode === 'topic' ? 'primary' : 'outline'}
-                          size="sm"
-                          onClick={() => setAiMode('topic')}
-                        >
-                          From Topic / Prompt
-                        </Button>
-                        <Button
-                          variant={aiMode === 'pdf' ? 'primary' : 'outline'}
-                          size="sm"
-                          onClick={() => setAiMode('pdf')}
-                        >
-                          From PDF Document
-                        </Button>
-                      </div>
-
-                      {aiMode === 'pdf' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                            Source PDF File (max 10 MB)
-                          </label>
-                          <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={(e) => setAiPdfFile(e.target.files?.[0] ?? null)}
-                          />
-                        </div>
-                      )}
-
-                      <Input
-                        label={
-                          aiMode === 'pdf'
-                            ? 'Focus Topic (Optional)'
-                            : 'Topic or Learning Objective'
-                        }
-                        value={aiTopic}
-                        onChange={(e) => setAiTopic(e.target.value)}
-                        placeholder="e.g., Distributed Systems Consensus & Raft"
-                      />
-
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                          gap: '12px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                            Question Count (1–20)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            value={aiCount}
-                            onChange={(e) =>
-                              setAiCount(
-                                Math.min(20, Math.max(1, Number(e.target.value) || 5)),
-                              )
-                            }
-                            style={{
-                              padding: '8px 10px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--color-border, #cbd5e1)',
-                            }}
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                            Difficulty
-                          </label>
-                          <select
-                            value={aiDifficulty}
-                            onChange={(e) =>
-                              setAiDifficulty(e.target.value as DifficultyLevel)
-                            }
-                            style={{
-                              padding: '8px 10px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--color-border, #cbd5e1)',
-                            }}
-                          >
-                            <option value={DifficultyLevel.EASY}>Easy</option>
-                            <option value={DifficultyLevel.MEDIUM}>Medium</option>
-                            <option value={DifficultyLevel.HARD}>Hard</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowAiGenerator(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={handleStartAiGeneration}
-                          isLoading={
-                            generateAiMutation.isPending || generateAiPdfMutation.isPending
-                          }
-                        >
-                          Start AI Generation
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recent Generations for this Version */}
-                  {aiGenerations.filter((g) => g.targetVersionId === selectedVersion.id)
-                    .length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          color: 'var(--color-text-muted, #6b7280)',
-                        }}
-                      >
+                {/* Recent AI Generation Runs Feed */}
+                {aiGenerations.filter((g) => g.targetVersionId === selectedVersion.id).length >
+                  0 && (
+                    <div className={styles.aiRunsSection}>
+                      <div className={styles.aiRunsHeader}>
                         AI Generation Runs for Version {selectedVersion.version}
                       </div>
                       {aiGenerations
                         .filter((g) => g.targetVersionId === selectedVersion.id)
                         .map((gen) => (
-                          <div
-                            key={gen.generationId}
-                            style={{
-                              padding: '10px 14px',
-                              borderRadius: '8px',
-                              background: 'var(--color-surface, #ffffff)',
-                              border: '1px solid var(--color-border, #e2e8f0)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px',
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  flexWrap: 'wrap',
-                                }}
-                              >
-                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                                  {String(gen.promptParams?.topic || 'AI Question Set')}
+                          <div key={gen.generationId} className={styles.aiRunCard}>
+                            <div className={styles.aiRunInfo}>
+                              <div className={styles.aiRunTitleRow}>
+                                <span className={styles.aiRunTopic}>
+                                  {String(gen.promptParams?.topic || 'AI Question Batch')}
                                 </span>
-                                <Badge
-                                  size="sm"
-                                  variant={
-                                    gen.status === GenerationStatus.COMPLETED
-                                      ? 'success'
+                                <span
+                                  className={`${styles.statusPill} ${gen.status === GenerationStatus.COMPLETED
+                                      ? styles.badgeSuccess
                                       : gen.status === GenerationStatus.FAILED ||
-                                          gen.status === GenerationStatus.CANCELLED
-                                        ? 'danger'
-                                        : 'brand'
-                                  }
+                                        gen.status === GenerationStatus.CANCELLED
+                                        ? styles.badgeDanger
+                                        : styles.badgeBrand
+                                    }`}
                                 >
                                   {gen.status.toUpperCase()}
-                                </Badge>
+                                </span>
                                 {gen.reviewStatus && (
-                                  <Badge
-                                    size="sm"
-                                    variant={
-                                      gen.reviewStatus === GenerationReviewStatus.APPLIED
-                                        ? 'success'
+                                  <span
+                                    className={`${styles.statusPill} ${gen.reviewStatus === GenerationReviewStatus.APPLIED
+                                        ? styles.badgeSuccess
                                         : gen.reviewStatus === GenerationReviewStatus.REVIEWED
-                                          ? 'brand'
-                                          : 'warning'
-                                    }
+                                          ? styles.badgeBrand
+                                          : styles.badgeWarning
+                                      }`}
                                   >
                                     {gen.reviewStatus.replace('_', ' ').toUpperCase()}
-                                  </Badge>
+                                  </span>
                                 )}
                               </div>
-                              <span
-                                style={{
-                                  fontSize: '0.78rem',
-                                  color: 'var(--color-text-secondary, #6b7280)',
-                                }}
-                              >
-                                {gen.stageDescription}
-                              </span>
+                              <span className={styles.aiRunStage}>{gen.stageDescription}</span>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.aiRunActions}>
                               {gen.canCancel && (
                                 <Button
                                   variant="danger"
@@ -1022,7 +1061,7 @@ export default function CreatorQuizDetailPage() {
                                   {gen.isApplied
                                     ? 'View Applied Set'
                                     : gen.status === GenerationStatus.COMPLETED
-                                      ? 'Review & Apply Questions'
+                                      ? 'Review & Apply'
                                       : 'View Status'}
                                 </Button>
                               </Link>
@@ -1031,145 +1070,137 @@ export default function CreatorQuizDetailPage() {
                         ))}
                     </div>
                   )}
-                </div>
-
-                <QuestionEditor
-                  questions={draftQuestions}
-                  onChange={setDraftQuestions}
-                  onSave={handleSaveQuestions}
-                  isSaving={bulkSaveQuestionsMutation.isPending}
-                />
               </div>
-            ) : (
-              <div>
-                {/* Published Version Immutability Notice & Actions */}
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: 'var(--color-bg-subtle, #f8fafc)',
-                    border: '1px solid var(--color-border, #e2e8f0)',
-                    marginBottom: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary, #111827)' }}>
-                        Published Version (v{selectedVersion.version}) — Read-Only & Immutable
-                      </div>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '0.825rem', color: 'var(--color-text-secondary, #6b7280)' }}>
-                        This version is permanently locked to preserve grading integrity for historical attempts. To edit questions or adjust timing, create a new draft version.
-                      </p>
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {existingDraftVersion ? (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleSelectVersion(existingDraftVersion.id)}
-                        >
-                          Switch to Active Draft (v{existingDraftVersion.version})
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={handleCreateNewVersion}
-                          isLoading={createNewVersionMutation.isPending}
-                        >
-                          Create New Draft Version
-                        </Button>
-                      )}
+              {/* Draft Question Set Editor */}
+              <QuestionEditor
+                questions={draftQuestions}
+                onChange={setDraftQuestions}
+                onSave={handleSaveQuestions}
+                isSaving={bulkSaveQuestionsMutation.isPending}
+              />
+            </div>
+          ) : (
+            <div>
+              {/* Published Version Immutability Notice & Actions */}
+              <div className={styles.publishedNoticeCard}>
+                <div className={styles.publishedNoticeHeader}>
+                  <div>
+                    <div className={styles.publishedNoticeTitle}>
+                      Published Version (v{selectedVersion.version}) — Read-Only & Immutable
                     </div>
+                    <p className={styles.publishedNoticeText}>
+                      This assessment version is permanently locked to protect grading integrity for
+                      historical learner attempts. To edit questions or adjust timing, create a new
+                      draft version.
+                    </p>
                   </div>
 
-                  {isUuid(quizId) && isUuid(selectedVersion.id) && (
-                    <div style={{ paddingTop: '8px', borderTop: '1px solid var(--color-border, #e2e8f0)' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-                        Shareable Quiz Taker Link
-                      </div>
-                      <code style={{ fontSize: '0.875rem', color: 'var(--brand-700, #1d4ed8)', fontWeight: 600 }}>
+                  <div>
+                    {existingDraftVersion ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleSelectVersion(existingDraftVersion.id)}
+                      >
+                        Switch to Active Draft (v{existingDraftVersion.version})
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleCreateNewVersion}
+                        isLoading={createNewVersionMutation.isPending}
+                      >
+                        Create New Draft Version
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {isUuid(quizId) && isUuid(selectedVersion.id) && (
+                  <div className={styles.shareableLinkBox}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className={styles.shareableLinkLabel}>Direct Taker Link:</span>
+                      <code className={styles.shareableLinkCode}>
                         {window.location.origin}/quizzes/{quizId}/versions/{selectedVersion.id}
                       </code>
                     </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {(selectedVersion.questions || []).map((q, idx) => (
-                    <div
-                      key={q.id}
-                      style={{
-                        padding: '20px',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--color-surface)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '14px',
-                      }}
+                    <button
+                      type="button"
+                      className={styles.copyButton}
+                      onClick={() =>
+                        handleCopyLink(
+                          `${window.location.origin}/quizzes/${quizId}/versions/${selectedVersion.id}`,
+                        )
+                      }
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Badge variant="brand">Question {idx + 1}</Badge>
-                          <Badge variant="neutral" size="sm">{q.marks} Mark{q.marks > 1 ? 's' : ''}</Badge>
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', textTransform: 'capitalize' }}>
-                          {q.questionType.replace('_', ' ')}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Published Read-Only Questions List */}
+              <div className={styles.publishedQuestionsList} style={{ marginTop: 16 }}>
+                {(selectedVersion.questions || []).map((q, idx) => (
+                  <div key={q.id} className={styles.publishedQuestionCard}>
+                    <div className={styles.publishedCardHeader}>
+                      <div className={styles.publishedBadgeCluster}>
+                        <span className={`${styles.statusPill} ${styles.badgeBrand}`}>
+                          Question {idx + 1}
+                        </span>
+                        <span className={`${styles.statusPill} ${styles.badgeNeutral}`}>
+                          {q.marks} {q.marks === 1 ? 'Mark' : 'Marks'}
                         </span>
                       </div>
+                      <span className={styles.publishedQuestionType}>
+                        {q.questionType.replace('_', ' ')}
+                      </span>
+                    </div>
 
-                      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text-primary)', lineHeight: 1.45 }}>
-                        {q.text}
-                      </div>
+                    <div className={styles.publishedQuestionPrompt}>{q.text}</div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {q.options.map((opt, optIdx) => (
+                    <div className={styles.publishedOptionsList}>
+                      {q.options.map((opt, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        return (
                           <div
                             key={opt.id}
-                            style={{
-                              fontSize: '0.875rem',
-                              padding: '8px 12px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: opt.isCorrect
-                                ? '1px solid rgba(16, 185, 129, 0.35)'
-                                : '1px solid var(--color-border)',
-                              backgroundColor: opt.isCorrect
-                                ? 'rgba(16, 185, 129, 0.08)'
-                                : 'var(--color-surface)',
-                              color: 'var(--color-text-primary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px',
-                            }}
+                            className={`${styles.publishedOptionRow} ${opt.isCorrect ? styles.publishedOptionRowCorrect : ''
+                              }`}
                           >
                             <span
-                              style={{
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                                background: opt.isCorrect ? '#16a34a' : 'var(--color-surface-hover)',
-                                color: opt.isCorrect ? '#ffffff' : 'var(--color-text-secondary)',
-                              }}
+                              className={`${styles.optionPillIndicator} ${opt.isCorrect ? styles.optionPillCorrect : ''
+                                }`}
                             >
-                              {opt.isCorrect ? '✓ Correct' : String.fromCharCode(65 + optIdx)}
+                              {opt.isCorrect ? '✓ Correct' : letter}
                             </span>
-                            <span style={{ flex: 1 }}>{opt.text}</span>
+                            <span className={styles.optionTextSpan}>{opt.text}</span>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            )}
-          </CardBody>
-        </Card>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
